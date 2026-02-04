@@ -7,7 +7,7 @@ export const CONFIG = {
     // API Configuration
     API_BASE_URL: '/api',
     // Auto-detect environment: use real APIs in production, mock in localhost
-    USE_MOCK_DATA: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    USE_MOCK_DATA: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
 
     // Timeouts & Intervals
     API_TIMEOUT: 30000,                 // 30 seconds
