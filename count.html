@@ -27,35 +27,90 @@
             padding: 60px 80px;
             text-align: center;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 800px;
+            max-width: 900px;
             width: 100%;
         }
 
-        .module-name {
-            font-size: 1.5rem;
-            color: #666;
+        .event-header {
+            margin-bottom: 40px;
+        }
+
+        .event-code {
+            font-size: 1.8rem;
+            color: #333;
+            font-weight: 600;
             margin-bottom: 10px;
-            font-weight: 500;
+        }
+
+        .total-count-section {
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid #f0f0f0;
         }
 
         .count-label {
-            font-size: 1.25rem;
+            font-size: 1.1rem;
             color: #999;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             text-transform: uppercase;
             letter-spacing: 2px;
         }
 
-        .count-display {
-            font-size: 8rem;
+        .total-count {
+            font-size: 6rem;
             font-weight: 700;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin: 30px 0;
+            margin: 20px 0;
             line-height: 1;
             animation: pulse 2s ease-in-out infinite;
+        }
+
+        .modules-section {
+            margin: 30px 0;
+        }
+
+        .module-card {
+            background: #f8f9ff;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .module-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .module-info {
+            text-align: left;
+            flex: 1;
+        }
+
+        .module-name {
+            font-size: 1.2rem;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .module-speaker {
+            font-size: 0.95rem;
+            color: #666;
+        }
+
+        .module-count {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #667eea;
+            min-width: 80px;
+            text-align: right;
         }
 
         @keyframes pulse {
@@ -219,14 +274,27 @@
 
         <div id="countDisplay" style="display: none;">
             <div class="feedback-icon">💬</div>
-            <div class="module-name" id="moduleName">Module Name</div>
-            <div class="count-label">Feedback Submissions</div>
-            <div class="count-display" id="feedbackCount">0</div>
-            <div class="status-indicator">
-                <div class="status-dot"></div>
-                <span>Live Updates Active</span>
+
+            <div class="event-header">
+                <div class="event-code" id="eventCodeDisplay">Event Code</div>
             </div>
-            <div class="last-updated">Last updated: <span id="lastUpdated">-</span></div>
+
+            <div class="total-count-section">
+                <div class="count-label">Total Feedback Submissions</div>
+                <div class="total-count" id="totalCount">0</div>
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span>Live Updates Active</span>
+                </div>
+                <div class="last-updated">Last updated: <span id="lastUpdated">-</span></div>
+            </div>
+
+            <div class="modules-section">
+                <div class="count-label" style="margin-bottom: 20px;">Per-Module Breakdown</div>
+                <div id="modulesContainer">
+                    <!-- Module cards will be inserted here -->
+                </div>
+            </div>
 
             <div class="qr-section">
                 <div class="qr-label">Scan to Submit Feedback</div>

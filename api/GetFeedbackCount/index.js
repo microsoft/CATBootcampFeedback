@@ -2,7 +2,7 @@
  * Get Feedback Count for Event (Live Counter)
  * GET /api/events/{code}/count
  *
- * Returns event details, module info, and feedback count
+ * Returns event details with per-module feedback counts
  * Used by the live counter display
  */
 
@@ -19,52 +19,75 @@ module.exports = async function (context, req) {
             return;
         }
 
-        // Get event, module details, and feedback count
-        const result = await query(`
+        // Get event details
+        const eventResult = await query(`
             SELECT
                 e.EventId,
                 e.EventCode,
-                e.ModuleId,
-                m.ModuleName,
-                m.SpeakerName,
                 e.StartDate,
                 e.EndDate,
-                e.CohortId,
-                COUNT(f.FeedbackId) AS FeedbackCount,
-                AVG(CAST(f.SpeakerKnowledge AS FLOAT)) AS AvgSpeakerKnowledge,
-                AVG(CAST(f.ModuleSatisfaction AS FLOAT)) AS AvgModuleSatisfaction,
-                MAX(f.SubmittedAt) AS LastSubmittedAt
+                e.CohortId
             FROM Events e
-            INNER JOIN Modules m ON e.ModuleId = m.ModuleId
-            LEFT JOIN Feedback f ON e.EventId = f.EventId
-            WHERE e.EventCode = @eventCode AND e.IsActive = 1 AND m.IsActive = 1
-            GROUP BY e.EventId, e.EventCode, e.ModuleId, m.ModuleName, m.SpeakerName,
-                     e.StartDate, e.EndDate, e.CohortId
+            WHERE e.EventCode = @eventCode AND e.IsActive = 1
         `, { eventCode });
 
-        if (!result || result.length === 0) {
+        if (!eventResult || eventResult.length === 0) {
             context.res = error(404, 'Event not found or inactive', 'EVENT_NOT_FOUND');
             return;
         }
 
-        const data = result[0];
+        const event = eventResult[0];
+
+        // Get per-module feedback counts
+        const modulesResult = await query(`
+            SELECT
+                em.EventModuleId,
+                em.ModuleId,
+                m.ModuleName,
+                em.SpeakerName,
+                em.DeliveryOrder,
+                em.DeliveryDate,
+                COUNT(f.FeedbackId) AS FeedbackCount,
+                AVG(CAST(f.SpeakerKnowledge AS FLOAT)) AS AvgSpeakerKnowledge,
+                AVG(CAST(f.ModuleSatisfaction AS FLOAT)) AS AvgModuleSatisfaction,
+                MAX(f.SubmittedAt) AS LastSubmittedAt
+            FROM EventModules em
+            INNER JOIN Modules m ON em.ModuleId = m.ModuleId
+            LEFT JOIN Feedback f ON em.EventModuleId = f.EventModuleId
+            WHERE em.EventId = @eventId AND m.IsActive = 1
+            GROUP BY em.EventModuleId, em.ModuleId, m.ModuleName, em.SpeakerName,
+                     em.DeliveryOrder, em.DeliveryDate
+            ORDER BY em.DeliveryOrder ASC
+        `, { eventId: event.EventId });
+
+        // Calculate total feedback count
+        const totalCount = modulesResult.reduce((sum, m) => sum + (m.FeedbackCount || 0), 0);
+
+        // Format module data
+        const modules = modulesResult.map(m => ({
+            eventModuleId: m.EventModuleId,
+            moduleId: m.ModuleId,
+            moduleName: m.ModuleName,
+            speakerName: m.SpeakerName,
+            deliveryOrder: m.DeliveryOrder,
+            deliveryDate: m.DeliveryDate,
+            feedbackCount: m.FeedbackCount || 0,
+            averages: {
+                speakerKnowledge: m.AvgSpeakerKnowledge ? parseFloat(m.AvgSpeakerKnowledge.toFixed(2)) : null,
+                moduleSatisfaction: m.AvgModuleSatisfaction ? parseFloat(m.AvgModuleSatisfaction.toFixed(2)) : null
+            },
+            lastSubmittedAt: m.LastSubmittedAt
+        }));
 
         // Format response for live counter
         context.res = success({
-            eventCode: data.EventCode,
-            eventId: data.EventId,
-            moduleId: data.ModuleId,
-            moduleName: data.ModuleName,
-            speakerName: data.SpeakerName,
-            startDate: data.StartDate,
-            endDate: data.EndDate,
-            cohortId: data.CohortId,
-            count: data.FeedbackCount || 0,
-            averages: {
-                speakerKnowledge: data.AvgSpeakerKnowledge ? parseFloat(data.AvgSpeakerKnowledge.toFixed(2)) : null,
-                moduleSatisfaction: data.AvgModuleSatisfaction ? parseFloat(data.AvgModuleSatisfaction.toFixed(2)) : null
-            },
-            lastSubmittedAt: data.LastSubmittedAt
+            eventCode: event.EventCode,
+            eventId: event.EventId,
+            startDate: event.StartDate,
+            endDate: event.EndDate,
+            cohortId: event.CohortId,
+            totalCount: totalCount,
+            modules: modules
         });
     } catch (err) {
         context.log.error('Error in GetFeedbackCount:', err);

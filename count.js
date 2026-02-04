@@ -21,8 +21,9 @@ const loadingState = document.getElementById('loadingState');
 const countDisplay = document.getElementById('countDisplay');
 const errorState = document.getElementById('errorState');
 const errorMessage = document.getElementById('errorMessage');
-const feedbackCount = document.getElementById('feedbackCount');
-const moduleName = document.getElementById('moduleName');
+const eventCodeDisplay = document.getElementById('eventCodeDisplay');
+const totalCount = document.getElementById('totalCount');
+const modulesContainer = document.getElementById('modulesContainer');
 const lastUpdated = document.getElementById('lastUpdated');
 
 // Initialize
@@ -98,22 +99,46 @@ function mockLoadEventDetails(code) {
         setTimeout(() => {
             const mockEvents = {
                 'CSA1B2C3': {
-                    EventId: 1,
-                    EventCode: 'CSA1B2C3',
-                    ModuleName: 'Introduction to CAT Bootcamp',
-                    ModuleDate: '2026-02-15',
-                    SpeakerName: 'John Doe',
-                    CohortId: 'Q1-2026',
-                    IsActive: true
+                    eventId: 1,
+                    eventCode: 'CSA1B2C3',
+                    startDate: '2026-02-15',
+                    cohortId: 'Q1-2026',
+                    totalCount: 5,
+                    modules: [
+                        {
+                            eventModuleId: 1,
+                            moduleId: 1,
+                            moduleName: 'Introduction to CAT Bootcamp',
+                            speakerName: 'John Doe',
+                            deliveryOrder: 1,
+                            feedbackCount: 5
+                        }
+                    ]
                 },
                 'TEST123': {
-                    EventId: 2,
-                    EventCode: 'TEST123',
-                    ModuleName: 'Building Your First Copilot',
-                    ModuleDate: '2026-02-16',
-                    SpeakerName: 'Jane Smith',
-                    CohortId: 'Q1-2026',
-                    IsActive: true
+                    eventId: 2,
+                    eventCode: 'TEST123',
+                    startDate: '2026-02-16',
+                    cohortId: 'Q1-2026',
+                    totalCount: 8,
+                    modules: [
+                        {
+                            eventModuleId: 2,
+                            moduleId: 2,
+                            moduleName: 'Building Your First Copilot',
+                            speakerName: 'Jane Smith',
+                            deliveryOrder: 1,
+                            feedbackCount: 5
+                        },
+                        {
+                            eventModuleId: 3,
+                            moduleId: 3,
+                            moduleName: 'Advanced Copilot Features',
+                            speakerName: 'Bob Johnson',
+                            deliveryOrder: 2,
+                            feedbackCount: 3
+                        }
+                    ]
                 }
             };
 
@@ -125,12 +150,25 @@ function mockLoadEventDetails(code) {
 // Update feedback count
 async function updateCount() {
     try {
-        const count = await getFeedbackCount(eventCode);
+        const data = await getFeedbackCount(eventCode);
 
-        // Animate count change
-        const currentCount = parseInt(feedbackCount.textContent);
-        if (count !== currentCount) {
-            animateCount(currentCount, count);
+        // Update total count with animation
+        const currentTotal = parseInt(totalCount.textContent);
+        if (data.totalCount !== currentTotal) {
+            animateCount(totalCount, currentTotal, data.totalCount);
+        }
+
+        // Update module counts
+        if (data.modules && data.modules.length > 0) {
+            data.modules.forEach(module => {
+                const moduleCountEl = document.getElementById(`module-count-${module.eventModuleId}`);
+                if (moduleCountEl) {
+                    const currentModuleCount = parseInt(moduleCountEl.textContent);
+                    if (module.feedbackCount !== currentModuleCount) {
+                        animateCount(moduleCountEl, currentModuleCount, module.feedbackCount);
+                    }
+                }
+            });
         }
 
         // Update last updated time
@@ -154,10 +192,10 @@ async function getFeedbackCount(code) {
 
     try {
         const response = await apiGet(`/events/${code}/count`);
-        return response.count || response.data?.count || 0;
+        return response.data || response;
     } catch (error) {
         console.error('Error fetching count:', error);
-        return 0;
+        return { totalCount: 0, modules: [] };
     }
 }
 
@@ -167,12 +205,45 @@ function mockGetFeedbackCount(code) {
         // Get feedback from localStorage (for demo)
         const allFeedback = JSON.parse(localStorage.getItem('bootcampFeedback')) || [];
         const eventFeedback = allFeedback.filter(fb => fb.eventCode === code);
-        resolve(eventFeedback.length);
+
+        // Use the mock event data structure
+        const mockEvents = {
+            'CSA1B2C3': {
+                totalCount: eventFeedback.length,
+                modules: [
+                    {
+                        eventModuleId: 1,
+                        moduleName: 'Introduction to CAT Bootcamp',
+                        speakerName: 'John Doe',
+                        feedbackCount: eventFeedback.length
+                    }
+                ]
+            },
+            'TEST123': {
+                totalCount: eventFeedback.length,
+                modules: [
+                    {
+                        eventModuleId: 2,
+                        moduleName: 'Building Your First Copilot',
+                        speakerName: 'Jane Smith',
+                        feedbackCount: Math.floor(eventFeedback.length * 0.6)
+                    },
+                    {
+                        eventModuleId: 3,
+                        moduleName: 'Advanced Copilot Features',
+                        speakerName: 'Bob Johnson',
+                        feedbackCount: Math.ceil(eventFeedback.length * 0.4)
+                    }
+                ]
+            }
+        };
+
+        resolve(mockEvents[code] || { totalCount: 0, modules: [] });
     });
 }
 
 // Animate count change
-function animateCount(from, to) {
+function animateCount(element, from, to) {
     const duration = CONFIG.COUNT_ANIMATION_DURATION;
     const steps = 20;
     const stepDuration = duration / steps;
@@ -186,10 +257,10 @@ function animateCount(from, to) {
         current += increment;
 
         if (step >= steps) {
-            feedbackCount.textContent = to;
+            element.textContent = to;
             clearInterval(animation);
         } else {
-            feedbackCount.textContent = Math.round(current);
+            element.textContent = Math.round(current);
         }
     }, stepDuration);
 }
@@ -238,9 +309,28 @@ function showCountDisplay() {
     errorState.style.display = 'none';
     countDisplay.style.display = 'block';
 
-    // API returns PascalCase (ModuleName), handle both cases for compatibility
-    const moduleNameText = currentEvent.ModuleName || currentEvent.moduleName || 'Unknown Module';
-    moduleName.textContent = escapeHtml(moduleNameText);
+    // Display event code
+    const eventCodeText = currentEvent.EventCode || currentEvent.eventCode || eventCode;
+    eventCodeDisplay.textContent = `Event: ${escapeHtml(eventCodeText)}`;
+
+    // Display initial counts
+    totalCount.textContent = currentEvent.totalCount || 0;
+
+    // Render module cards
+    const modules = currentEvent.modules || [];
+    if (modules.length > 0) {
+        modulesContainer.innerHTML = modules.map(module => `
+            <div class="module-card">
+                <div class="module-info">
+                    <div class="module-name">${escapeHtml(module.moduleName)}</div>
+                    <div class="module-speaker">👤 ${escapeHtml(module.speakerName)}</div>
+                </div>
+                <div class="module-count" id="module-count-${module.eventModuleId}">${module.feedbackCount || 0}</div>
+            </div>
+        `).join('');
+    } else {
+        modulesContainer.innerHTML = '<p style="color: #666;">No modules for this event yet.</p>';
+    }
 }
 
 // Show error
