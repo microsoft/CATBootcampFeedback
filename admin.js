@@ -800,7 +800,7 @@ async function viewEventDetails(eventId) {
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
                 <h2>Event Details: ${escapeHtml(event.eventCode)}</h2>
-                <button class="modal-close" onclick="closeEventDetailsModal()">&times;</button>
+                <button class="modal-close" id="closeEventDetailsBtn">&times;</button>
             </div>
             <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                 <div style="margin-bottom: 20px;">
@@ -845,10 +845,10 @@ async function viewEventDetails(eventId) {
                         </div>
                     </div>
                     <div style="text-align: center; margin-top: 16px;">
-                        <button class="btn btn-primary" onclick="downloadQRCode('${event.eventCode}')">
+                        <button class="btn btn-primary" id="downloadQRBtn" data-event-code="${event.eventCode}">
                             📥 Download QR Code
                         </button>
-                        <button class="btn btn-secondary" onclick="copyFeedbackUrl('${feedbackUrl}')">
+                        <button class="btn btn-secondary" id="copyUrlBtn" data-feedback-url="${escapeHtml(feedbackUrl)}">
                             📋 Copy URL
                         </button>
                     </div>
@@ -859,6 +859,11 @@ async function viewEventDetails(eventId) {
 
     document.body.appendChild(modal);
     modal.style.display = 'flex';
+
+    // Add event listeners for modal buttons
+    document.getElementById('closeEventDetailsBtn').addEventListener('click', closeEventDetailsModal);
+    document.getElementById('downloadQRBtn').addEventListener('click', () => downloadQRCode(event.eventCode));
+    document.getElementById('copyUrlBtn').addEventListener('click', () => copyFeedbackUrl(feedbackUrl));
 
     // Generate QR code
     setTimeout(() => {
