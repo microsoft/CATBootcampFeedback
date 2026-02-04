@@ -8,7 +8,6 @@
  */
 
 const { app } = require('@azure/functions');
-const { success, error } = require('../shared/utils');
 
 // Hardcoded credentials for demo
 // In production, validate against database or Azure AD
@@ -17,6 +16,12 @@ const VALID_CREDENTIALS = [
         username: 'admin',
         password: 'CATBootcamp2026!',
         fullName: 'Admin User',
+        role: 'admin'
+    },
+    {
+        username: 'dewainr',
+        password: 'CATBootcamp2026!',
+        fullName: 'Dewain Robinson',
         role: 'admin'
     }
 ];
@@ -27,18 +32,22 @@ app.http('login', {
     route: 'login',
     handler: async (request, context) => {
         try {
-            // In V4, request body is available as request.body
+            context.log('Login request received');
+
+            // Parse request body
             const body = await request.json();
-            context.log('Request body:', body);
+            context.log('Parsed body:', JSON.stringify(body));
 
             const { username, password } = body;
 
             if (!username || !password) {
-                const errorResponse = error(400, 'Username and password are required', 'INVALID_INPUT');
+                context.log('Missing credentials');
                 return {
-                    status: errorResponse.status,
-                    headers: errorResponse.headers,
-                    jsonBody: errorResponse.body
+                    status: 400,
+                    jsonBody: {
+                        success: false,
+                        message: 'Username and password are required'
+                    }
                 };
             }
 
@@ -48,39 +57,42 @@ app.http('login', {
             );
 
             if (user) {
+                context.log('Login successful for:', username);
+
                 // Generate simple token (in production, use JWT)
                 const token = 'token-' + Date.now() + '-' + Math.random().toString(36).substring(7);
 
-                const response = success({
-                    success: true,
-                    token: token,
-                    user: {
-                        username: user.username,
-                        fullName: user.fullName,
-                        role: user.role
-                    }
-                });
-
                 return {
-                    status: response.status,
-                    headers: response.headers,
-                    jsonBody: response.body
+                    status: 200,
+                    jsonBody: {
+                        success: true,
+                        token: token,
+                        user: {
+                            username: user.username,
+                            fullName: user.fullName,
+                            role: user.role
+                        }
+                    }
                 };
             } else {
-                const errorResponse = error(401, 'Invalid username or password', 'INVALID_CREDENTIALS');
+                context.log('Invalid credentials for:', username);
                 return {
-                    status: errorResponse.status,
-                    headers: errorResponse.headers,
-                    jsonBody: errorResponse.body
+                    status: 401,
+                    jsonBody: {
+                        success: false,
+                        message: 'Invalid username or password'
+                    }
                 };
             }
         } catch (err) {
-            context.log('Login error:', err);
-            const errorResponse = error(500, 'Login failed', 'SERVER_ERROR');
+            context.log('Login error:', err.message);
+            context.log('Error stack:', err.stack);
             return {
-                status: errorResponse.status,
-                headers: errorResponse.headers,
-                jsonBody: errorResponse.body
+                status: 500,
+                jsonBody: {
+                    success: false,
+                    message: 'Login failed: ' + err.message
+                }
             };
         }
     }
