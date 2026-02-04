@@ -105,6 +105,37 @@ function setupEventListeners() {
     // Event details modal
     document.getElementById('closeDetailsModal').addEventListener('click', closeEventDetailsModal);
 
+    // Module and Event action buttons (using event delegation)
+    document.addEventListener('click', (e) => {
+        const target = e.target.closest('button');
+        if (!target) return;
+
+        // Handle module buttons
+        const moduleId = parseInt(target.dataset.moduleId);
+        if (moduleId) {
+            if (target.classList.contains('btn-create-event-for-module')) {
+                createEventForModule(moduleId);
+            } else if (target.classList.contains('btn-edit-module')) {
+                editModule(moduleId);
+            } else if (target.classList.contains('btn-toggle-module-status')) {
+                toggleModuleStatus(moduleId);
+            }
+            return;
+        }
+
+        // Handle event buttons
+        const eventId = parseInt(target.dataset.eventId);
+        if (eventId) {
+            if (target.classList.contains('btn-view-details')) {
+                viewEventDetails(eventId);
+            } else if (target.classList.contains('btn-edit-event')) {
+                editEvent(eventId);
+            } else if (target.classList.contains('btn-toggle-status')) {
+                toggleEventStatus(eventId);
+            }
+        }
+    });
+
     // Feedback tab
     document.getElementById('exportFeedbackBtn').addEventListener('click', exportFeedbackToCSV);
     document.getElementById('filterEvent').addEventListener('change', filterFeedback);
@@ -376,13 +407,13 @@ function renderModules(modules) {
                 </div>
             </div>
             <div class="event-actions">
-                <button class="btn btn-primary btn-icon" onclick="createEventForModule(${module.moduleId})">
+                <button class="btn btn-primary btn-icon btn-create-event-for-module" data-module-id="${module.moduleId}">
                     ➕ Create Event
                 </button>
-                <button class="btn btn-secondary btn-icon" onclick="editModule(${module.moduleId})">
+                <button class="btn btn-secondary btn-icon btn-edit-module" data-module-id="${module.moduleId}">
                     ✏️ Edit
                 </button>
-                <button class="btn btn-secondary btn-icon" onclick="toggleModuleStatus(${module.moduleId})">
+                <button class="btn btn-secondary btn-icon btn-toggle-module-status" data-module-id="${module.moduleId}" data-is-active="${module.isActive}">
                     ${module.isActive ? '🚫 Deactivate' : '✅ Activate'}
                 </button>
             </div>
@@ -704,13 +735,13 @@ function renderEvents(events) {
             </div>
             ` : ''}
             <div class="event-actions">
-                <button class="btn btn-primary btn-icon" onclick="viewEventDetails(${event.eventId})">
+                <button class="btn btn-primary btn-icon btn-view-details" data-event-id="${event.eventId}">
                     📋 View Details & QR
                 </button>
-                <button class="btn btn-secondary btn-icon" onclick="editEvent(${event.eventId})">
+                <button class="btn btn-secondary btn-icon btn-edit-event" data-event-id="${event.eventId}">
                     ✏️ Edit
                 </button>
-                <button class="btn btn-secondary btn-icon" onclick="toggleEventStatus(${event.eventId})">
+                <button class="btn btn-secondary btn-icon btn-toggle-status" data-event-id="${event.eventId}" data-is-active="${event.isActive}">
                     ${event.isActive ? '🚫 Deactivate' : '✅ Activate'}
                 </button>
             </div>
