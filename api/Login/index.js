@@ -41,8 +41,14 @@ module.exports = async function (context, req) {
     }
 
     try {
+        // Debug logging
+        context.log('Request method:', req.method);
+        context.log('Request body type:', typeof req.body);
+        context.log('Request body:', JSON.stringify(req.body));
+        context.log('Request rawBody:', req.rawBody);
+
         // Parse request body
-        const { username, password } = req.body;
+        const { username, password} = req.body || {};
 
         context.log(`Login attempt for username: ${username}`);
 
