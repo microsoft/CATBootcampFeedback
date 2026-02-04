@@ -1,6 +1,7 @@
 // Configuration
-const API_BASE_URL = '/api'; // Change to actual API URL in production
-const USE_MOCK_DATA = true; // Set to false when connecting to real API
+const API_BASE_URL = '/api';
+// Auto-detect environment - use real API in production
+const USE_MOCK_DATA = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const FEEDBACK_BASE_URL = window.location.origin + '/feedback.html';
 
 // Global state
