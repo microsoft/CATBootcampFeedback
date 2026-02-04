@@ -356,6 +356,7 @@ function openEventModal(eventId = null) {
         if (event) {
             modalTitle.textContent = 'Edit Event';
             document.getElementById('eventId').value = event.eventId;
+            document.getElementById('eventCode').value = event.eventCode;
             document.getElementById('moduleName').value = event.moduleName;
             document.getElementById('moduleDate').value = event.moduleDate;
             document.getElementById('speakerName').value = event.speakerName;
@@ -385,6 +386,7 @@ async function handleSaveEvent(e) {
 
     const formData = {
         eventId: document.getElementById('eventId').value || null,
+        eventCode: document.getElementById('eventCode').value,
         moduleName: document.getElementById('moduleName').value,
         moduleDate: document.getElementById('moduleDate').value,
         speakerName: document.getElementById('speakerName').value,
@@ -443,11 +445,11 @@ function mockSaveEvent(data) {
                     allEvents[index] = { ...allEvents[index], ...data };
                 }
             } else {
-                // Create new
+                // Create new - use admin-provided event code
                 const newEvent = {
                     ...data,
                     eventId: Date.now(),
-                    eventCode: generateEventCode(),
+                    eventCode: data.eventCode,  // Use admin-provided code, not generated
                     createdAt: new Date().toISOString(),
                     feedbackCount: 0
                 };

@@ -55,7 +55,7 @@ async function initializeForm() {
 
     // Validate event code format
     if (!InputSanitizer.validateEventCode(eventCode)) {
-        showError('Invalid event code format. Please check your feedback link.');
+        showError('Not a valid event code.');
         return;
     }
 
@@ -71,7 +71,7 @@ async function initializeForm() {
             showForm();
             setupFormListeners();
         } else {
-            showError('The feedback link appears to be invalid or expired.');
+            showError('Not a valid event code.');
         }
     } catch (error) {
         console.error('Error loading event:', error);

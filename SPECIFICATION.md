@@ -17,21 +17,25 @@ The system consists of two main components:
   - Participants provide feedback about the module's quality and effectiveness
 
 - **Event**: The mechanism for collecting feedback about a module
-  - Generates a unique event code (e.g., "CSA1B2C3")
-  - Creates a feedback URL: `feedback.html?code=CSA1B2C3`
+  - Admin provides a unique event code (e.g., "CSA1B2C3")
+  - System creates a feedback URL: `feedback.html?code=CSA1B2C3`
   - The event code is embedded in the URL and captured with feedback submissions
-  - Each event has an associated QR code for easy access
+  - System generates a QR code for the feedback URL
+  - Invalid event codes in URLs display an error: "Not a valid event code"
 
 **Flow:**
 1. Admin creates a **module** (with name, date, speaker)
-2. System generates an **event** with a unique code
-3. Event creates a feedback URL containing the event code
-4. Participants scan QR code or use URL to submit feedback **about the module**
-5. Event code from URL is automatically captured with the feedback data
+2. Admin provides an **event code** for the module
+3. System creates a feedback URL containing the event code
+4. System generates a QR code for easy access
+5. Participants scan QR code or use URL to submit feedback **about the module**
+6. If event code in URL is invalid, user sees error: "Not a valid event code"
+7. Valid submissions automatically capture the event code from the URL
 
 **In the Admin Interface:**
 - Create and manage **modules** (the training content)
-- Generate **events** (feedback collection mechanisms with codes and URLs)
+- Specify **event codes** for each module (admin-provided, not auto-generated)
+- System generates feedback URLs and QR codes using the provided event codes
 - View feedback collected **for each module** via its event code
 
 ## Core Requirements
@@ -81,11 +85,12 @@ Each feedback submission should be associated with:
 1. As a bootcamp participant, I want to provide feedback on a module via a simple URL/QR code so that I can quickly share my thoughts
 2. As a bootcamp organizer, I want to collect standardized feedback so that I can measure module effectiveness
 3. As an instructor, I want to receive constructive feedback so that I can improve my delivery
-4. As an admin, I want to create modules and generate events with unique URLs/QR codes for collecting feedback
+4. As an admin, I want to create modules and provide event codes for collecting feedback
    - Create a module (training session with name, date, speaker)
-   - System generates an event code
+   - Provide a unique event code (e.g., "CSA1B2C3")
    - System creates a feedback URL with the event code embedded
    - System generates a QR code for easy access to the feedback form
+   - Invalid event codes in URLs show error: "Not a valid event code"
 5. As an admin, I want to view and manage all feedback submissions for each module in one place
 
 ### Key Features
@@ -103,12 +108,15 @@ Each feedback submission should be associated with:
 #### Admin Interface
 - **Module Management**: Create, edit, and manage bootcamp modules (training sessions)
   - Module details: name, date, speaker, cohort
-  - Each module automatically gets an event code for feedback collection
-- **Event Code Generation**: System generates unique event codes for each module
-- **Feedback URL Creation**: Generate URLs with embedded event codes (e.g., `feedback.html?code=CSA1B2C3`)
-- **QR Code Generation**: Automatically generate QR codes for feedback URLs
+  - Admin provides a unique event code for each module
+- **Event Code Input**: Admin specifies event code when creating a module (e.g., "CSA1B2C3")
+  - Format validation: Typically 8 characters, starts with "CS"
+  - Event codes are admin-provided, not auto-generated
+- **Feedback URL Creation**: System generates URLs with the admin-provided event codes (e.g., `feedback.html?code=CSA1B2C3`)
+- **QR Code Generation**: System automatically generates QR codes for feedback URLs
   - QR codes link to the feedback form with the module's event code
   - Participants scan to provide feedback about the module
+- **Error Handling**: Invalid event codes in feedback URLs display: "Not a valid event code"
 - **Event Deletion**: Delete modules/events with cascade deletion of all associated feedback (requires confirmation)
 - **Feedback Viewing**: View all submitted feedback for each module, filtered by event code
 - **Analytics Dashboard**: View summary statistics and trends per module
