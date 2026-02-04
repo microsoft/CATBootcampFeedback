@@ -10,15 +10,95 @@ const { query } = require('../shared/database');
 const { success, error } = require('../shared/utils');
 
 app.http('events', {
-    methods: ['GET'],
+    methods: ['GET', 'POST'],
     authLevel: 'anonymous',
     route: 'events',
     handler: async (request, context) => {
         try {
-            // Get all events
+            if (request.method === 'POST') {
+                // Create new event
+                const bodyText = await request.text();
+                const body = JSON.parse(bodyText);
+                const { eventName, eventCode, startDate, endDate, cohortId, isActive = true } = body;
+
+                // Validate required fields
+                if (!eventName || !eventCode || !startDate) {
+                    const errorResponse = error(400, 'Event name, event code, and start date are required', 'INVALID_DATA');
+                    return {
+                        status: errorResponse.status,
+                        headers: errorResponse.headers,
+                        body: errorResponse.body
+                    };
+                }
+
+                // Validate event code format
+                if (!/^CS[A-Z0-9]{6}$/.test(eventCode)) {
+                    const errorResponse = error(400, 'Event code must be 8 characters starting with CS followed by 6 alphanumeric characters', 'INVALID_DATA');
+                    return {
+                        status: errorResponse.status,
+                        headers: errorResponse.headers,
+                        body: errorResponse.body
+                    };
+                }
+
+                // Check if event code already exists
+                const existing = await query(
+                    'SELECT EventId FROM Events WHERE EventCode = @eventCode',
+                    { eventCode }
+                );
+
+                if (existing.length > 0) {
+                    const errorResponse = error(400, 'Event code already exists', 'DUPLICATE_CODE');
+                    return {
+                        status: errorResponse.status,
+                        headers: errorResponse.headers,
+                        body: errorResponse.body
+                    };
+                }
+
+                // Insert event
+                const result = await query(`
+                    INSERT INTO Events (EventName, EventCode, StartDate, EndDate, CohortId, IsActive, CreatedAt, CreatedBy)
+                    OUTPUT INSERTED.EventId, INSERTED.EventName, INSERTED.EventCode,
+                           INSERTED.StartDate, INSERTED.EndDate, INSERTED.CohortId,
+                           INSERTED.IsActive, INSERTED.CreatedAt
+                    VALUES (@eventName, @eventCode, @startDate, @endDate, @cohortId, @isActive, GETDATE(), @createdBy)
+                `, {
+                    eventName: eventName.trim(),
+                    eventCode: eventCode.trim().toUpperCase(),
+                    startDate: startDate,
+                    endDate: endDate || null,
+                    cohortId: cohortId ? cohortId.trim() : null,
+                    isActive: isActive ? 1 : 0,
+                    createdBy: 'admin'
+                });
+
+                const createdEvent = result[0];
+
+                const response = success({
+                    message: 'Event created successfully',
+                    eventId: createdEvent.EventId,
+                    eventName: createdEvent.EventName,
+                    eventCode: createdEvent.EventCode,
+                    startDate: createdEvent.StartDate,
+                    endDate: createdEvent.EndDate,
+                    cohortId: createdEvent.CohortId,
+                    isActive: createdEvent.IsActive,
+                    createdAt: createdEvent.CreatedAt
+                }, 201);
+
+                return {
+                    status: response.status,
+                    headers: response.headers,
+                    body: response.body
+                };
+            }
+
+            // GET all events
             const events = await query(`
                 SELECT
                     e.EventId,
+                    e.EventName,
                     e.EventCode,
                     e.StartDate,
                     e.EndDate,
@@ -30,7 +110,7 @@ app.http('events', {
                 FROM Events e
                 LEFT JOIN Feedback f ON e.EventId = f.EventId
                 GROUP BY
-                    e.EventId, e.EventCode, e.StartDate, e.EndDate, e.CohortId,
+                    e.EventId, e.EventName, e.EventCode, e.StartDate, e.EndDate, e.CohortId,
                     e.IsActive, e.CreatedAt, e.CreatedBy
                 ORDER BY e.CreatedAt DESC
             `);
@@ -56,6 +136,7 @@ app.http('events', {
 
                     return {
                         eventId: event.EventId,
+                        eventName: event.EventName,
                         eventCode: event.EventCode,
                         startDate: event.StartDate,
                         endDate: event.EndDate,

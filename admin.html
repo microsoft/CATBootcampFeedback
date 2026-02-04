@@ -216,6 +216,13 @@
                 </div>
                 <form id="eventForm">
                     <div class="form-group">
+                        <label for="eventName">Event Name <span class="required">*</span></label>
+                        <input type="text" id="eventName" name="eventName" required
+                               placeholder="e.g., Cloud Adoption Training - January 2026"
+                               maxlength="200">
+                        <small class="form-help">Descriptive name for this event</small>
+                    </div>
+                    <div class="form-group">
                         <label for="eventCode">Event Code <span class="required">*</span></label>
                         <input type="text" id="eventCode" name="eventCode" required
                                placeholder="e.g., CSA1B2C3"
@@ -225,12 +232,12 @@
                         <small class="form-help">8 characters: CS followed by 6 alphanumeric characters</small>
                     </div>
                     <div class="form-group">
-                        <label for="startDate">Start Date & Time <span class="required">*</span></label>
-                        <input type="datetime-local" id="startDate" name="startDate" required>
+                        <label for="startDate">Start Date <span class="required">*</span></label>
+                        <input type="date" id="startDate" name="startDate" required>
                     </div>
                     <div class="form-group">
-                        <label for="endDate">End Date & Time</label>
-                        <input type="datetime-local" id="endDate" name="endDate">
+                        <label for="endDate">End Date</label>
+                        <input type="date" id="endDate" name="endDate">
                         <small class="form-help">Optional - leave blank if same day as start</small>
                     </div>
                     <div class="form-group">

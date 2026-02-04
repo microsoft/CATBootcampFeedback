@@ -1083,9 +1083,10 @@ async function openEventModal(eventId = null, preSelectedModuleId = null) {
         if (event) {
             modalTitle.textContent = 'Edit Event';
             document.getElementById('eventId').value = event.eventId;
+            document.getElementById('eventName').value = event.eventName || '';
             document.getElementById('eventCode').value = event.eventCode;
-            document.getElementById('startDate').value = formatDateTimeForInput(event.startDate);
-            document.getElementById('endDate').value = event.endDate ? formatDateTimeForInput(event.endDate) : '';
+            document.getElementById('startDate').value = formatDateForInput(event.startDate);
+            document.getElementById('endDate').value = event.endDate ? formatDateForInput(event.endDate) : '';
             document.getElementById('cohortId').value = event.cohortId || '';
             document.getElementById('eventIsActive').checked = event.isActive;
 
@@ -1100,10 +1101,10 @@ async function openEventModal(eventId = null, preSelectedModuleId = null) {
         // Hide modules section for new events
         modulesSection.style.display = 'none';
 
-        // Set default start date to now
+        // Set default start date to today
         const now = new Date();
-        const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-        document.getElementById('startDate').value = localDateTime;
+        const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+        document.getElementById('startDate').value = localDate;
         document.getElementById('eventIsActive').checked = true;
     }
 
@@ -1132,6 +1133,13 @@ function formatDateTimeForInput(dateString) {
     return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 
+// Format date for input (date type, YYYY-MM-DD)
+function formatDateForInput(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
 // Close event modal
 function closeEventModal() {
     document.getElementById('eventModal').classList.add('hidden');
@@ -1143,6 +1151,7 @@ async function handleSaveEvent(e) {
 
     const formData = {
         eventId: document.getElementById('eventId').value || null,
+        eventName: document.getElementById('eventName').value,
         eventCode: document.getElementById('eventCode').value,
         startDate: document.getElementById('startDate').value,
         endDate: document.getElementById('endDate').value || null,

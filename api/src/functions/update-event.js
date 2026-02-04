@@ -29,11 +29,11 @@ app.http('updateEvent', {
             // Parse request body
             const bodyText = await request.text();
             const body = JSON.parse(bodyText);
-            const { eventCode, startDate, endDate, cohortId, isActive } = body;
+            const { eventName, eventCode, startDate, endDate, cohortId, isActive } = body;
 
             // Validate required fields
-            if (!eventCode || !startDate) {
-                const errorResponse = error(400, 'Event code and start date are required', 'INVALID_DATA');
+            if (!eventName || !eventCode || !startDate) {
+                const errorResponse = error(400, 'Event name, event code, and start date are required', 'INVALID_DATA');
                 return {
                     status: errorResponse.status,
                     headers: errorResponse.headers,
@@ -74,7 +74,8 @@ app.http('updateEvent', {
             // Update event
             await query(`
                 UPDATE Events
-                SET EventCode = @eventCode,
+                SET EventName = @eventName,
+                    EventCode = @eventCode,
                     StartDate = @startDate,
                     EndDate = @endDate,
                     CohortId = @cohortId,
@@ -82,6 +83,7 @@ app.http('updateEvent', {
                 WHERE EventId = @eventId
             `, {
                 eventId: parseInt(eventId),
+                eventName: eventName.trim(),
                 eventCode: eventCode.trim(),
                 startDate: startDate,
                 endDate: endDate || null,
