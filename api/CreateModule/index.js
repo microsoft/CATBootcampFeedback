@@ -49,9 +49,18 @@ module.exports = async function (context, req) {
             createdBy: 'admin' // TODO: Get from auth context
         });
 
+        const createdModule = result[0];
+
         context.res = success({
             message: 'Module created successfully',
-            module: result[0]
+            module: {
+                moduleId: createdModule.ModuleId,
+                moduleName: createdModule.ModuleName,
+                speakerName: createdModule.SpeakerName,
+                description: createdModule.Description,
+                isActive: createdModule.IsActive,
+                createdAt: createdModule.CreatedAt
+            }
         }, 201);
 
     } catch (err) {

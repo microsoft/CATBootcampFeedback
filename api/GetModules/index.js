@@ -43,9 +43,17 @@ module.exports = async function (context, req) {
                 `, { moduleId: module.ModuleId });
 
                 return {
-                    ...module,
+                    moduleId: module.ModuleId,
+                    moduleName: module.ModuleName,
+                    speakerName: module.SpeakerName,
+                    description: module.Description,
+                    isActive: module.IsActive,
+                    createdAt: module.CreatedAt,
+                    createdBy: module.CreatedBy,
+                    updatedAt: module.UpdatedAt,
+                    updatedBy: module.UpdatedBy,
                     eventCount: eventCount[0]?.EventCount || 0,
-                    totalFeedbackCount: feedbackCount[0]?.FeedbackCount || 0
+                    feedbackCount: feedbackCount[0]?.FeedbackCount || 0
                 };
             })
         );
