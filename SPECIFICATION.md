@@ -394,11 +394,39 @@ function generateEventCode() {
 }
 ```
 
+### Rate Limiting Configuration
+
+The application implements client-side rate limiting to prevent abuse and enhance security:
+
+#### Admin Login Rate Limiting
+- **Maximum Attempts**: 5 failed login attempts
+- **Time Window**: 5 minutes (300,000 ms)
+- **Behavior**: After 5 failed attempts, user must wait until the oldest attempt expires from the 5-minute window
+- **Storage**: Uses localStorage with key `rateLimiter_login`
+- **Configuration**: `MAX_LOGIN_ATTEMPTS: 5`, `LOGIN_COOLDOWN_MS: 300000`
+
+#### Feedback Submission Rate Limiting
+- **Maximum Submissions**: **UNLIMITED** (disabled for high-volume events)
+- **Rationale**: Events may have hundreds of participants submitting feedback simultaneously
+- **Behavior**: No rate limiting applied to feedback submissions
+- **Storage**: Not applicable (rate limiting disabled)
+- **Configuration**: `MAX_SUBMISSIONS_PER_EVENT: 0` (0 = unlimited)
+- **Note**: Set to 0 to support large-scale events with many participants
+- **Server-side Protection**: Should be implemented at API/database level if spam becomes an issue
+
+#### Implementation Details
+- **Client-Side Only**: Current implementation is client-side (can be bypassed)
+- **Server-Side Recommendation**: Should be complemented with server-side rate limiting
+- **Azure SQL Rate Limiting**: IP-based rate limiting can be tracked in database using `IX_Feedback_IpAddress_SubmittedAt` index
+- **User Experience**: Shows friendly messages with time remaining (e.g., "Please wait 2 minutes")
+
 ### Security Considerations
 
 #### Public Feedback Form
 - **No PII Collection**: Don't require names, emails, or identifying information
-- **Rate Limiting**: Limit submissions per IP (e.g., 5 per hour)
+- **Rate Limiting**: Client-side rate limiting disabled (set MAX_SUBMISSIONS_PER_EVENT = 0)
+  - **Reason**: Events may have hundreds of participants
+  - **Recommendation**: Implement server-side IP-based rate limiting if spam becomes an issue
 - **Input Validation**:
   - Sanitize all text inputs to prevent XSS
   - Validate rating values (1-5)
@@ -412,10 +440,15 @@ function generateEventCode() {
   - Azure AD integration (recommended)
   - Or username/password with bcrypt hashing
   - Or API key-based access
+- **Rate Limiting**:
+  - Max 5 login attempts per 5 minutes (client-side)
+  - Prevents brute force attacks
+  - User-friendly lockout duration
 - **Authorization**: Role-based access control (RBAC)
 - **Session Management**:
   - JWT tokens with expiration
   - Secure, httpOnly cookies
+  - Session stored in sessionStorage (not localStorage)
 - **HTTPS Only**: Force SSL/TLS
 - **Audit Logging**: Track all admin actions
 

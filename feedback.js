@@ -208,8 +208,10 @@ async function handleSubmit(e) {
         return;
     }
 
-    // Check rate limiting
-    if (CONFIG.FEATURES.ENABLE_CLIENT_RATE_LIMITING && !rateLimiter.canAttempt()) {
+    // Check rate limiting (skip if MAX_SUBMISSIONS_PER_EVENT is 0)
+    if (CONFIG.FEATURES.ENABLE_CLIENT_RATE_LIMITING &&
+        CONFIG.MAX_SUBMISSIONS_PER_EVENT > 0 &&
+        !rateLimiter.canAttempt()) {
         const waitTime = rateLimiter.getFormattedTimeUntilNextAttempt();
         showNotification(
             'Rate Limit Exceeded',
@@ -238,8 +240,8 @@ async function handleSubmit(e) {
         const result = await submitFeedback(formData);
 
         if (result.success || result.feedbackId) {
-            // Record attempt for rate limiting
-            if (CONFIG.FEATURES.ENABLE_CLIENT_RATE_LIMITING) {
+            // Record attempt for rate limiting (skip if limit is 0)
+            if (CONFIG.FEATURES.ENABLE_CLIENT_RATE_LIMITING && CONFIG.MAX_SUBMISSIONS_PER_EVENT > 0) {
                 rateLimiter.recordAttempt();
             }
             showSuccess();
