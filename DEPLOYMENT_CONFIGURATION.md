@@ -148,7 +148,7 @@ Visit: https://blue-sea-0b9be530f.1.azurestaticapps.net/admin.html
 
 Expected behavior:
 - Shows login page
-- Demo credentials work (admin/admin123) ⚠️ Change in production!
+- Demo credentials work (admin/CATBootcamp2026!) ⚠️ Change in production!
 - Can view/create/manage events
 - Can generate QR codes
 - Can view feedback submissions

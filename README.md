@@ -82,7 +82,7 @@ This application provides a complete solution for collecting and managing feedba
 
 #### Authentication
 - Username/password login required
-- Demo credentials: `admin` / `admin123`
+- Demo credentials: `admin` / `CATBootcamp2026!`
 - Session management with local storage
 
 #### Event Management
@@ -142,7 +142,7 @@ This application provides a complete solution for collecting and managing feedba
 2. **Access Admin Panel**
    ```
    Open: admin.html
-   Login: admin / admin123
+   Login: admin / CATBootcamp2026!
    ```
    - Create/manage events
    - View submitted feedback
@@ -412,7 +412,7 @@ Database: Azure SQL Database
 - Try with test code: CSA1B2C3
 
 ### Admin Login Fails
-- Use demo credentials: admin/admin123
+- Use demo credentials: admin/CATBootcamp2026!
 - Clear browser cache and localStorage
 - Check browser console for errors
 

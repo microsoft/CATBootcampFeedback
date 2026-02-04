@@ -17,7 +17,7 @@ const ADMIN_USERS = [
     },
     {
         username: 'dewainr',
-        password: 'Admin123!',
+        password: 'CATBootcamp2026!',
         fullName: 'Dewain Robinson',
         email: 'dewainr@microsoft.com'
     }

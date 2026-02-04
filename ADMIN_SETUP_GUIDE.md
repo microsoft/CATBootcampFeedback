@@ -19,7 +19,7 @@ The admin login functionality has been created and deployed. You can now log int
 
 ### Alternative Account (Dewain)
 - **Username:** `dewainr`
-- **Password:** `Admin123!`
+- **Password:** `CATBootcamp2026!`
 
 ### Login URL
 https://blue-sea-0b9be530f.1.azurestaticapps.net/admin.html

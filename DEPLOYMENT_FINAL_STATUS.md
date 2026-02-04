@@ -111,7 +111,7 @@ Username: admin
 Password: CATBootcamp2026!
 
 Username: dewainr
-Password: Admin123!
+Password: CATBootcamp2026!
 ```
 
 ---

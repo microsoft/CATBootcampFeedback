@@ -56,7 +56,7 @@ Once deployed (in ~5-10 minutes), use these credentials:
 
 ### Account 2: Dewain
 - **Username:** `dewainr`
-- **Password:** `Admin123!`
+- **Password:** `CATBootcamp2026!`
 - **Full Name:** Dewain Robinson
 
 **Login URL:** https://blue-sea-0b9be530f.1.azurestaticapps.net/admin.html
@@ -92,7 +92,7 @@ If you need access immediately and can't wait:
    USE_MOCK_DATA: true,  // Force mock mode
    ```
 2. **Redeploy or test locally**
-3. **Use credentials:** `admin` / `admin123`
+3. **Use credentials:** `admin` / `CATBootcamp2026!`
 
 ---
 
@@ -168,7 +168,7 @@ git push origin main
    }
    ```
 4. Deploy this change
-5. Login with: `admin` / `admin123`
+5. Login with: `admin` / `CATBootcamp2026!`
 
 ---
 

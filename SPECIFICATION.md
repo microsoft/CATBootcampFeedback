@@ -280,7 +280,7 @@ POST   /api/admin/auth/login
        - Admin authentication (mock data in development)
        - Body: { username, password }
        - Returns: { success: true, token: string, user: { username, fullName } }
-       - Demo credentials: username=admin, password=admin123
+       - Demo credentials: username=admin, password=CATBootcamp2026!
 ```
 
 ##### Environment Detection

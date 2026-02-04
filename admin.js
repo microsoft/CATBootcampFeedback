@@ -137,7 +137,7 @@ async function authenticateUser(username, password) {
     if (CONFIG.USE_MOCK_DATA) {
         return new Promise((resolve) => {
             setTimeout(() => {
-                if (username === 'admin' && password === 'admin123') {
+                if (username === 'admin' && password === 'CATBootcamp2026!') {
                     resolve({
                         success: true,
                         token: 'mock-token-' + Date.now(),
