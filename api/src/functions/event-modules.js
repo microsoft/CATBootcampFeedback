@@ -232,3 +232,132 @@ app.http('removeEventModule', {
         }
     }
 });
+
+// PUT - Update module delivery order
+app.http('updateModuleOrder', {
+    methods: ['PUT'],
+    authLevel: 'anonymous',
+    route: 'event-modules/{eventModuleId}/order',
+    handler: async (request, context) => {
+        try {
+            const eventModuleId = request.params.eventModuleId;
+
+            if (!eventModuleId) {
+                const errorResponse = error(400, 'Event Module ID is required', 'INVALID_REQUEST');
+                return {
+                    status: errorResponse.status,
+                    headers: errorResponse.headers,
+                    body: errorResponse.body
+                };
+            }
+
+            // Parse request body
+            const bodyText = await request.text();
+            const body = JSON.parse(bodyText);
+            const { newOrder } = body;
+
+            if (!newOrder || newOrder < 1) {
+                const errorResponse = error(400, 'Valid new order (>= 1) is required', 'INVALID_DATA');
+                return {
+                    status: errorResponse.status,
+                    headers: errorResponse.headers,
+                    body: errorResponse.body
+                };
+            }
+
+            // Get current module info
+            const currentModule = await query(
+                'SELECT EventModuleId, EventId, DeliveryOrder FROM EventModules WHERE EventModuleId = @eventModuleId',
+                { eventModuleId: parseInt(eventModuleId) }
+            );
+
+            if (currentModule.length === 0) {
+                const errorResponse = error(404, 'Event module not found', 'NOT_FOUND');
+                return {
+                    status: errorResponse.status,
+                    headers: errorResponse.headers,
+                    body: errorResponse.body
+                };
+            }
+
+            const { EventId, DeliveryOrder: currentOrder } = currentModule[0];
+
+            // If order hasn't changed, just return success
+            if (currentOrder === newOrder) {
+                const response = success({
+                    message: 'Module order unchanged',
+                    eventModuleId: parseInt(eventModuleId),
+                    deliveryOrder: newOrder
+                });
+                return {
+                    status: response.status,
+                    headers: response.headers,
+                    body: response.body
+                };
+            }
+
+            // Reorder modules
+            if (newOrder < currentOrder) {
+                // Moving up: shift modules down between newOrder and currentOrder
+                await query(`
+                    UPDATE EventModules
+                    SET DeliveryOrder = DeliveryOrder + 1
+                    WHERE EventId = @eventId
+                      AND DeliveryOrder >= @newOrder
+                      AND DeliveryOrder < @currentOrder
+                `, {
+                    eventId: EventId,
+                    newOrder: newOrder,
+                    currentOrder: currentOrder
+                });
+            } else {
+                // Moving down: shift modules up between currentOrder and newOrder
+                await query(`
+                    UPDATE EventModules
+                    SET DeliveryOrder = DeliveryOrder - 1
+                    WHERE EventId = @eventId
+                      AND DeliveryOrder > @currentOrder
+                      AND DeliveryOrder <= @newOrder
+                `, {
+                    eventId: EventId,
+                    currentOrder: currentOrder,
+                    newOrder: newOrder
+                });
+            }
+
+            // Update the current module to new position
+            await query(`
+                UPDATE EventModules
+                SET DeliveryOrder = @newOrder
+                WHERE EventModuleId = @eventModuleId
+            `, {
+                eventModuleId: parseInt(eventModuleId),
+                newOrder: newOrder
+            });
+
+            context.log(`Module ${eventModuleId} order changed from ${currentOrder} to ${newOrder}`);
+
+            const response = success({
+                message: 'Module order updated successfully',
+                eventModuleId: parseInt(eventModuleId),
+                oldOrder: currentOrder,
+                newOrder: newOrder
+            });
+
+            return {
+                status: response.status,
+                headers: response.headers,
+                body: response.body
+            };
+
+        } catch (err) {
+            context.log('Error updating module order:', err);
+            const errorResponse = error(500, `Error updating module order: ${err.message}`, 'SERVER_ERROR');
+            return {
+                status: errorResponse.status,
+                headers: errorResponse.headers,
+                body: errorResponse.body
+            };
+        }
+    }
+});

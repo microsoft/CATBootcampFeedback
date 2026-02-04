@@ -133,6 +133,18 @@ function setupEventListeners() {
             } else if (target.classList.contains('btn-toggle-status')) {
                 toggleEventStatus(eventId);
             }
+            return;
+        }
+
+        // Handle module reorder buttons
+        const eventModuleId = parseInt(target.dataset.eventModuleId);
+        if (eventModuleId) {
+            const currentOrder = parseInt(target.dataset.currentOrder);
+            if (target.classList.contains('btn-reorder-up')) {
+                reorderModule(eventModuleId, currentOrder - 1);
+            } else if (target.classList.contains('btn-reorder-down')) {
+                reorderModule(eventModuleId, currentOrder + 1);
+            }
         }
     });
 
@@ -782,14 +794,37 @@ async function viewEventDetails(eventId) {
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
     modal.id = 'eventDetailsModal';
+    modal.dataset.eventId = eventId;
 
     const modules = event.modules || [];
-    const modulesHTML = modules.length > 0
-        ? modules.map(m => `
-            <div style="padding: 8px; background: #f8f9fa; border-radius: 4px; margin-bottom: 8px;">
-                <strong>${escapeHtml(m.moduleName)}</strong><br>
-                <span style="color: #666;">Speaker: ${escapeHtml(m.speakerName)}</span><br>
-                <span style="color: #666; font-size: 0.9em;">Delivery: ${formatDate(m.deliveryDate)}</span>
+    // Sort modules by delivery order
+    const sortedModules = [...modules].sort((a, b) => (a.deliveryOrder || 0) - (b.deliveryOrder || 0));
+
+    const modulesHTML = sortedModules.length > 0
+        ? sortedModules.map((m, index) => `
+            <div style="padding: 8px; background: #f8f9fa; border-radius: 4px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1;">
+                    <strong>${escapeHtml(m.moduleName)}</strong><br>
+                    <span style="color: #666;">Speaker: ${escapeHtml(m.speakerName)}</span><br>
+                    <span style="color: #666; font-size: 0.9em;">Delivery: ${formatDate(m.deliveryDate)}</span>
+                    <span style="color: #999; font-size: 0.85em; margin-left: 10px;">Order: ${m.deliveryOrder || index + 1}</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <button class="btn btn-icon btn-reorder-up"
+                            data-event-module-id="${m.eventModuleId}"
+                            data-current-order="${m.deliveryOrder || index + 1}"
+                            ${index === 0 ? 'disabled' : ''}
+                            style="padding: 2px 8px; font-size: 0.8em; min-width: 32px;">
+                        ▲
+                    </button>
+                    <button class="btn btn-icon btn-reorder-down"
+                            data-event-module-id="${m.eventModuleId}"
+                            data-current-order="${m.deliveryOrder || index + 1}"
+                            ${index === sortedModules.length - 1 ? 'disabled' : ''}
+                            style="padding: 2px 8px; font-size: 0.8em; min-width: 32px;">
+                        ▼
+                    </button>
+                </div>
             </div>
         `).join('')
         : '<p style="color: #666;">No modules assigned to this event yet.</p>';
@@ -967,6 +1002,32 @@ async function toggleEventStatus(eventId) {
     } catch (error) {
         console.error(`Error ${action}ing event:`, error);
         showNotification('Error', `Failed to ${action} event: ${error.message}`, 'error');
+    }
+}
+
+// Reorder module within an event
+async function reorderModule(eventModuleId, newOrder) {
+    try {
+        const response = await apiPut(`/event-modules/${eventModuleId}/order`, {
+            newOrder: newOrder
+        });
+
+        showNotification('Success', 'Module order updated successfully', 'success');
+
+        // Close and reopen the modal to refresh the module list
+        const modal = document.getElementById('eventDetailsModal');
+        if (modal) {
+            const eventId = parseInt(modal.dataset.eventId);
+            closeEventDetailsModal();
+            // Reload events to get fresh data
+            await loadEvents();
+            // Reopen the modal with updated data
+            setTimeout(() => viewEventDetails(eventId), 100);
+        }
+
+    } catch (error) {
+        console.error('Error reordering module:', error);
+        showNotification('Error', `Failed to reorder module: ${error.message}`, 'error');
     }
 }
 
