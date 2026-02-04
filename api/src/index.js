@@ -4,3 +4,5 @@
  */
 
 require('./functions/health');
+require('./functions/modules');
+require('./functions/events');
