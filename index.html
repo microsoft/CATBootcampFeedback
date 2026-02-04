@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAT Bootcamp Feedback System</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .welcome-container {
+            max-width: 800px;
+            margin: 50px auto;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .welcome-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+
+        .welcome-description {
+            font-size: 1.2em;
+            color: #6c757d;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-top: 50px;
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .info-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .info-card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .info-card p {
+            color: #6c757d;
+            line-height: 1.5;
+        }
+
+        .icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .footer {
+            margin-top: 60px;
+            padding: 20px;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #d4edda;
+            color: #155724;
+            border-radius: 20px;
+            font-weight: 600;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="welcome-container">
+        <h1 class="welcome-header">CAT Bootcamp Feedback System</h1>
+        <div class="status-badge">✅ System Online</div>
+
+        <p class="welcome-description">
+            Welcome to the CAT (Copilot Adoption Team) Bootcamp Feedback Collection System.
+            This platform enables real-time feedback collection from bootcamp participants
+            and provides analytics for instructors and administrators.
+        </p>
+
+        <div class="card-grid">
+            <a href="feedback.html?code=CSA1B2C3" class="info-card">
+                <div class="icon">📝</div>
+                <h3>Submit Feedback</h3>
+                <p>Provide feedback on your bootcamp session. Your input helps us improve future sessions.</p>
+            </a>
+
+            <a href="count.html?code=CSA1B2C3" class="info-card">
+                <div class="icon">📊</div>
+                <h3>Live Count Display</h3>
+                <p>View real-time feedback submission counts. Perfect for presentation displays.</p>
+            </a>
+
+            <a href="admin.html" class="info-card">
+                <div class="icon">⚙️</div>
+                <h3>Admin Panel</h3>
+                <p>Manage events, view feedback submissions, generate QR codes, and access analytics.</p>
+            </a>
+        </div>
+
+        <div class="footer">
+            <h3>How It Works</h3>
+            <p>
+                <strong>For Participants:</strong> Scan the QR code or use the unique URL provided
+                by your instructor to submit feedback after each session.<br><br>
+
+                <strong>For Instructors:</strong> Display the live count during your session to
+                encourage participation. Access the admin panel to view detailed feedback.<br><br>
+
+                <strong>For Administrators:</strong> Create events, generate QR codes, manage
+                feedback, and view comprehensive analytics.
+            </p>
+
+            <p style="margin-top: 30px; font-size: 0.85em; color: #adb5bd;">
+                Powered by Azure Static Web Apps | © 2026 Microsoft CAT Team
+            </p>
+        </div>
+    </div>
+</body>
+</html>
