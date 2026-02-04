@@ -284,8 +284,11 @@ app.http('updateModuleOrder', {
 
             const { EventId, DeliveryOrder: currentOrder } = currentModule[0];
 
+            context.log(`Current module state: EventId=${EventId}, currentOrder=${currentOrder}, newOrder=${newOrder}`);
+
             // If order hasn't changed, just return success
             if (currentOrder === newOrder) {
+                context.log('Module order unchanged - no update needed');
                 const response = success({
                     message: 'Module order unchanged',
                     eventModuleId: parseInt(eventModuleId),

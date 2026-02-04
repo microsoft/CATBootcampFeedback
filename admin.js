@@ -1017,8 +1017,14 @@ async function reorderModule(eventModuleId, newOrder) {
     try {
         console.log(`Reordering module ${eventModuleId} to order ${newOrder}`);
 
-        if (newOrder < 1) {
-            console.error('Invalid newOrder: cannot be less than 1');
+        if (!eventModuleId || eventModuleId < 1) {
+            console.error('Invalid eventModuleId:', eventModuleId);
+            showNotification('Error', 'Invalid module ID', 'error');
+            return;
+        }
+
+        if (!newOrder || newOrder < 1) {
+            console.error('Invalid newOrder: cannot be less than 1', newOrder);
             showNotification('Error', 'Invalid order position', 'error');
             return;
         }
@@ -1028,7 +1034,6 @@ async function reorderModule(eventModuleId, newOrder) {
         });
 
         console.log('Reorder response:', response);
-        showNotification('Success', 'Module order updated successfully', 'success');
 
         // Check if we're in the event details modal (View Details & QR)
         const detailsModal = document.getElementById('eventDetailsModal');
@@ -1038,7 +1043,10 @@ async function reorderModule(eventModuleId, newOrder) {
             // Reload events to get fresh data
             await loadEvents();
             // Reopen the modal with updated data
-            setTimeout(() => viewEventDetails(eventId), 100);
+            setTimeout(() => {
+                viewEventDetails(eventId);
+                showNotification('Success', 'Module order updated successfully', 'success');
+            }, 100);
             return;
         }
 
@@ -1047,15 +1055,17 @@ async function reorderModule(eventModuleId, newOrder) {
         const eventIdField = document.getElementById('eventId');
         if (editModal && !editModal.classList.contains('hidden') && eventIdField && eventIdField.value) {
             const eventId = parseInt(eventIdField.value);
-            // Just reload the modules list in the edit modal
+            console.log('Refreshing event modules for event:', eventId);
+            // Reload the modules list in the edit modal
             await loadEventModules(eventId);
-            // Also reload all events to keep data in sync
-            await loadEvents();
+            // Show success notification after refresh
+            showNotification('Success', 'Module order updated successfully', 'success');
         }
 
     } catch (error) {
         console.error('Error reordering module:', error);
-        showNotification('Error', `Failed to reorder module: ${error.message}`, 'error');
+        const errorMsg = error.response?.data?.error || error.message || 'Unknown error occurred';
+        showNotification('Error', `Failed to reorder module: ${errorMsg}`, 'error');
     }
 }
 
