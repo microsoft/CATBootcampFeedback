@@ -270,8 +270,23 @@ async function fetchModules() {
 
     try {
         const response = await apiGet('/modules');
-        return response.data || response; // Extract data array from response
+        console.log('fetchModules response:', response);
+
+        // Handle different response formats
+        if (Array.isArray(response)) {
+            return response;
+        }
+        if (response.data && Array.isArray(response.data)) {
+            return response.data;
+        }
+        if (response.success && Array.isArray(response.data)) {
+            return response.data;
+        }
+
+        console.error('Unexpected response format:', response);
+        return [];
     } catch (error) {
+        console.error('fetchModules error:', error);
         throw error;
     }
 }
@@ -545,8 +560,23 @@ async function fetchEvents() {
     try {
         // This endpoint should return events joined with module details
         const response = await apiGet('/events');
-        return response.data || response; // Extract data array from response
+        console.log('fetchEvents response:', response);
+
+        // Handle different response formats
+        if (Array.isArray(response)) {
+            return response;
+        }
+        if (response.data && Array.isArray(response.data)) {
+            return response.data;
+        }
+        if (response.success && Array.isArray(response.data)) {
+            return response.data;
+        }
+
+        console.error('Unexpected events response format:', response);
+        return [];
     } catch (error) {
+        console.error('fetchEvents error:', error);
         throw error;
     }
 }
@@ -1141,8 +1171,23 @@ async function fetchFeedback() {
 
     try {
         const response = await apiGet('/feedback');
-        return response.data || response; // Extract data array from response
+        console.log('fetchFeedback response:', response);
+
+        // Handle different response formats
+        if (Array.isArray(response)) {
+            return response;
+        }
+        if (response.data && Array.isArray(response.data)) {
+            return response.data;
+        }
+        if (response.success && Array.isArray(response.data)) {
+            return response.data;
+        }
+
+        console.error('Unexpected feedback response format:', response);
+        return [];
     } catch (error) {
+        console.error('fetchFeedback error:', error);
         throw error;
     }
 }
