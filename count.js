@@ -1,6 +1,7 @@
 // Configuration
 const API_BASE_URL = '/api';
-const USE_MOCK_DATA = true;
+// Auto-detect environment - use real API in production
+const USE_MOCK_DATA = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const FEEDBACK_BASE_URL = window.location.origin + '/feedback.html';
 const REFRESH_INTERVAL = 5000; // 5 seconds
 
@@ -77,7 +78,8 @@ async function loadEventDetails(code) {
             return null;
         }
 
-        return await response.json();
+        const result = await response.json();
+        return result.data || result; // Handle API response format
     } catch (error) {
         console.error('Error loading event:', error);
         throw error;
@@ -145,9 +147,9 @@ async function getFeedbackCount(code) {
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/events/${code}/feedback/count`);
+        const response = await fetch(`${API_BASE_URL}/events/${code}/count`);
         const data = await response.json();
-        return data.count || 0;
+        return data.data?.count || 0;
     } catch (error) {
         console.error('Error fetching count:', error);
         return 0;
