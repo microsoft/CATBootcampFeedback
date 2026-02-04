@@ -78,20 +78,30 @@ function getUrlParameter(name) {
 // Load event details
 async function loadEventDetails(code) {
     if (USE_MOCK_DATA) {
+        console.log('Using mock data');
         return mockLoadEventDetails(code);
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/events/${code}`);
+        const url = `${API_BASE_URL}/events/${code}`;
+        console.log('Fetching event from:', url);
+        const response = await fetch(url);
+        console.log('Response status:', response.status, response.statusText);
 
         if (!response.ok) {
+            console.error('API returned error status:', response.status);
+            const errorText = await response.text();
+            console.error('Error response:', errorText);
             return null;
         }
 
         const result = await response.json();
+        console.log('API response:', result);
         return result.data || result; // Handle API response format
     } catch (error) {
         console.error('Error loading event:', error);
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
         throw error;
     }
 }
