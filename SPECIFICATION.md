@@ -5,7 +5,34 @@ A web application to collect structured feedback on modules delivered during the
 
 The system consists of two main components:
 1. **Public Feedback Form** - Unauthenticated forms accessed via unique URLs with embedded event codes
-2. **Admin Interface** - Authenticated portal for managing events and generating QR codes
+2. **Admin Interface** - Authenticated portal for managing modules and generating feedback collection URLs
+
+## Terminology
+
+**Important:** This application collects feedback on **modules**, not events.
+
+- **Module**: A training session or content delivery (e.g., "Introduction to Copilot Studio")
+  - The actual training/content being evaluated
+  - Has a name, date, speaker, and cohort
+  - Participants provide feedback about the module's quality and effectiveness
+
+- **Event**: The mechanism for collecting feedback about a module
+  - Generates a unique event code (e.g., "CSA1B2C3")
+  - Creates a feedback URL: `feedback.html?code=CSA1B2C3`
+  - The event code is embedded in the URL and captured with feedback submissions
+  - Each event has an associated QR code for easy access
+
+**Flow:**
+1. Admin creates a **module** (with name, date, speaker)
+2. System generates an **event** with a unique code
+3. Event creates a feedback URL containing the event code
+4. Participants scan QR code or use URL to submit feedback **about the module**
+5. Event code from URL is automatically captured with the feedback data
+
+**In the Admin Interface:**
+- Create and manage **modules** (the training content)
+- Generate **events** (feedback collection mechanisms with codes and URLs)
+- View feedback collected **for each module** via its event code
 
 ## Core Requirements
 
@@ -54,8 +81,12 @@ Each feedback submission should be associated with:
 1. As a bootcamp participant, I want to provide feedback on a module via a simple URL/QR code so that I can quickly share my thoughts
 2. As a bootcamp organizer, I want to collect standardized feedback so that I can measure module effectiveness
 3. As an instructor, I want to receive constructive feedback so that I can improve my delivery
-4. As an admin, I want to create events and generate unique URLs/QR codes for each module
-5. As an admin, I want to view and manage all feedback submissions in one place
+4. As an admin, I want to create modules and generate events with unique URLs/QR codes for collecting feedback
+   - Create a module (training session with name, date, speaker)
+   - System generates an event code
+   - System creates a feedback URL with the event code embedded
+   - System generates a QR code for easy access to the feedback form
+5. As an admin, I want to view and manage all feedback submissions for each module in one place
 
 ### Key Features
 
@@ -70,11 +101,17 @@ Each feedback submission should be associated with:
 - **Accessibility**: WCAG 2.1 AA compliant
 
 #### Admin Interface
-- **Event Management**: Create, edit, and manage bootcamp events/modules
-- **Event Deletion**: Delete events with cascade deletion of all associated feedback (requires confirmation)
-- **QR Code Generation**: Automatically generate QR codes for each event URL
-- **Feedback Viewing**: View all submitted feedback with filtering options
-- **Analytics Dashboard**: View summary statistics and trends
+- **Module Management**: Create, edit, and manage bootcamp modules (training sessions)
+  - Module details: name, date, speaker, cohort
+  - Each module automatically gets an event code for feedback collection
+- **Event Code Generation**: System generates unique event codes for each module
+- **Feedback URL Creation**: Generate URLs with embedded event codes (e.g., `feedback.html?code=CSA1B2C3`)
+- **QR Code Generation**: Automatically generate QR codes for feedback URLs
+  - QR codes link to the feedback form with the module's event code
+  - Participants scan to provide feedback about the module
+- **Event Deletion**: Delete modules/events with cascade deletion of all associated feedback (requires confirmation)
+- **Feedback Viewing**: View all submitted feedback for each module, filtered by event code
+- **Analytics Dashboard**: View summary statistics and trends per module
 - **Export Capabilities**: Export feedback data to CSV/Excel
 - **Authentication Required**: Secure access for administrators only (client-side authentication)
 - **Count Display**: Dedicated page for displaying live feedback counts with auto-refresh
@@ -136,7 +173,14 @@ Feedback Questions:
 
 ## Data Model
 
-### Event Object
+### Event Object (Module with Feedback Collection)
+
+**Note:** An "Event" represents a **module** (training session) along with its feedback collection mechanism. The event object contains:
+- Module information (name, date, speaker)
+- Event code for feedback collection
+- Generated feedback URL and QR code
+
+The event code is captured from the URL when participants submit feedback about the module.
 ```json
 {
   "eventId": 1,
@@ -157,11 +201,14 @@ Feedback Questions:
 ```
 
 ### Feedback Submission Object
+
+**Note:** Feedback is collected **about modules**. The `eventCode` field captures the code from the feedback URL, linking the feedback to the specific module.
+
 ```json
 {
   "feedbackId": 123,
   "eventId": 1,
-  "eventCode": "CSA1B2C3",
+  "eventCode": "CSA1B2C3",  // Captured from URL parameter
   "speakerKnowledge": 5,
   "contentDepth": "Just Right",
   "moduleSatisfaction": 5,
