@@ -270,20 +270,28 @@ async function fetchModules() {
 
     try {
         const response = await apiGet('/modules');
-        console.log('fetchModules response:', response);
+        console.log('fetchModules raw response:', response);
+        console.log('fetchModules response type:', typeof response);
+        console.log('fetchModules response.data type:', typeof response?.data);
+        console.log('fetchModules is response array?', Array.isArray(response));
+        console.log('fetchModules is response.data array?', Array.isArray(response?.data));
 
         // Handle different response formats
         if (Array.isArray(response)) {
+            console.log('fetchModules: returning direct array, length:', response.length);
             return response;
         }
         if (response.data && Array.isArray(response.data)) {
+            console.log('fetchModules: returning response.data array, length:', response.data.length);
             return response.data;
         }
         if (response.success && Array.isArray(response.data)) {
+            console.log('fetchModules: returning response.data via success check, length:', response.data.length);
             return response.data;
         }
 
         console.error('Unexpected response format:', response);
+        console.error('Response keys:', Object.keys(response || {}));
         return [];
     } catch (error) {
         console.error('fetchModules error:', error);
@@ -560,20 +568,25 @@ async function fetchEvents() {
     try {
         // This endpoint should return events joined with module details
         const response = await apiGet('/events');
-        console.log('fetchEvents response:', response);
+        console.log('fetchEvents raw response:', response);
+        console.log('fetchEvents is response.data array?', Array.isArray(response?.data));
 
         // Handle different response formats
         if (Array.isArray(response)) {
+            console.log('fetchEvents: returning direct array, length:', response.length);
             return response;
         }
         if (response.data && Array.isArray(response.data)) {
+            console.log('fetchEvents: returning response.data array, length:', response.data.length);
             return response.data;
         }
         if (response.success && Array.isArray(response.data)) {
+            console.log('fetchEvents: returning response.data via success check, length:', response.data.length);
             return response.data;
         }
 
         console.error('Unexpected events response format:', response);
+        console.error('Response keys:', Object.keys(response || {}));
         return [];
     } catch (error) {
         console.error('fetchEvents error:', error);
@@ -1171,20 +1184,25 @@ async function fetchFeedback() {
 
     try {
         const response = await apiGet('/feedback');
-        console.log('fetchFeedback response:', response);
+        console.log('fetchFeedback raw response:', response);
+        console.log('fetchFeedback is response.data array?', Array.isArray(response?.data));
 
         // Handle different response formats
         if (Array.isArray(response)) {
+            console.log('fetchFeedback: returning direct array, length:', response.length);
             return response;
         }
         if (response.data && Array.isArray(response.data)) {
+            console.log('fetchFeedback: returning response.data array, length:', response.data.length);
             return response.data;
         }
         if (response.success && Array.isArray(response.data)) {
+            console.log('fetchFeedback: returning response.data via success check, length:', response.data.length);
             return response.data;
         }
 
         console.error('Unexpected feedback response format:', response);
+        console.error('Response keys:', Object.keys(response || {}));
         return [];
     } catch (error) {
         console.error('fetchFeedback error:', error);
