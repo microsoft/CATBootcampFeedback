@@ -102,6 +102,30 @@ GET    /api/feedback/event/:eventCode - Get feedback for an event
 POST   /api/feedback             - Submit feedback (references EventId)
 ```
 
+### Count/Stats Endpoints (UPDATED)
+```
+GET    /api/count/:eventCode     - Get feedback count for live counter
+                                   Returns: event + module info + count
+```
+
+**Response Format:**
+```json
+{
+  "eventId": 1,
+  "eventCode": "CSA1B2C3",
+  "moduleId": 1,
+  "moduleName": "Introduction to Copilot Studio",
+  "speakerName": "John Doe",
+  "startDate": "2026-02-15T09:00:00",
+  "endDate": "2026-02-15T17:00:00",
+  "cohortId": "Q1-2026",
+  "feedbackCount": 42,
+  "avgSpeakerKnowledge": 4.5,
+  "avgModuleSatisfaction": 4.7,
+  "lastSubmittedAt": "2026-02-15T14:30:00"
+}
+```
+
 ---
 
 ## 📝 Frontend Changes
@@ -137,12 +161,34 @@ POST   /api/feedback             - Submit feedback (references EventId)
 - Displays module info (name, date, speaker)
 - Submits feedback with EventId + EventCode
 
-### 3. Count Display
+### 3. Count Display (Live Counter)
 
-**Changes:**
-- Still accessed via: `count.html?code=CSA1B2C3`
-- Backend: Gets Event → Module → Feedback count
-- Displays module name and feedback count
+**Access Pattern:**
+```
+count.html?code=CSA1B2C3
+```
+
+**Backend Flow:**
+1. Look up Event by code → Get EventId and ModuleId
+2. Get Module details (name, speaker)
+3. Count Feedback WHERE EventId = this event
+4. Return combined data
+
+**Display:**
+```
+Module: "Introduction to Copilot Studio"
+Speaker: John Doe
+Date: Feb 15, 2026 | Cohort: Q1-2026
+
+[  42  ] Feedback Received
+
+[QR CODE for this event]
+```
+
+**Key Point:** Counter shows feedback for THIS SPECIFIC EVENT only
+- Event CSA1B2C3 (Feb 15): 42 feedback items
+- Event CSA1B2C4 (Apr 20, same module): 35 feedback items
+- Each event has its own counter
 
 ---
 

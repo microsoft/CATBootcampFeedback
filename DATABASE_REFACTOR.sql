@@ -106,20 +106,26 @@ FROM Feedback f
 INNER JOIN Events e ON f.EventId = e.EventId
 INNER JOIN Modules m ON e.ModuleId = m.ModuleId;
 
--- View: Event Feedback Count
+-- View: Event Feedback Count (for live counter)
 CREATE VIEW vw_EventFeedbackCounts AS
 SELECT
     e.EventId,
     e.EventCode,
     e.ModuleId,
     m.ModuleName,
+    m.SpeakerName,
+    e.StartDate,
+    e.EndDate,
+    e.CohortId,
     COUNT(f.FeedbackId) AS FeedbackCount,
     AVG(CAST(f.SpeakerKnowledge AS FLOAT)) AS AvgSpeakerKnowledge,
-    AVG(CAST(f.ModuleSatisfaction AS FLOAT)) AS AvgModuleSatisfaction
+    AVG(CAST(f.ModuleSatisfaction AS FLOAT)) AS AvgModuleSatisfaction,
+    MAX(f.SubmittedAt) AS LastSubmittedAt
 FROM Events e
 INNER JOIN Modules m ON e.ModuleId = m.ModuleId
 LEFT JOIN Feedback f ON e.EventId = f.EventId
-GROUP BY e.EventId, e.EventCode, e.ModuleId, m.ModuleName;
+GROUP BY e.EventId, e.EventCode, e.ModuleId, m.ModuleName, m.SpeakerName,
+         e.StartDate, e.EndDate, e.CohortId;
 
 -- ============================================
 -- 5. MIGRATION FROM OLD SCHEMA (If applicable)
@@ -226,6 +232,29 @@ BEGIN
     SELECT * FROM vw_FeedbackWithDetails
     WHERE EventCode = @EventCode
     ORDER BY SubmittedAt DESC;
+END;
+GO
+
+-- Get Feedback Count for Live Counter
+CREATE PROCEDURE sp_GetFeedbackCountByEventCode
+    @EventCode NVARCHAR(8)
+AS
+BEGIN
+    SELECT
+        EventId,
+        EventCode,
+        ModuleId,
+        ModuleName,
+        SpeakerName,
+        StartDate,
+        EndDate,
+        CohortId,
+        FeedbackCount,
+        AvgSpeakerKnowledge,
+        AvgModuleSatisfaction,
+        LastSubmittedAt
+    FROM vw_EventFeedbackCounts
+    WHERE EventCode = @EventCode;
 END;
 GO
 
