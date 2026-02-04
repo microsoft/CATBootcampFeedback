@@ -256,7 +256,9 @@ app.http('updateModuleOrder', {
             const body = JSON.parse(bodyText);
             const { newOrder } = body;
 
-            if (!newOrder || newOrder < 1) {
+            context.log('Update module order request:', { eventModuleId, newOrder, body });
+
+            if (typeof newOrder !== 'number' || newOrder < 1) {
                 const errorResponse = error(400, 'Valid new order (>= 1) is required', 'INVALID_DATA');
                 return {
                     status: errorResponse.status,

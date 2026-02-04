@@ -139,6 +139,11 @@ function setupEventListeners() {
         // Handle module reorder and remove buttons
         const eventModuleId = parseInt(target.dataset.eventModuleId);
         if (eventModuleId) {
+            // Don't handle disabled buttons
+            if (target.disabled || target.hasAttribute('disabled')) {
+                return;
+            }
+
             const currentOrder = parseInt(target.dataset.currentOrder);
             if (target.classList.contains('btn-reorder-up')) {
                 reorderModule(eventModuleId, currentOrder - 1);
@@ -1010,10 +1015,19 @@ async function toggleEventStatus(eventId) {
 // Reorder module within an event
 async function reorderModule(eventModuleId, newOrder) {
     try {
+        console.log(`Reordering module ${eventModuleId} to order ${newOrder}`);
+
+        if (newOrder < 1) {
+            console.error('Invalid newOrder: cannot be less than 1');
+            showNotification('Error', 'Invalid order position', 'error');
+            return;
+        }
+
         const response = await apiPut(`/event-modules/${eventModuleId}/order`, {
             newOrder: newOrder
         });
 
+        console.log('Reorder response:', response);
         showNotification('Success', 'Module order updated successfully', 'success');
 
         // Check if we're in the event details modal (View Details & QR)
@@ -1251,7 +1265,7 @@ function renderEventModules() {
                                 data-event-module-id="${em.eventModuleId}"
                                 data-current-order="${em.deliveryOrder}"
                                 ${index === 0 ? 'disabled' : ''}
-                                style="padding: 4px 10px; font-size: 0.85em; min-width: 36px; background: #6c63ff; color: white; border: none; border-radius: 4px; cursor: pointer;"
+                                style="padding: 4px 10px; font-size: 0.85em; min-width: 36px; background: #6c63ff; color: white; border: none; border-radius: 4px; cursor: ${index === 0 ? 'not-allowed' : 'pointer'}; opacity: ${index === 0 ? '0.5' : '1'};"
                                 title="Move up">
                             ▲
                         </button>
@@ -1260,7 +1274,7 @@ function renderEventModules() {
                                 data-event-module-id="${em.eventModuleId}"
                                 data-current-order="${em.deliveryOrder}"
                                 ${index === sortedModules.length - 1 ? 'disabled' : ''}
-                                style="padding: 4px 10px; font-size: 0.85em; min-width: 36px; background: #6c63ff; color: white; border: none; border-radius: 4px; cursor: pointer;"
+                                style="padding: 4px 10px; font-size: 0.85em; min-width: 36px; background: #6c63ff; color: white; border: none; border-radius: 4px; cursor: ${index === sortedModules.length - 1 ? 'not-allowed' : 'pointer'}; opacity: ${index === sortedModules.length - 1 ? '0.5' : '1'};"
                                 title="Move down">
                             ▼
                         </button>
