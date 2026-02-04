@@ -152,7 +152,7 @@ async function authenticateUser(username, password) {
 
     // Real API call
     try {
-        const result = await apiPost('/admin/auth/login', { username, password });
+        const result = await apiPost('/login', { username, password });
         return result;
     } catch (error) {
         throw error;

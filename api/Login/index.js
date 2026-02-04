@@ -1,6 +1,6 @@
 /**
  * Admin Login
- * POST /api/admin/auth/login
+ * POST /api/login
  *
  * Simple authentication for the admin panel
  * In production, you should use Azure AD, proper password hashing, etc.

@@ -9,7 +9,7 @@
         "post",
         "options"
       ],
-      "route": "admin/auth/login"
+      "route": "login"
     },
     {
       "type": "http",
