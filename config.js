@@ -78,11 +78,26 @@ export const CONFIG = {
 
 // Environment-specific overrides
 if (typeof window !== 'undefined') {
-    // Check if running in production
-    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    // Auto-detect Azure environment
+    const isAzure = window.location.hostname.includes('azurestaticapps.net') ||
+                    window.location.hostname.includes('azurewebsites.net');
+
+    // Check if running in production (not localhost)
+    const isProduction = window.location.hostname !== 'localhost' &&
+                        window.location.hostname !== '127.0.0.1';
+
+    if (isProduction || isAzure) {
         CONFIG.USE_MOCK_DATA = false;
-        CONFIG.API_BASE_URL = window.location.origin + '/api';
+        CONFIG.API_BASE_URL = '/api'; // Relative path for Azure Static Web Apps
     }
+
+    console.log('Environment detected:', {
+        hostname: window.location.hostname,
+        isAzure,
+        isProduction,
+        useMockData: CONFIG.USE_MOCK_DATA,
+        apiBaseUrl: CONFIG.API_BASE_URL
+    });
 }
 
 // Freeze config to prevent accidental modifications
