@@ -16,7 +16,6 @@ module.exports = async function (context, req) {
             SELECT
                 ModuleId,
                 ModuleName,
-                SpeakerName,
                 Description,
                 IsActive,
                 CreatedAt,
@@ -27,25 +26,24 @@ module.exports = async function (context, req) {
             ORDER BY ModuleName ASC
         `);
 
-        // Get event counts for each module
+        // Get event counts for each module (via EventModules junction table)
         const modulesWithCounts = await Promise.all(
             modules.map(async (module) => {
                 const eventCount = await query(
-                    `SELECT COUNT(*) AS EventCount FROM Events WHERE ModuleId = @moduleId`,
+                    `SELECT COUNT(DISTINCT EventId) AS EventCount FROM EventModules WHERE ModuleId = @moduleId`,
                     { moduleId: module.ModuleId }
                 );
 
                 const feedbackCount = await query(`
                     SELECT COUNT(*) AS FeedbackCount
                     FROM Feedback f
-                    INNER JOIN Events e ON f.EventId = e.EventId
-                    WHERE e.ModuleId = @moduleId
+                    INNER JOIN EventModules em ON f.EventModuleId = em.EventModuleId
+                    WHERE em.ModuleId = @moduleId
                 `, { moduleId: module.ModuleId });
 
                 return {
                     moduleId: module.ModuleId,
                     moduleName: module.ModuleName,
-                    speakerName: module.SpeakerName,
                     description: module.Description,
                     isActive: module.IsActive,
                     createdAt: module.CreatedAt,

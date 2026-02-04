@@ -40,17 +40,35 @@ module.exports = async function (context, req) {
 
         const eventId = eventResult[0].EventId;
 
+        // Validate eventModuleId is provided
+        if (!data.eventModuleId) {
+            context.res = error(400, 'Event Module ID is required', 'INVALID_DATA');
+            return;
+        }
+
+        // Verify that eventModuleId belongs to this event
+        const eventModuleResult = await query(
+            `SELECT EventModuleId FROM EventModules WHERE EventModuleId = @eventModuleId AND EventId = @eventId`,
+            { eventModuleId: data.eventModuleId, eventId }
+        );
+
+        if (!eventModuleResult || eventModuleResult.length === 0) {
+            context.res = error(404, 'Event module not found or does not belong to this event', 'INVALID_EVENT_MODULE');
+            return;
+        }
+
         // Sanitize comments
         const sanitizedComments = data.additionalComments ? sanitize(data.additionalComments) : null;
 
         // Insert feedback
         const result = await query(
-            `INSERT INTO Feedback (EventId, EventCode, SpeakerKnowledge, ContentDepth, ModuleSatisfaction, AdditionalComments, IpAddress, UserAgent, SubmittedAt)
+            `INSERT INTO Feedback (EventId, EventCode, EventModuleId, SpeakerKnowledge, ContentDepth, ModuleSatisfaction, AdditionalComments, IpAddress, UserAgent, SubmittedAt)
              OUTPUT INSERTED.FeedbackId
-             VALUES (@eventId, @eventCode, @speakerKnowledge, @contentDepth, @moduleSatisfaction, @additionalComments, @ipAddress, @userAgent, GETDATE())`,
+             VALUES (@eventId, @eventCode, @eventModuleId, @speakerKnowledge, @contentDepth, @moduleSatisfaction, @additionalComments, @ipAddress, @userAgent, GETDATE())`,
             {
                 eventId,
                 eventCode: data.eventCode,
+                eventModuleId: data.eventModuleId,
                 speakerKnowledge: data.speakerKnowledge,
                 contentDepth: data.contentDepth,
                 moduleSatisfaction: data.moduleSatisfaction,

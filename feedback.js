@@ -23,6 +23,7 @@ import { eventCache } from './Cache.js';
 
 // Global state
 let currentEvent = null;
+let selectedEventModule = null;
 let eventCode = null;
 let rateLimiter = null;
 
@@ -119,20 +120,44 @@ function mockLoadEventDetails(code) {
                 'CSA1B2C3': {
                     eventId: 1,
                     eventCode: 'CSA1B2C3',
-                    moduleName: 'Introduction to Copilot Studio',
-                    moduleDate: '2026-02-15',
-                    speakerName: 'John Doe',
+                    startDate: '2026-02-15',
                     cohortId: 'Q1-2026',
-                    isActive: true
+                    isActive: true,
+                    modules: [
+                        {
+                            eventModuleId: 1,
+                            moduleId: 1,
+                            moduleName: 'Introduction to Copilot Studio',
+                            speakerName: 'John Doe',
+                            deliveryOrder: 1,
+                            deliveryDate: '2026-02-15T09:00:00'
+                        }
+                    ]
                 },
                 'TEST123': {
                     eventId: 2,
                     eventCode: 'TEST123',
-                    moduleName: 'Building Your First Copilot',
-                    moduleDate: '2026-02-16',
-                    speakerName: 'Jane Smith',
+                    startDate: '2026-02-16',
                     cohortId: 'Q1-2026',
-                    isActive: true
+                    isActive: true,
+                    modules: [
+                        {
+                            eventModuleId: 2,
+                            moduleId: 2,
+                            moduleName: 'Building Your First Copilot',
+                            speakerName: 'Jane Smith',
+                            deliveryOrder: 1,
+                            deliveryDate: '2026-02-16T09:00:00'
+                        },
+                        {
+                            eventModuleId: 3,
+                            moduleId: 3,
+                            moduleName: 'Advanced Copilot Features',
+                            speakerName: 'Bob Johnson',
+                            deliveryOrder: 2,
+                            deliveryDate: '2026-02-16T13:00:00'
+                        }
+                    ]
                 }
             };
 
@@ -144,9 +169,51 @@ function mockLoadEventDetails(code) {
 
 // Display event information
 function displayEventInfo(event) {
-    document.getElementById('displayModuleName').textContent = escapeHtml(event.moduleName);
-    document.getElementById('displayModuleDate').textContent = formatDate(event.moduleDate);
-    document.getElementById('displaySpeakerName').textContent = escapeHtml(event.speakerName);
+    const modules = event.modules || [];
+
+    if (modules.length === 0) {
+        showError('This event has no modules assigned.');
+        return;
+    }
+
+    if (modules.length === 1) {
+        // Single module - display directly
+        selectedEventModule = modules[0];
+        document.getElementById('moduleSelector').style.display = 'none';
+        document.getElementById('moduleInfoDisplay').style.display = 'block';
+        updateModuleDisplay(modules[0]);
+    } else {
+        // Multiple modules - show selector
+        document.getElementById('moduleSelector').style.display = 'block';
+        document.getElementById('moduleInfoDisplay').style.display = 'none';
+
+        const moduleSelect = document.getElementById('moduleSelect');
+        moduleSelect.innerHTML = '<option value="">-- Select a Module --</option>' +
+            modules.map(m =>
+                `<option value="${m.eventModuleId}">${escapeHtml(m.moduleName)} - ${escapeHtml(m.speakerName)}</option>`
+            ).join('');
+
+        // Listen for module selection
+        moduleSelect.addEventListener('change', function() {
+            const selectedId = parseInt(this.value);
+            const module = modules.find(m => m.eventModuleId === selectedId);
+            if (module) {
+                selectedEventModule = module;
+                document.getElementById('moduleInfoDisplay').style.display = 'block';
+                updateModuleDisplay(module);
+            } else {
+                selectedEventModule = null;
+                document.getElementById('moduleInfoDisplay').style.display = 'none';
+            }
+        });
+    }
+}
+
+// Update module display with selected module info
+function updateModuleDisplay(module) {
+    document.getElementById('displayModuleName').textContent = escapeHtml(module.moduleName);
+    document.getElementById('displayModuleDate').textContent = formatDate(module.deliveryDate || currentEvent.startDate);
+    document.getElementById('displaySpeakerName').textContent = escapeHtml(module.speakerName);
 }
 
 // Show form
@@ -271,6 +338,12 @@ async function handleSubmit(e) {
 function validateForm() {
     let isValid = true;
 
+    // Validate module selection (if multiple modules)
+    if (currentEvent.modules && currentEvent.modules.length > 1 && !selectedEventModule) {
+        showValidationError('moduleSelect', 'Please select a module');
+        isValid = false;
+    }
+
     // Validate speaker knowledge rating
     const speakerKnowledge = document.querySelector('input[name="speakerKnowledge"]:checked');
     if (!speakerKnowledge) {
@@ -321,9 +394,14 @@ function clearErrors() {
 
 // Collect form data
 function collectFormData() {
+    if (!selectedEventModule) {
+        throw new FeedbackError('Please select a module before submitting feedback');
+    }
+
     const data = {
         eventCode: eventCode,
         eventId: currentEvent.eventId,
+        eventModuleId: selectedEventModule.eventModuleId,
         speakerKnowledge: parseInt(document.querySelector('input[name="speakerKnowledge"]:checked').value),
         contentDepth: document.querySelector('input[name="contentDepth"]:checked').value,
         moduleSatisfaction: parseInt(document.querySelector('input[name="moduleSatisfaction"]:checked').value),

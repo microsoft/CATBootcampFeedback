@@ -26,40 +26,71 @@ module.exports = async function (context, req) {
             return;
         }
 
-        // Query database - join Events with Modules
-        const result = await query(`
+        // Query database - get event details
+        const eventResult = await query(`
             SELECT
                 e.EventId,
                 e.EventCode,
-                e.ModuleId,
-                m.ModuleName,
-                m.SpeakerName,
-                m.Description,
                 e.StartDate,
                 e.EndDate,
                 e.CohortId,
-                e.IsActive AS EventIsActive,
-                m.IsActive AS ModuleIsActive,
+                e.IsActive,
                 e.CreatedAt
             FROM Events e
-            INNER JOIN Modules m ON e.ModuleId = m.ModuleId
-            WHERE e.EventCode = @eventCode AND e.IsActive = 1 AND m.IsActive = 1
+            WHERE e.EventCode = @eventCode AND e.IsActive = 1
         `, { eventCode });
 
-        if (!result || result.length === 0) {
+        if (!eventResult || eventResult.length === 0) {
             context.res = error(404, 'Event not found or inactive', 'EVENT_NOT_FOUND');
             return;
         }
 
-        const event = result[0];
+        const event = eventResult[0];
 
-        // Format dates for response (backwards compatibility)
-        event.ModuleDate = event.StartDate; // For backwards compatibility with feedback form
+        // Get all modules for this event
+        const modulesResult = await query(`
+            SELECT
+                em.EventModuleId,
+                em.ModuleId,
+                m.ModuleName,
+                em.SpeakerName,
+                m.Description,
+                em.DeliveryOrder,
+                em.DeliveryDate,
+                em.Notes,
+                m.IsActive
+            FROM EventModules em
+            INNER JOIN Modules m ON em.ModuleId = m.ModuleId
+            WHERE em.EventId = @eventId AND m.IsActive = 1
+            ORDER BY em.DeliveryOrder ASC
+        `, { eventId: event.EventId });
+
+        // Format response with camelCase
+        const eventData = {
+            eventId: event.EventId,
+            eventCode: event.EventCode,
+            startDate: event.StartDate,
+            endDate: event.EndDate,
+            cohortId: event.CohortId,
+            isActive: event.IsActive,
+            createdAt: event.CreatedAt,
+            modules: modulesResult.map(m => ({
+                eventModuleId: m.EventModuleId,
+                moduleId: m.ModuleId,
+                moduleName: m.ModuleName,
+                speakerName: m.SpeakerName,
+                description: m.Description,
+                deliveryOrder: m.DeliveryOrder,
+                deliveryDate: m.DeliveryDate,
+                notes: m.Notes,
+                isActive: m.IsActive
+            }))
+        };
 
         // Cache the result
-        cacheSet(cacheKey, event, 300); // 5 minutes
+        cacheSet(cacheKey, eventData, 300); // 5 minutes
 
-        context.res = success(event);
+        context.res = success(eventData);
     } catch (err) {
         context.log.error('Error in GetEvent:', err);
         context.res = error(500, 'Internal server error', 'SERVER_ERROR');

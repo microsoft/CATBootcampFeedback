@@ -33,10 +33,22 @@
 
         <!-- Feedback Form -->
         <form id="feedbackForm" class="hidden" novalidate>
-            <!-- Module Information Section (Display Only) -->
+            <!-- Module Information Section -->
             <section class="form-section">
                 <h2>Module Information</h2>
-                <div class="info-display">
+
+                <!-- Module Selector (shown when event has multiple modules) -->
+                <div id="moduleSelector" class="form-group" style="display: none;">
+                    <label for="moduleSelect">Select Module <span class="required">*</span></label>
+                    <select id="moduleSelect" name="moduleSelect" required>
+                        <option value="">-- Select a Module --</option>
+                    </select>
+                    <small style="color: #666;">This event includes multiple modules. Please select which one you're providing feedback for.</small>
+                    <span class="error-message" id="moduleSelectError" aria-live="polite"></span>
+                </div>
+
+                <!-- Module Information Display (shown when event has single module or module is selected) -->
+                <div class="info-display" id="moduleInfoDisplay">
                     <div class="info-row">
                         <span class="info-label">Module Name:</span>
                         <span class="info-value" id="displayModuleName">-</span>

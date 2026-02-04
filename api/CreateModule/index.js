@@ -11,17 +11,16 @@ const { success, error, sanitize } = require('../shared/utils');
 
 module.exports = async function (context, req) {
     try {
-        const { moduleName, speakerName, description, isActive = true } = req.body;
+        const { moduleName, description, isActive = true } = req.body;
 
         // Validate required fields
-        if (!moduleName || !speakerName) {
-            context.res = error(400, 'Module name and speaker name are required', 'INVALID_DATA');
+        if (!moduleName) {
+            context.res = error(400, 'Module name is required', 'INVALID_DATA');
             return;
         }
 
         // Sanitize inputs
         const sanitizedModuleName = sanitize(moduleName);
-        const sanitizedSpeakerName = sanitize(speakerName);
         const sanitizedDescription = description ? sanitize(description) : null;
 
         // Validate lengths
@@ -30,20 +29,14 @@ module.exports = async function (context, req) {
             return;
         }
 
-        if (sanitizedSpeakerName.length < 2 || sanitizedSpeakerName.length > 100) {
-            context.res = error(400, 'Speaker name must be between 2 and 100 characters', 'INVALID_DATA');
-            return;
-        }
-
         // Insert module
         const result = await query(`
-            INSERT INTO Modules (ModuleName, SpeakerName, Description, IsActive, CreatedBy)
-            OUTPUT INSERTED.ModuleId, INSERTED.ModuleName, INSERTED.SpeakerName,
+            INSERT INTO Modules (ModuleName, Description, IsActive, CreatedBy)
+            OUTPUT INSERTED.ModuleId, INSERTED.ModuleName,
                    INSERTED.Description, INSERTED.IsActive, INSERTED.CreatedAt
-            VALUES (@moduleName, @speakerName, @description, @isActive, @createdBy)
+            VALUES (@moduleName, @description, @isActive, @createdBy)
         `, {
             moduleName: sanitizedModuleName,
-            speakerName: sanitizedSpeakerName,
             description: sanitizedDescription,
             isActive: isActive ? 1 : 0,
             createdBy: 'admin' // TODO: Get from auth context
@@ -56,7 +49,6 @@ module.exports = async function (context, req) {
             module: {
                 moduleId: createdModule.ModuleId,
                 moduleName: createdModule.ModuleName,
-                speakerName: createdModule.SpeakerName,
                 description: createdModule.Description,
                 isActive: createdModule.IsActive,
                 createdAt: createdModule.CreatedAt

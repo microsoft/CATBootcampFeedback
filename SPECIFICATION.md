@@ -9,34 +9,59 @@ The system consists of two main components:
 
 ## Terminology
 
-**Important:** This application collects feedback on **modules**, not events.
+**Important:** This application collects feedback on **modules** delivered at **events**.
 
-- **Module**: A training session or content delivery (e.g., "Introduction to Copilot Studio")
-  - The actual training/content being evaluated
-  - Has a name, date, speaker, and cohort
-  - Participants provide feedback about the module's quality and effectiveness
+- **Module**: Reusable training content (e.g., "Introduction to Copilot Studio")
+  - Timeless training material/curriculum
+  - Has a name and description
+  - **Does NOT have speaker** - speakers vary by delivery
+  - Can be delivered multiple times at different events by different speakers
 
-- **Event**: The mechanism for collecting feedback about a module
-  - Admin provides a unique event code (e.g., "CSA1B2C3")
-  - System creates a feedback URL: `feedback.html?code=CSA1B2C3`
-  - The event code is embedded in the URL and captured with feedback submissions
-  - System generates a QR code for the feedback URL
-  - Invalid event codes in URLs display an error: "Not a valid event code"
+- **Event**: A training session or bootcamp instance
+  - Has a unique event code (admin-provided, e.g., "CSA1B2C3")
+  - Has start/end dates and cohort ID
+  - **Can include MULTIPLE modules** delivered as part of the event
+  - Each module at the event has a designated speaker
+  - Example: "CAT Bootcamp Q1-2026" event includes:
+    - Module 1: "Intro to Copilot" delivered by John Doe
+    - Module 2: "Advanced Copilot" delivered by Jane Smith
+    - Module 3: "Best Practices" delivered by Mike Johnson
+
+- **Event Module Delivery**: The junction between events and modules
+  - Links a specific module to a specific event
+  - Specifies WHO is delivering the module at this event
+  - Specifies WHEN the module is delivered (order/date)
+  - Each delivery has a unique speaker assigned
+
+**Architecture:**
+```
+Events (1) ←→ (many) EventModules (many) ←→ (1) Modules
+                          ↓
+                    SpeakerName (per delivery)
+                    DeliveryOrder
+```
 
 **Flow:**
-1. Admin creates a **module** (with name, date, speaker)
-2. Admin provides an **event code** for the module
-3. System creates a feedback URL containing the event code
-4. System generates a QR code for easy access
-5. Participants scan QR code or use URL to submit feedback **about the module**
-6. If event code in URL is invalid, user sees error: "Not a valid event code"
-7. Valid submissions automatically capture the event code from the URL
+1. Admin creates **modules** (reusable training content)
+2. Admin creates an **event** with event code, dates, cohort
+3. Admin adds **multiple modules** to the event, specifying:
+   - Which module
+   - Who's delivering it (speaker name)
+   - When it's delivered (order/sequence)
+4. System generates feedback URL for the event: `feedback.html?code=CSA1B2C3`
+5. Participants access the URL and select which module they're providing feedback for
+6. Feedback is captured for the specific module delivery at that event
+7. If event code is invalid, user sees error: "Not a valid event code"
 
 **In the Admin Interface:**
-- Create and manage **modules** (the training content)
-- Specify **event codes** for each module (admin-provided, not auto-generated)
-- System generates feedback URLs and QR codes using the provided event codes
-- View feedback collected **for each module** via its event code
+- Create and manage **modules** (reusable training content)
+- Create **events** with unique event codes
+- Add multiple modules to each event with delivery details:
+  - Select module from library
+  - Assign speaker for this delivery
+  - Set delivery order/sequence
+- Generate feedback URLs and QR codes for events
+- View feedback per event or per module delivery
 
 ## Core Requirements
 

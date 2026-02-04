@@ -188,11 +188,6 @@
                                placeholder="e.g., Introduction to Copilot Studio">
                     </div>
                     <div class="form-group">
-                        <label for="speakerNameInput">Speaker Name <span class="required">*</span></label>
-                        <input type="text" id="speakerNameInput" name="speakerName" required
-                               placeholder="e.g., John Doe">
-                    </div>
-                    <div class="form-group">
                         <label for="moduleDescription">Description</label>
                         <textarea id="moduleDescription" name="description" rows="4"
                                   placeholder="Brief description of the module content..."></textarea>
@@ -221,13 +216,6 @@
                 </div>
                 <form id="eventForm">
                     <div class="form-group">
-                        <label for="moduleSelect">Module <span class="required">*</span></label>
-                        <select id="moduleSelect" name="moduleId" required>
-                            <option value="">-- Select a Module --</option>
-                        </select>
-                        <small class="form-help">Choose the module this event is delivering</small>
-                    </div>
-                    <div class="form-group">
                         <label for="eventCode">Event Code <span class="required">*</span></label>
                         <input type="text" id="eventCode" name="eventCode" required
                                placeholder="e.g., CSA1B2C3"
@@ -255,10 +243,64 @@
                             <span>Event is active</span>
                         </label>
                     </div>
+
+                    <!-- Modules Section (only shown when editing) -->
+                    <div id="eventModulesSection" class="form-section" style="display: none;">
+                        <div class="form-section-header">
+                            <h4>Event Modules</h4>
+                            <button type="button" class="btn btn-primary btn-sm" id="addModuleBtn">+ Add Module</button>
+                        </div>
+                        <div id="eventModulesList">
+                            <!-- Event modules will be listed here -->
+                        </div>
+                    </div>
+
                     <input type="hidden" id="eventId" name="eventId">
                     <div class="modal-actions">
                         <button type="button" class="btn btn-secondary" id="cancelEventBtn">Cancel</button>
                         <button type="submit" class="btn btn-primary" id="saveEventBtn">Save Event</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Add Module to Event Modal -->
+        <div id="addModuleModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Add Module to Event</h3>
+                    <button class="modal-close" id="closeAddModuleModal">&times;</button>
+                </div>
+                <form id="addModuleForm">
+                    <div class="form-group">
+                        <label for="moduleSelectForEvent">Module <span class="required">*</span></label>
+                        <select id="moduleSelectForEvent" name="moduleId" required>
+                            <option value="">-- Select a Module --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="speakerNameForModule">Speaker Name <span class="required">*</span></label>
+                        <input type="text" id="speakerNameForModule" name="speakerName" required
+                               placeholder="e.g., John Doe">
+                        <small class="form-help">Who is delivering this module at this event?</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="deliveryOrder">Delivery Order <span class="required">*</span></label>
+                        <input type="number" id="deliveryOrder" name="deliveryOrder" min="1" value="1" required>
+                        <small class="form-help">Order in which this module is delivered</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="deliveryDate">Delivery Date & Time</label>
+                        <input type="datetime-local" id="deliveryDate" name="deliveryDate">
+                        <small class="form-help">Optional - when this module is delivered</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="moduleNotes">Notes</label>
+                        <textarea id="moduleNotes" name="notes" rows="3" placeholder="Optional notes about this module delivery..."></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelAddModuleBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Add Module</button>
                     </div>
                 </form>
             </div>
