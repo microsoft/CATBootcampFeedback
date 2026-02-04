@@ -136,7 +136,7 @@ function setupEventListeners() {
             return;
         }
 
-        // Handle module reorder buttons
+        // Handle module reorder and remove buttons
         const eventModuleId = parseInt(target.dataset.eventModuleId);
         if (eventModuleId) {
             const currentOrder = parseInt(target.dataset.currentOrder);
@@ -144,6 +144,8 @@ function setupEventListeners() {
                 reorderModule(eventModuleId, currentOrder - 1);
             } else if (target.classList.contains('btn-reorder-down')) {
                 reorderModule(eventModuleId, currentOrder + 1);
+            } else if (target.classList.contains('btn-remove-event-module')) {
+                window.removeEventModule(eventModuleId);
             }
         }
     });
@@ -1014,15 +1016,27 @@ async function reorderModule(eventModuleId, newOrder) {
 
         showNotification('Success', 'Module order updated successfully', 'success');
 
-        // Close and reopen the modal to refresh the module list
-        const modal = document.getElementById('eventDetailsModal');
-        if (modal) {
-            const eventId = parseInt(modal.dataset.eventId);
+        // Check if we're in the event details modal (View Details & QR)
+        const detailsModal = document.getElementById('eventDetailsModal');
+        if (detailsModal && detailsModal.style.display !== 'none') {
+            const eventId = parseInt(detailsModal.dataset.eventId);
             closeEventDetailsModal();
             // Reload events to get fresh data
             await loadEvents();
             // Reopen the modal with updated data
             setTimeout(() => viewEventDetails(eventId), 100);
+            return;
+        }
+
+        // Check if we're in the event edit modal
+        const editModal = document.getElementById('eventModal');
+        const eventIdField = document.getElementById('eventId');
+        if (editModal && !editModal.classList.contains('hidden') && eventIdField && eventIdField.value) {
+            const eventId = parseInt(eventIdField.value);
+            // Just reload the modules list in the edit modal
+            await loadEventModules(eventId);
+            // Also reload all events to keep data in sync
+            await loadEvents();
         }
 
     } catch (error) {
@@ -1220,16 +1234,44 @@ function renderEventModules() {
         return;
     }
 
-    container.innerHTML = currentEventModules
-        .sort((a, b) => a.deliveryOrder - b.deliveryOrder)
-        .map(em => `
-            <div class="event-module-item" style="border: 1px solid #ddd; padding: 12px; margin-bottom: 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
-                <div>
+    const sortedModules = currentEventModules.sort((a, b) => a.deliveryOrder - b.deliveryOrder);
+
+    container.innerHTML = sortedModules
+        .map((em, index) => `
+            <div class="event-module-item" style="border: 1px solid #ddd; padding: 12px; margin-bottom: 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                <div style="flex: 1;">
                     <strong>${em.deliveryOrder}. ${escapeHtml(em.moduleName)}</strong><br>
                     <span style="color: #666;">👤 Speaker: ${escapeHtml(em.speakerName)}</span>
                     ${em.deliveryDate ? `<br><span style="color: #666;">📅 ${new Date(em.deliveryDate).toLocaleString()}</span>` : ''}
                 </div>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="removeEventModule(${em.eventModuleId})">Remove</button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <button type="button"
+                                class="btn btn-icon btn-reorder-up"
+                                data-event-module-id="${em.eventModuleId}"
+                                data-current-order="${em.deliveryOrder}"
+                                ${index === 0 ? 'disabled' : ''}
+                                style="padding: 4px 10px; font-size: 0.85em; min-width: 36px; background: #6c63ff; color: white; border: none; border-radius: 4px; cursor: pointer;"
+                                title="Move up">
+                            ▲
+                        </button>
+                        <button type="button"
+                                class="btn btn-icon btn-reorder-down"
+                                data-event-module-id="${em.eventModuleId}"
+                                data-current-order="${em.deliveryOrder}"
+                                ${index === sortedModules.length - 1 ? 'disabled' : ''}
+                                style="padding: 4px 10px; font-size: 0.85em; min-width: 36px; background: #6c63ff; color: white; border: none; border-radius: 4px; cursor: pointer;"
+                                title="Move down">
+                            ▼
+                        </button>
+                    </div>
+                    <button type="button"
+                            class="btn btn-secondary btn-sm btn-remove-event-module"
+                            data-event-module-id="${em.eventModuleId}"
+                            style="padding: 8px 16px;">
+                        Remove
+                    </button>
+                </div>
             </div>
         `).join('');
 }
