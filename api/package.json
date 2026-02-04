@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@azure/functions": "^4.0.0",
-    "mssql": "^10.0.0",
+    "mssql": "^12.2.0",
     "node-cache": "^5.1.2"
   },
   "devDependencies": {
