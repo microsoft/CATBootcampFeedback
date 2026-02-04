@@ -20,14 +20,12 @@
 
 ## 📊 Data Model Changes
 
-### 1. Modules Table (NEW)
+### 1. Modules Table (NEW - Timeless Content)
 ```sql
 Modules
 ├── ModuleId (PK)
 ├── ModuleName
-├── ModuleDate
 ├── SpeakerName
-├── CohortId
 ├── Description
 ├── IsActive
 ├── CreatedAt
@@ -35,17 +33,22 @@ Modules
 ├── UpdatedAt
 └── UpdatedBy
 ```
+**Note:** Modules have NO dates - they are timeless training content
 
-### 2. Events Table (REFACTORED)
+### 2. Events Table (REFACTORED - Delivery Instances)
 ```sql
 Events
 ├── EventId (PK)
 ├── EventCode (UNIQUE, admin-provided)
 ├── ModuleId (FK → Modules)
+├── StartDate (when event happens)
+├── EndDate (when event ends)
+├── CohortId (which batch/cohort)
 ├── IsActive
 ├── CreatedAt
 └── CreatedBy
 ```
+**Note:** Events have START and END dates - they are when the module is delivered
 
 ### 3. Feedback Table (UPDATED)
 ```sql
@@ -276,14 +279,23 @@ POST   /api/feedback             - Submit feedback (references EventId)
 
 ## 🔍 Example Scenario
 
-**Module:** "Introduction to Copilot Studio"
+**Module:** "Introduction to Copilot Studio" (Timeless content)
 - ModuleId: 1
 - Speaker: John Doe
-- Date: 2026-02-15
+- Description: Getting started with Copilot Studio basics
+- NO DATE (module is reusable content)
 
 **Events for this module:**
-- Event 1: Code CSA1B2C3 (Q1-2026 cohort)
-- Event 2: Code CSA1B2C4 (Q2-2026 cohort, same content)
+- Event 1: Code CSA1B2C3
+  - StartDate: 2026-02-15 09:00
+  - EndDate: 2026-02-15 17:00
+  - Cohort: Q1-2026
+
+- Event 2: Code CSA1B2C4
+  - StartDate: 2026-04-20 09:00
+  - EndDate: 2026-04-20 17:00
+  - Cohort: Q2-2026
+  - (Same module content, different delivery date)
 
 **Feedback:**
 - 50 feedback submissions for Event 1 (CSA1B2C3)

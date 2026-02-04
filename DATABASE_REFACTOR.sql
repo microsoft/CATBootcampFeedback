@@ -2,14 +2,12 @@
 -- Separating Modules and Events
 
 -- ============================================
--- 1. MODULES TABLE (Training Content)
+-- 1. MODULES TABLE (Training Content - Timeless)
 -- ============================================
 CREATE TABLE Modules (
     ModuleId INT PRIMARY KEY IDENTITY(1,1),
     ModuleName NVARCHAR(200) NOT NULL,
-    ModuleDate DATE NOT NULL,
     SpeakerName NVARCHAR(100) NOT NULL,
-    CohortId NVARCHAR(50) NULL,
     Description NVARCHAR(MAX) NULL,
     IsActive BIT NOT NULL DEFAULT 1,
     CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
@@ -19,12 +17,15 @@ CREATE TABLE Modules (
 );
 
 -- ============================================
--- 2. EVENTS TABLE (Feedback Collection Instances)
+-- 2. EVENTS TABLE (Delivery Instances with Dates)
 -- ============================================
 CREATE TABLE Events (
     EventId INT PRIMARY KEY IDENTITY(1,1),
     EventCode NVARCHAR(8) NOT NULL UNIQUE,  -- Admin-provided, e.g., CSA1B2C3
     ModuleId INT NOT NULL,
+    StartDate DATETIME NOT NULL,            -- When the event starts
+    EndDate DATETIME NULL,                  -- When the event ends (optional)
+    CohortId NVARCHAR(50) NULL,            -- Which cohort/batch
     IsActive BIT NOT NULL DEFAULT 1,
     CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
     CreatedBy NVARCHAR(100) NULL,
@@ -69,10 +70,11 @@ SELECT
     e.EventCode,
     e.ModuleId,
     m.ModuleName,
-    m.ModuleDate,
     m.SpeakerName,
-    m.CohortId,
     m.Description AS ModuleDescription,
+    e.StartDate,
+    e.EndDate,
+    e.CohortId,
     e.IsActive AS EventIsActive,
     m.IsActive AS ModuleIsActive,
     e.CreatedAt AS EventCreatedAt,
@@ -90,9 +92,10 @@ SELECT
     f.EventCode,
     e.ModuleId,
     m.ModuleName,
-    m.ModuleDate,
     m.SpeakerName,
-    m.CohortId,
+    e.StartDate,
+    e.EndDate,
+    e.CohortId,
     f.SpeakerKnowledge,
     f.ContentDepth,
     f.ModuleSatisfaction,
@@ -160,23 +163,23 @@ EXEC sp_rename 'Events', 'Events_OLD';
 -- 6. SAMPLE DATA
 -- ============================================
 
--- Insert sample modules
-INSERT INTO Modules (ModuleName, ModuleDate, SpeakerName, CohortId, Description)
+-- Insert sample modules (timeless content)
+INSERT INTO Modules (ModuleName, SpeakerName, Description)
 VALUES
-    ('Introduction to Copilot Studio', '2026-02-15', 'John Doe', 'Q1-2026', 'Getting started with Copilot Studio basics'),
-    ('Building Your First Copilot', '2026-02-16', 'Jane Smith', 'Q1-2026', 'Hands-on copilot development'),
-    ('Advanced Copilot Techniques', '2026-02-17', 'Mike Johnson', 'Q1-2026', 'Advanced features and best practices');
+    ('Introduction to Copilot Studio', 'John Doe', 'Getting started with Copilot Studio basics'),
+    ('Building Your First Copilot', 'Jane Smith', 'Hands-on copilot development'),
+    ('Advanced Copilot Techniques', 'Mike Johnson', 'Advanced features and best practices');
 
--- Insert sample events for the modules
-INSERT INTO Events (EventCode, ModuleId, IsActive)
+-- Insert sample events for the modules (with dates and cohorts)
+INSERT INTO Events (EventCode, ModuleId, StartDate, EndDate, CohortId, IsActive)
 VALUES
-    ('CSA1B2C3', 1, 1),  -- Event for Module 1
-    ('CSXYZ789', 2, 1),  -- Event for Module 2
-    ('CSABC456', 3, 1);  -- Event for Module 3
+    ('CSA1B2C3', 1, '2026-02-15 09:00:00', '2026-02-15 17:00:00', 'Q1-2026', 1),  -- Event for Module 1, Q1 cohort
+    ('CSXYZ789', 2, '2026-02-16 09:00:00', '2026-02-16 17:00:00', 'Q1-2026', 1),  -- Event for Module 2, Q1 cohort
+    ('CSABC456', 3, '2026-02-17 09:00:00', '2026-02-17 17:00:00', 'Q1-2026', 1);  -- Event for Module 3, Q1 cohort
 
--- You can create multiple events for the same module:
--- INSERT INTO Events (EventCode, ModuleId, IsActive)
--- VALUES ('CSA1B2C4', 1, 1);  -- Another event for Module 1 (e.g., different cohort)
+-- You can create multiple events for the same module (different dates/cohorts):
+-- INSERT INTO Events (EventCode, ModuleId, StartDate, EndDate, CohortId, IsActive)
+-- VALUES ('CSA1B2C4', 1, '2026-04-15 09:00:00', '2026-04-15 17:00:00', 'Q2-2026', 1);  -- Same module, Q2 cohort
 
 -- ============================================
 -- 7. STORED PROCEDURES
@@ -192,11 +195,13 @@ BEGIN
         e.EventCode,
         e.ModuleId,
         m.ModuleName,
-        m.ModuleDate,
         m.SpeakerName,
-        m.CohortId,
+        e.StartDate,
+        e.EndDate,
+        e.CohortId,
         m.Description,
-        e.IsActive,
+        e.IsActive AS EventIsActive,
+        m.IsActive AS ModuleIsActive,
         e.CreatedAt
     FROM Events e
     INNER JOIN Modules m ON e.ModuleId = m.ModuleId
@@ -227,11 +232,12 @@ GO
 -- Create Module and Event
 CREATE PROCEDURE sp_CreateModuleWithEvent
     @ModuleName NVARCHAR(200),
-    @ModuleDate DATE,
     @SpeakerName NVARCHAR(100),
-    @CohortId NVARCHAR(50),
     @Description NVARCHAR(MAX),
     @EventCode NVARCHAR(8),
+    @StartDate DATETIME,
+    @EndDate DATETIME,
+    @CohortId NVARCHAR(50),
     @CreatedBy NVARCHAR(100)
 AS
 BEGIN
@@ -239,15 +245,15 @@ BEGIN
 
     BEGIN TRANSACTION;
 
-    -- Insert Module
-    INSERT INTO Modules (ModuleName, ModuleDate, SpeakerName, CohortId, Description, CreatedBy)
-    VALUES (@ModuleName, @ModuleDate, @SpeakerName, @CohortId, @Description, @CreatedBy);
+    -- Insert Module (timeless content)
+    INSERT INTO Modules (ModuleName, SpeakerName, Description, CreatedBy)
+    VALUES (@ModuleName, @SpeakerName, @Description, @CreatedBy);
 
     SET @ModuleId = SCOPE_IDENTITY();
 
-    -- Insert Event
-    INSERT INTO Events (EventCode, ModuleId, CreatedBy)
-    VALUES (@EventCode, @ModuleId, @CreatedBy);
+    -- Insert Event (delivery instance with dates)
+    INSERT INTO Events (EventCode, ModuleId, StartDate, EndDate, CohortId, CreatedBy)
+    VALUES (@EventCode, @ModuleId, @StartDate, @EndDate, @CohortId, @CreatedBy);
 
     COMMIT TRANSACTION;
 
@@ -257,11 +263,13 @@ BEGIN
         e.EventCode,
         e.ModuleId,
         m.ModuleName,
-        m.ModuleDate,
         m.SpeakerName,
-        m.CohortId,
+        e.StartDate,
+        e.EndDate,
+        e.CohortId,
         m.Description,
-        e.IsActive,
+        e.IsActive AS EventIsActive,
+        m.IsActive AS ModuleIsActive,
         e.CreatedAt
     FROM Events e
     INNER JOIN Modules m ON e.ModuleId = m.ModuleId
