@@ -64,7 +64,7 @@ app.http('modules', {
                 return {
                     status: response.status,
                     headers: response.headers,
-                    jsonBody: response.body
+                    body: response.body  // Use 'body' not 'jsonBody' since response.body is already stringified
                 };
 
             } else if (request.method === 'POST') {
@@ -80,7 +80,7 @@ app.http('modules', {
                     return {
                         status: errorResponse.status,
                         headers: errorResponse.headers,
-                        jsonBody: errorResponse.body
+                        body: errorResponse.body  // Use 'body' not 'jsonBody' since errorResponse.body is already stringified
                     };
                 }
 
@@ -90,7 +90,7 @@ app.http('modules', {
                     return {
                         status: errorResponse.status,
                         headers: errorResponse.headers,
-                        jsonBody: errorResponse.body
+                        body: errorResponse.body  // Use 'body' not 'jsonBody' since errorResponse.body is already stringified
                     };
                 }
 
@@ -123,7 +123,7 @@ app.http('modules', {
                 return {
                     status: response.status,
                     headers: response.headers,
-                    jsonBody: response.body
+                    body: response.body  // Use 'body' not 'jsonBody' since response.body is already stringified
                 };
             }
 
@@ -133,7 +133,7 @@ app.http('modules', {
             return {
                 status: errorResponse.status,
                 headers: errorResponse.headers,
-                jsonBody: errorResponse.body
+                body: errorResponse.body  // Use 'body' not 'jsonBody' since errorResponse.body is already stringified
             };
         }
     }

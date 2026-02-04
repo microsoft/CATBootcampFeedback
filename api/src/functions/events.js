@@ -82,7 +82,7 @@ app.http('events', {
             return {
                 status: response.status,
                 headers: response.headers,
-                jsonBody: response.body
+                body: response.body  // Use 'body' not 'jsonBody' since response.body is already stringified
             };
         } catch (err) {
             context.log('Error in GetEvents:', err);
@@ -91,7 +91,7 @@ app.http('events', {
             return {
                 status: errorResponse.status,
                 headers: errorResponse.headers,
-                jsonBody: errorResponse.body
+                body: errorResponse.body  // Use 'body' not 'jsonBody' since errorResponse.body is already stringified
             };
         }
     }
