@@ -1,4 +1,4 @@
-# Copilot Studio Bootcamp Feedback Application
+# CAT Bootcamp Feedback Application
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Azure](https://img.shields.io/badge/Azure-Ready-blue)](https://azure.microsoft.com)
@@ -22,8 +22,8 @@ A comprehensive web-based feedback collection system for training modules with a
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/copilot-feedback-app.git
-cd copilot-feedback-app
+git clone https://github.com/yourusername/cat-bootcamp-feedback-app.git
+cd cat-bootcamp-feedback-app
 ```
 
 2. Serve with a local web server:
@@ -213,7 +213,7 @@ MIT License - see LICENSE file for details
 
 ## 🐛 Issues
 
-Found a bug? Have a feature request? [Open an issue](https://github.com/yourusername/copilot-feedback-app/issues)
+Found a bug? Have a feature request? [Open an issue](https://github.com/yourusername/cat-bootcamp-feedback-app/issues)
 
 ## 📧 Support
 
@@ -221,7 +221,7 @@ For questions or support, please contact the maintainers.
 
 ## 🙏 Acknowledgments
 
-Built for the Copilot Studio Bootcamp program.
+Built for the CAT Bootcamp program.
 
 ---
 

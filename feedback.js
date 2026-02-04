@@ -419,7 +419,7 @@ window.clearAllFeedback = function() {
     }
 };
 
-console.log('Copilot Studio Bootcamp Feedback Form Loaded');
+console.log('CAT Bootcamp Feedback Form Loaded');
 console.log('Event Code:', eventCode);
 console.log('Using Mock Data:', USE_MOCK_DATA);
 if (USE_MOCK_DATA) {

@@ -1,7 +1,7 @@
-# Copilot Studio Bootcamp Feedback Application - Specification
+# CAT Bootcamp Feedback Application - Specification
 
 ## Project Overview
-A web application to collect structured feedback on modules delivered during the Copilot Studio Bootcamp. The application will gather quantitative ratings and qualitative feedback to assess module effectiveness and instructor performance.
+A web application to collect structured feedback on modules delivered during the CAT Bootcamp. The application will gather quantitative ratings and qualitative feedback to assess module effectiveness and instructor performance.
 
 The system consists of two main components:
 1. **Public Feedback Form** - Unauthenticated forms accessed via unique URLs with embedded event codes
@@ -81,7 +81,7 @@ Each feedback submission should be associated with:
 
 ### Form Layout
 ```
-[Page Header: Copilot Studio Bootcamp Feedback]
+[Page Header: CAT Bootcamp Feedback]
 
 Module Information:
 - Module Name: [Display or Select]

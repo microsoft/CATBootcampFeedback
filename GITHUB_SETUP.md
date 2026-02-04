@@ -18,8 +18,8 @@ Your local Git repository has been initialized and the initial commit has been c
    - Login if needed
 
 2. **Create New Repository**
-   - Repository name: `copilot-feedback-app` (or your preferred name)
-   - Description: "Feedback collection system for Copilot Studio Bootcamp with admin interface and live counting"
+   - Repository name: `cat-bootcamp-feedback-app` (or your preferred name)
+   - Description: "Feedback collection system for CAT Bootcamp with admin interface and live counting"
    - Visibility: Choose Public or Private
    - **DO NOT** initialize with README, .gitignore, or license (we already have these)
    - Click "Create repository"
@@ -32,7 +32,7 @@ Your local Git repository has been initialized and the initial commit has been c
    cd "C:\Users\dewainr\feedbackapp"
 
    # Add the remote repository
-   git remote add origin https://github.com/YOUR_USERNAME/copilot-feedback-app.git
+   git remote add origin https://github.com/YOUR_USERNAME/cat-bootcamp-feedback-app.git
 
    # Push to GitHub
    git branch -M main
@@ -57,7 +57,7 @@ If you want to use the GitHub CLI in the future:
 3. **Create and Push Repository**
    ```bash
    cd "C:\Users\dewainr\feedbackapp"
-   gh repo create copilot-feedback-app --public --source=. --push
+   gh repo create cat-bootcamp-feedback-app --public --source=. --push
    ```
 
 ## 📝 Recommended Repository Settings
@@ -66,7 +66,7 @@ Once your repository is created on GitHub:
 
 ### 1. Add Repository Description
 ```
-Comprehensive feedback collection system for training modules with admin management, QR code generation, and live counting. Built for Copilot Studio Bootcamp.
+Comprehensive feedback collection system for training modules with admin management, QR code generation, and live counting. Built for CAT Bootcamp.
 ```
 
 ### 2. Add Topics/Tags
@@ -182,7 +182,7 @@ Types:
    - Source: Deploy from a branch
    - Branch: main
    - Folder: / (root)
-   - Your app will be available at: `https://yourusername.github.io/copilot-feedback-app`
+   - Your app will be available at: `https://yourusername.github.io/cat-bootcamp-feedback-app`
 
 4. **Add Collaborators** (If needed)
    - Settings → Collaborators

@@ -1,6 +1,6 @@
-# Copilot Studio Bootcamp Feedback Application
+# CAT Bootcamp Feedback Application
 
-A comprehensive web-based feedback collection system for Copilot Studio Bootcamp modules with admin management, QR code generation, and live feedback counting.
+A comprehensive web-based feedback collection system for CAT Bootcamp modules with admin management, QR code generation, and live feedback counting.
 
 ## Overview
 
@@ -450,7 +450,7 @@ For questions or issues:
 
 ## License
 
-This is a demonstration project for the Copilot Studio Bootcamp.
+This is a demonstration project for the CAT Bootcamp.
 
 ---
 
