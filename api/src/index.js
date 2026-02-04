@@ -10,3 +10,4 @@ require('./functions/feedback');
 require('./functions/login');
 require('./functions/load-test-data');
 require('./functions/update-event-status');
+require('./functions/update-event');
