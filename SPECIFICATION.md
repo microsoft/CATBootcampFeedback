@@ -60,7 +60,22 @@ Events (1) ←→ (many) EventModules (many) ←→ (1) Modules
   - Select module from library
   - Assign speaker for this delivery
   - Set delivery order/sequence
-- Generate feedback URLs and QR codes for events
+- View event details and associated modules
+  - See all modules included in an event
+  - View speaker assignments and delivery dates
+  - Check feedback count per event
+- Generate and manage QR codes for events:
+  - View QR code in modal dialog
+  - Download QR code as PNG image
+  - Copy feedback URL to clipboard
+- Edit existing events:
+  - Modify event details (dates, cohort)
+  - Update module assignments
+  - Change speaker names
+- Activate/Deactivate events:
+  - Toggle event active status
+  - Confirmation dialog before status change
+  - Deactivated events cannot receive new feedback
 - View feedback per event or per module delivery
 
 ## Core Requirements
@@ -137,10 +152,28 @@ Each feedback submission should be associated with:
 - **Event Code Input**: Admin specifies event code when creating a module (e.g., "CSA1B2C3")
   - Format validation: Typically 8 characters, starts with "CS"
   - Event codes are admin-provided, not auto-generated
+- **Event Actions**: Each event card provides action buttons:
+  - **View Details & QR**: Opens modal showing:
+    - Complete event information (dates, cohort, status)
+    - List of all modules in the event with speaker names
+    - Feedback count and submission statistics
+    - QR code for feedback form (scannable)
+    - Download QR code button (saves as PNG)
+    - Copy feedback URL button (copies to clipboard)
+  - **Edit**: Opens event editing modal
+    - Modify event details (dates, cohort ID)
+    - Update module assignments and speakers
+    - Reuses existing event management modal
+  - **Activate/Deactivate**: Toggle event active status
+    - Confirmation dialog before status change
+    - Updates database via API
+    - Real-time UI update after change
+    - Deactivated events cannot receive new feedback
 - **Feedback URL Creation**: System generates URLs with the admin-provided event codes (e.g., `feedback.html?code=CSA1B2C3`)
 - **QR Code Generation**: System automatically generates QR codes for feedback URLs
   - QR codes link to the feedback form with the module's event code
   - Participants scan to provide feedback about the module
+  - Customizable QR code colors (purple theme)
 - **Error Handling**: Invalid event codes in feedback URLs display: "Not a valid event code"
 - **Event Deletion**: Delete modules/events with cascade deletion of all associated feedback (requires confirmation)
 - **Feedback Viewing**: View all submitted feedback for each module, filtered by event code
@@ -149,6 +182,7 @@ Each feedback submission should be associated with:
 - **Authentication Required**: Secure access for administrators only (client-side authentication)
 - **Count Display**: Dedicated page for displaying live feedback counts with auto-refresh
 - **Responsive Design**: Fully responsive interface that works on desktop, tablet, and mobile devices
+- **Visual Accessibility**: High contrast module count badges for better readability
 
 ### Count Display Page
 - **Access Pattern**: `count.html?code={EVENT_CODE}`
@@ -349,6 +383,14 @@ PUT    /api/events/{eventId}
        - Update event
        - Body: { moduleName?, moduleDate?, speakerName?, cohortId?, description?, isActive? }
        - Returns: { success: true, data: { eventId } }
+
+PUT    /api/events/{eventId}/status
+       - Update event active status
+       - Body: { isActive: boolean }
+       - Returns: { success: true, data: { message, eventId, isActive } }
+       - Used by Activate/Deactivate button in admin interface
+       - Validates eventId exists before updating
+       - Updates IsActive flag and UpdatedAt timestamp
 
 DELETE /api/events/{eventId}
        - Delete event with cascade delete of feedback
@@ -633,13 +675,26 @@ https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3
 - [x] Download QR code as PNG image
 - [x] View list of all events with search/filter
 - [x] Edit existing events
-- [x] Deactivate/activate events
+- [x] Deactivate/activate events with confirmation
 - [x] Delete events with confirmation dialog and cascade deletion
 - [x] View feedback submissions for each event
 - [x] View aggregate statistics (averages, counts)
 - [x] Export feedback data to CSV
 - [x] Responsive design for admin interface
 - [x] Login form with consistent input styling
+- [x] **View Details & QR button**: Display event details modal
+  - [x] Show complete event information (dates, cohort, status)
+  - [x] List all modules with speaker names and delivery dates
+  - [x] Display feedback count
+  - [x] Generate and display QR code in modal
+  - [x] Download QR code as PNG
+  - [x] Copy feedback URL to clipboard
+- [x] **Edit button**: Open event editing modal
+- [x] **Activate/Deactivate button**: Toggle event status
+  - [x] Confirmation dialog before status change
+  - [x] API endpoint for status updates
+  - [x] Real-time UI update after change
+- [x] High contrast module count badges for accessibility
 
 ### Count Display
 - [x] Display live feedback count for specific event
