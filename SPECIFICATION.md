@@ -700,11 +700,11 @@ https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3
   - [x] API endpoint for status updates
   - [x] Real-time UI update after change
 - [x] High contrast module count badges for accessibility
-- [ ] **Module Reordering**: Reorder modules within an event
-  - [ ] Up/down arrow buttons for each module
-  - [ ] API endpoint for updating delivery order
-  - [ ] Automatic reordering of other modules
-  - [ ] Real-time UI update after reordering
+- [x] **Module Reordering**: Reorder modules within an event
+  - [x] Up/down arrow buttons for each module
+  - [x] API endpoint for updating delivery order
+  - [x] Automatic reordering of other modules
+  - [x] Real-time UI update after reordering
 
 ### Count Display
 - [x] Display live feedback count for specific event
