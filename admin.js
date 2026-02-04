@@ -196,11 +196,15 @@ async function showMainContent() {
 
     // Load data in parallel (optimization)
     try {
+        console.log('Loading data with config:', { useMockData: CONFIG.USE_MOCK_DATA, apiBaseUrl: CONFIG.API_BASE_URL });
+
         const [modules, events, feedback] = await Promise.all([
-            fetchModules(),
-            fetchEvents(),
-            fetchFeedback()
+            fetchModules().catch(err => { console.error('fetchModules failed:', err); throw err; }),
+            fetchEvents().catch(err => { console.error('fetchEvents failed:', err); throw err; }),
+            fetchFeedback().catch(err => { console.error('fetchFeedback failed:', err); throw err; })
         ]);
+
+        console.log('Data loaded successfully:', { modules: modules.length, events: events.length, feedback: feedback.length });
 
         allModules = modules;
         allEvents = events;
@@ -213,7 +217,8 @@ async function showMainContent() {
         updateAnalyticsUI();
     } catch (error) {
         console.error('Error loading data:', error);
-        showNotification('Error', 'Failed to load data. Please refresh the page.', 'error');
+        console.error('Error details:', error.message, error.stack);
+        showNotification('Error', `Failed to load data: ${error.message}. Please refresh the page.`, 'error');
     }
 }
 
@@ -258,8 +263,8 @@ async function fetchModules() {
     }
 
     try {
-        const modules = await apiGet('/modules');
-        return modules;
+        const response = await apiGet('/modules');
+        return response.data || response; // Extract data array from response
     } catch (error) {
         throw error;
     }
@@ -539,8 +544,8 @@ async function fetchEvents() {
 
     try {
         // This endpoint should return events joined with module details
-        const events = await apiGet('/events');
-        return events;
+        const response = await apiGet('/events');
+        return response.data || response; // Extract data array from response
     } catch (error) {
         throw error;
     }
@@ -993,8 +998,8 @@ async function fetchFeedback() {
     }
 
     try {
-        const feedback = await apiGet('/feedback');
-        return feedback;
+        const response = await apiGet('/feedback');
+        return response.data || response; // Extract data array from response
     } catch (error) {
         throw error;
     }
