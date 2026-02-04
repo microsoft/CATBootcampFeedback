@@ -35,7 +35,7 @@ module.exports = async function (context, req) {
                 e.EventId, e.EventCode, e.ModuleId, m.ModuleName, m.SpeakerName,
                 m.Description, e.StartDate, e.EndDate, e.CohortId,
                 e.IsActive, m.IsActive, e.CreatedAt, e.CreatedBy
-            ORDER BY e.StartDate DESC
+            ORDER BY e.CreatedAt DESC
         `);
 
         // Format response to match frontend expectations
@@ -59,6 +59,7 @@ module.exports = async function (context, req) {
         context.res = success(formattedEvents);
     } catch (err) {
         context.log.error('Error in GetEvents:', err);
-        context.res = error(500, 'Internal server error', 'SERVER_ERROR');
+        context.log.error('Error details:', err.message, err.stack);
+        context.res = error(500, `Error retrieving events: ${err.message}`, 'SERVER_ERROR');
     }
 };
