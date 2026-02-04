@@ -1298,11 +1298,6 @@ window.viewEventDetails = function(eventId) {
     modal.classList.remove('hidden');
 };
 
-// Close event details modal
-function closeEventDetailsModal() {
-    document.getElementById('eventDetailsModal').classList.add('hidden');
-}
-
 // Copy feedback URL
 window.copyFeedbackUrl = async function(url) {
     try {
