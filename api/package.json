@@ -2,7 +2,7 @@
   "name": "cat-bootcamp-feedback-api",
   "version": "1.0.0",
   "description": "Azure Functions API for CAT Bootcamp Feedback Application",
-  "main": "index.js",
+  "main": "src/index.js",
   "engines": {
     "node": ">=20.0.0"
   },
