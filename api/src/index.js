@@ -6,3 +6,4 @@
 require('./functions/health');
 require('./functions/modules');
 require('./functions/events');
+require('./functions/feedback');
