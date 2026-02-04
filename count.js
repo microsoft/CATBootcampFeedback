@@ -28,6 +28,8 @@ document.addEventListener('DOMContentLoaded', function() {
 async function initialize() {
     // Get event code from URL parameter
     eventCode = getUrlParameter('code');
+    console.log('Count page initializing with event code:', eventCode);
+    console.log('Using mock data:', USE_MOCK_DATA);
 
     if (!eventCode) {
         showError('No event code provided. Please access this page from the admin panel.');
@@ -36,25 +38,33 @@ async function initialize() {
 
     try {
         // Load event details
+        console.log('Loading event details from API...');
         const event = await loadEventDetails(eventCode);
+        console.log('Event data received:', event);
 
         if (!event) {
+            console.error('Event is null or undefined');
             showError('Event not found or invalid event code.');
             return;
         }
 
         currentEvent = event;
+        console.log('Current event set:', currentEvent);
         showCountDisplay();
 
         // Generate QR code
+        console.log('Generating QR code...');
         generateQRCode();
 
         // Start live updates
+        console.log('Starting live count updates...');
         await updateCount();
         startLiveUpdates();
+        console.log('Count page fully initialized');
 
     } catch (error) {
-        console.error('Error initializing:', error);
+        console.error('Error initializing count page:', error);
+        console.error('Error stack:', error.stack);
         showError('Unable to load event information. Please try again later.');
     }
 }
@@ -92,22 +102,22 @@ function mockLoadEventDetails(code) {
         setTimeout(() => {
             const mockEvents = {
                 'CSA1B2C3': {
-                    eventId: 1,
-                    eventCode: 'CSA1B2C3',
-                    moduleName: 'Introduction to Copilot Studio',
-                    moduleDate: '2026-02-15',
-                    speakerName: 'John Doe',
-                    cohortId: 'Q1-2026',
-                    isActive: true
+                    EventId: 1,
+                    EventCode: 'CSA1B2C3',
+                    ModuleName: 'Introduction to CAT Bootcamp',
+                    ModuleDate: '2026-02-15',
+                    SpeakerName: 'John Doe',
+                    CohortId: 'Q1-2026',
+                    IsActive: true
                 },
                 'TEST123': {
-                    eventId: 2,
-                    eventCode: 'TEST123',
-                    moduleName: 'Building Your First Copilot',
-                    moduleDate: '2026-02-16',
-                    speakerName: 'Jane Smith',
-                    cohortId: 'Q1-2026',
-                    isActive: true
+                    EventId: 2,
+                    EventCode: 'TEST123',
+                    ModuleName: 'Building Your First Copilot',
+                    ModuleDate: '2026-02-16',
+                    SpeakerName: 'Jane Smith',
+                    CohortId: 'Q1-2026',
+                    IsActive: true
                 }
             };
 
@@ -229,7 +239,8 @@ function showCountDisplay() {
     errorState.style.display = 'none';
     countDisplay.style.display = 'block';
 
-    moduleName.textContent = currentEvent.moduleName;
+    // API returns PascalCase (ModuleName), handle both cases for compatibility
+    moduleName.textContent = currentEvent.ModuleName || currentEvent.moduleName || 'Unknown Module';
 }
 
 // Show error
