@@ -71,11 +71,27 @@ Each feedback submission should be associated with:
 
 #### Admin Interface
 - **Event Management**: Create, edit, and manage bootcamp events/modules
+- **Event Deletion**: Delete events with cascade deletion of all associated feedback (requires confirmation)
 - **QR Code Generation**: Automatically generate QR codes for each event URL
 - **Feedback Viewing**: View all submitted feedback with filtering options
 - **Analytics Dashboard**: View summary statistics and trends
 - **Export Capabilities**: Export feedback data to CSV/Excel
-- **Authentication Required**: Secure access for administrators only
+- **Authentication Required**: Secure access for administrators only (client-side authentication)
+- **Count Display**: Dedicated page for displaying live feedback counts with auto-refresh
+- **Responsive Design**: Fully responsive interface that works on desktop, tablet, and mobile devices
+
+### Count Display Page
+- **Access Pattern**: `count.html?code={EVENT_CODE}`
+- **Purpose**: Live display of feedback count during presentations
+- **Features**:
+  - Real-time feedback count with auto-refresh (5 second intervals)
+  - Animated count transitions when numbers change
+  - QR code display for attendees to scan
+  - Event information display (module name)
+  - Last updated timestamp
+  - Fullscreen mode toggle for presentations
+  - Error handling for invalid/missing event codes
+- **Use Case**: Displayed on projector/screen during bootcamp sessions to encourage participation
 
 ## User Interface Design
 
@@ -213,57 +229,91 @@ Feedback Questions:
 ```
 GET  /api/events/{eventCode}
      - Get event details by code
-     - Returns: event info (name, date, speaker, etc.)
+     - Returns: { success: true, data: { EventId, EventCode, ModuleName, ModuleDate, SpeakerName, CohortId, IsActive } }
      - Returns 404 if not found or inactive
+     - Note: Returns PascalCase field names from database
+
+GET  /api/events/{eventCode}/count
+     - Get feedback count for an event
+     - Returns: { success: true, data: { count: number } }
+     - Used by count display page for live updates
+
+GET  /api/events
+     - List all events (supports admin interface)
+     - Query params: ?isActive=true&sortBy=ModuleDate&sortOrder=DESC
+     - Returns: { success: true, data: { events: [...], count: number } }
+     - Note: Returns PascalCase field names
+
+GET  /api/feedback
+     - Get all feedback submissions
+     - Query params: ?eventCode=XXX&limit=100&offset=0
+     - Returns: { success: true, data: { feedback: [...], total: number, limit: number, offset: number } }
+     - Includes event details (ModuleName, SpeakerName, ModuleDate) via JOIN
 
 POST /api/feedback
      - Submit feedback
      - Body: { eventCode, speakerKnowledge, contentDepth, moduleSatisfaction, additionalComments }
-     - Returns: { success: true, feedbackId }
+     - Returns: { success: true, data: { feedbackId } }
+     - Validates rating ranges (1-5) and content depth options
 ```
 
-##### Admin Endpoints (Authentication Required)
+##### Admin Endpoints (Authentication Not Required - Implemented with Client-Side Auth)
 ```
-GET    /api/admin/events
-       - List all events
-       - Query params: ?page=1&limit=20&search=keyword
-
-POST   /api/admin/events
+POST   /api/events
        - Create new event
-       - Body: { moduleName, moduleDate, speakerName, cohortId?, isActive }
-       - Returns: { eventId, eventCode, feedbackUrl, qrCodeUrl }
+       - Body: { moduleName, moduleDate, speakerName, cohortId?, description?, isActive }
+       - Returns: { success: true, data: { eventId, eventCode } }
+       - Auto-generates unique event code
 
-GET    /api/admin/events/{eventId}
-       - Get event details by ID
-
-PUT    /api/admin/events/{eventId}
+PUT    /api/events/{eventId}
        - Update event
-       - Body: { moduleName?, moduleDate?, speakerName?, isActive? }
+       - Body: { moduleName?, moduleDate?, speakerName?, cohortId?, description?, isActive? }
+       - Returns: { success: true, data: { eventId } }
 
-DELETE /api/admin/events/{eventId}
-       - Soft delete event (set isActive = false)
-
-GET    /api/admin/events/{eventId}/feedback
-       - Get all feedback for an event
-       - Query params: ?page=1&limit=20
-
-GET    /api/admin/feedback
-       - Get all feedback across events
-       - Query params: ?page=1&limit=20&eventId=?&fromDate=?&toDate=?
-
-GET    /api/admin/analytics
-       - Get aggregate statistics
-       - Query params: ?eventId=?&fromDate=?&toDate=?
-
-GET    /api/admin/export
-       - Export feedback to CSV
-       - Query params: ?eventId=?&fromDate=?&toDate=?&format=csv
+DELETE /api/events/{eventId}
+       - Delete event with cascade delete of feedback
+       - Returns: { success: true, data: { message, eventId, feedbackDeleted } }
+       - Permanently deletes event and all associated feedback
+       - Requires confirmation in admin interface
 
 POST   /api/admin/auth/login
-       - Admin authentication
-       - Body: { username, password } or Azure AD token
-       - Returns: { token, expiresIn }
+       - Admin authentication (mock data in development)
+       - Body: { username, password }
+       - Returns: { success: true, token: string, user: { username, fullName } }
+       - Demo credentials: username=admin, password=admin123
 ```
+
+##### Environment Detection
+The application automatically detects the environment and uses appropriate data sources:
+- **Development** (localhost/127.0.0.1): Uses mock data stored in localStorage
+- **Production** (azurestaticapps.net): Uses real Azure SQL database via API
+- Detection logic: `const USE_MOCK_DATA = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';`
+
+##### API Response Format
+All API responses follow a consistent format:
+```json
+{
+  "success": true,
+  "data": { /* response data */ },
+  "message": "Optional message"
+}
+```
+
+Error responses:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Error description"
+  }
+}
+```
+
+##### Field Name Case Handling
+- **Database/API**: Returns PascalCase field names (EventId, EventCode, ModuleName, etc.)
+- **Frontend**: JavaScript code handles both PascalCase and camelCase for compatibility
+- Example: `const moduleName = event.ModuleName || event.moduleName;`
 
 ### Database Schema (Azure SQL)
 
@@ -462,19 +512,30 @@ https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3
 - [ ] No authentication required to submit feedback
 
 ### Admin Interface
-- [ ] Authentication required to access admin interface
-- [ ] Create new events with all required fields
-- [ ] Generate unique event code for each event
-- [ ] Display full feedback URL for each event
-- [ ] Generate QR code for each event URL
-- [ ] Download QR code as PNG image
-- [ ] View list of all events with search/filter
-- [ ] Edit existing events
-- [ ] Deactivate/activate events
-- [ ] View feedback submissions for each event
-- [ ] View aggregate statistics (averages, counts)
-- [ ] Export feedback data to CSV
-- [ ] Responsive design for admin interface
+- [x] Authentication required to access admin interface
+- [x] Create new events with all required fields
+- [x] Generate unique event code for each event
+- [x] Display full feedback URL for each event
+- [x] Generate QR code for each event URL
+- [x] Download QR code as PNG image
+- [x] View list of all events with search/filter
+- [x] Edit existing events
+- [x] Deactivate/activate events
+- [x] Delete events with confirmation dialog and cascade deletion
+- [x] View feedback submissions for each event
+- [x] View aggregate statistics (averages, counts)
+- [x] Export feedback data to CSV
+- [x] Responsive design for admin interface
+- [x] Login form with consistent input styling
+
+### Count Display
+- [x] Display live feedback count for specific event
+- [x] Auto-refresh count every 5 seconds
+- [x] Display event information (module name, date, speaker)
+- [x] Generate and display QR code for feedback form
+- [x] Handle zero feedback gracefully (display 0)
+- [x] Fullscreen mode for presentations
+- [x] Last updated timestamp display
 
 ## Implementation Phases
 
@@ -562,3 +623,69 @@ https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3
 - Comparison reports across cohorts
 - Sentiment analysis on comments
 - Mobile app version
+
+## Implementation Notes
+
+### Delete Functionality
+The delete feature includes comprehensive safeguards:
+- **Confirmation Dialog**: Multi-line confirmation showing event details and warning about permanent deletion
+- **Cascade Delete**: Automatically removes all associated feedback when an event is deleted
+- **Feedback Count**: Shows user how many feedback entries will be deleted
+- **UI Feedback**: Button styled with danger color (red) and hover effects
+- **No Undo**: Clearly communicates that deletion is permanent and cannot be undone
+
+Example confirmation message:
+```
+⚠️ DELETE EVENT?
+
+Event: Introduction to CAT Bootcamp
+Code: CSA1B2C3
+
+This will permanently delete the event and ALL associated feedback.
+
+This action CANNOT be undone!
+
+Are you sure you want to continue?
+```
+
+### Deployment Architecture (Implemented)
+The application is deployed using Azure Static Web Apps with integrated Azure Functions:
+
+**Resources**:
+- Resource Group: `cat-bootcamp-rg`
+- SQL Server: `cat-bootcamp-sql-89082.database.windows.net`
+- Database: `CATBootcampFeedback`
+- Static Web App: `cat-bootcamp-feedback` (blue-sea-0b9be530f.1.azurestaticapps.net)
+
+**Stack**:
+- Frontend: HTML5, CSS3, Vanilla JavaScript (served by Azure Static Web Apps)
+- Backend: Azure Functions (Node.js 18)
+- Database: Azure SQL Database
+- CI/CD: GitHub Actions (automated deployment on push to main)
+
+**Environment Variables** (Azure Static Web Apps):
+- `SQL_SERVER`: Database server hostname
+- `SQL_DATABASE`: Database name
+- `SQL_USER`: Database username
+- `SQL_PASSWORD`: Database password (securely stored)
+
+### Sample Data
+The application includes 3 sample events for testing:
+1. **CSA1B2C3** - Introduction to CAT Bootcamp (2026-02-15, John Doe)
+2. **CSXYZ789** - Advanced Topics (2026-02-20, Jane Smith)
+3. **CSABC456** - Hands-on Workshop (2026-02-22, Bob Johnson)
+
+### Security Implementation
+- **Input Validation**: All text inputs sanitized, ratings validated (1-5), content depth options validated
+- **Rate Limiting**: Built into Azure SQL with connection pooling
+- **HTTPS Enforcement**: Configured via Azure Static Web Apps
+- **Content Security Policy**: Strict CSP headers prevent XSS attacks
+- **SQL Injection Prevention**: All queries use parameterized statements
+- **CORS Configuration**: Configured to allow only authorized domains
+
+### Styling Features
+- **Consistent Form Inputs**: All input types (text, password, date, select, textarea) have uniform styling
+- **Button Variants**: Primary (gradient), Secondary (outlined), Danger (red for destructive actions)
+- **Responsive Design**: Breakpoints at 768px (tablet) and 480px (mobile)
+- **Animations**: Smooth transitions, count animations, hover effects
+- **Accessibility**: ARIA labels, keyboard navigation, focus indicators, screen reader compatible
