@@ -58,9 +58,7 @@ app.http('updateEventStatus', {
             // Update event status
             await query(`
                 UPDATE Events
-                SET IsActive = @isActive,
-                    UpdatedAt = GETDATE(),
-                    UpdatedBy = 'admin'
+                SET IsActive = @isActive
                 WHERE EventId = @eventId
             `, {
                 eventId: parseInt(eventId),

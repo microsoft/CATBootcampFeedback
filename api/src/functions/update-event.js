@@ -78,9 +78,7 @@ app.http('updateEvent', {
                     StartDate = @startDate,
                     EndDate = @endDate,
                     CohortId = @cohortId,
-                    IsActive = @isActive,
-                    UpdatedAt = GETDATE(),
-                    UpdatedBy = 'admin'
+                    IsActive = @isActive
                 WHERE EventId = @eventId
             `, {
                 eventId: parseInt(eventId),
