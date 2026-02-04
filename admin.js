@@ -181,11 +181,18 @@ async function fetchEvents() {
         return mockFetchEvents();
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/events`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
-    });
-
-    return await response.json();
+    try {
+        const response = await fetch(`${API_BASE_URL}/events`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        // Handle API response format - data.events contains the array
+        return result.data?.events || result.events || result;
+    } catch (error) {
+        console.error('Error fetching events:', error);
+        throw error;
+    }
 }
 
 // Mock fetch events
@@ -235,46 +242,60 @@ function renderEvents(events) {
         return;
     }
 
-    eventsList.innerHTML = events.map(event => `
-        <div class="event-card" data-event-id="${event.eventId}">
+    eventsList.innerHTML = events.map(event => {
+        // Handle both PascalCase (from API) and camelCase (from mock data)
+        const eventId = event.EventId || event.eventId;
+        const eventCode = event.EventCode || event.eventCode;
+        const moduleName = event.ModuleName || event.moduleName;
+        const moduleDate = event.ModuleDate || event.moduleDate;
+        const speakerName = event.SpeakerName || event.speakerName;
+        const isActive = event.IsActive !== undefined ? event.IsActive : event.isActive;
+        const feedbackCount = event.FeedbackCount || event.feedbackCount || 0;
+
+        return `
+        <div class="event-card" data-event-id="${eventId}">
             <div class="event-card-header">
                 <div>
-                    <div class="event-title">${event.moduleName}</div>
-                    <span class="event-code">${event.eventCode}</span>
+                    <div class="event-title">${moduleName}</div>
+                    <span class="event-code">${eventCode}</span>
                 </div>
                 <div class="event-status">
-                    <span class="status-badge ${event.isActive ? 'active' : 'inactive'}">
-                        ${event.isActive ? 'Active' : 'Inactive'}
+                    <span class="status-badge ${isActive ? 'active' : 'inactive'}">
+                        ${isActive ? 'Active' : 'Inactive'}
                     </span>
                 </div>
             </div>
             <div class="event-meta">
                 <div class="event-meta-item">
                     <span>📅</span>
-                    <span>${formatDate(event.moduleDate)}</span>
+                    <span>${formatDate(moduleDate)}</span>
                 </div>
                 <div class="event-meta-item">
                     <span>👤</span>
-                    <span>${event.speakerName}</span>
+                    <span>${speakerName}</span>
                 </div>
                 <div class="event-meta-item">
                     <span>💬</span>
-                    <span>${event.feedbackCount || 0} feedback</span>
+                    <span>${feedbackCount} feedback</span>
                 </div>
             </div>
             <div class="event-actions">
-                <button class="btn btn-primary btn-icon" onclick="viewEventDetails(${event.eventId})">
+                <button class="btn btn-primary btn-icon" onclick="viewEventDetails(${eventId})">
                     📋 View Details & QR
                 </button>
-                <button class="btn btn-secondary btn-icon" onclick="editEvent(${event.eventId})">
+                <button class="btn btn-secondary btn-icon" onclick="editEvent(${eventId})">
                     ✏️ Edit
                 </button>
-                <button class="btn btn-secondary btn-icon" onclick="toggleEventStatus(${event.eventId})">
-                    ${event.isActive ? '🚫 Deactivate' : '✅ Activate'}
+                <button class="btn btn-secondary btn-icon" onclick="toggleEventStatus(${eventId})">
+                    ${isActive ? '🚫 Deactivate' : '✅ Activate'}
+                </button>
+                <button class="btn btn-danger btn-icon" onclick="deleteEvent(${eventId}, '${eventCode}', '${moduleName.replace(/'/g, "\\'")}')">
+                    🗑️ Delete
                 </button>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // Filter events
@@ -539,6 +560,56 @@ window.toggleEventStatus = async function(eventId) {
     }
 };
 
+// Delete event
+window.deleteEvent = async function(eventId, eventCode, moduleName) {
+    const confirmed = confirm(
+        `⚠️ DELETE EVENT?\n\n` +
+        `Event: ${moduleName}\n` +
+        `Code: ${eventCode}\n\n` +
+        `This will permanently delete the event and ALL associated feedback.\n\n` +
+        `This action CANNOT be undone!\n\n` +
+        `Are you sure you want to continue?`
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        if (USE_MOCK_DATA) {
+            // Mock delete
+            allEvents = allEvents.filter(e => (e.EventId || e.eventId) !== eventId);
+            allFeedback = allFeedback.filter(fb => (fb.EventId || fb.eventId) !== eventId);
+            alert('Event deleted successfully!');
+            loadEvents();
+            return;
+        }
+
+        // Real API call
+        const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert(`Event deleted successfully!\n${result.data.feedbackDeleted || 0} feedback entries were also removed.`);
+            loadEvents();
+            loadFeedback();
+            updateAnalytics();
+        } else {
+            throw new Error(result.message || 'Failed to delete event');
+        }
+    } catch (error) {
+        console.error('Error deleting event:', error);
+        alert('Error deleting event. Please try again.');
+    }
+};
+
 // Load feedback
 async function loadFeedback() {
     try {
@@ -556,11 +627,18 @@ async function fetchFeedback() {
         return mockFetchFeedback();
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/feedback`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
-    });
-
-    return await response.json();
+    try {
+        const response = await fetch(`${API_BASE_URL}/feedback`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        // Handle API response format - data.feedback contains the array
+        return result.data?.feedback || result.feedback || result;
+    } catch (error) {
+        console.error('Error fetching feedback:', error);
+        throw error;
+    }
 }
 
 // Mock fetch feedback
