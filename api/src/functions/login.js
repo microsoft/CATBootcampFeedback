@@ -27,15 +27,9 @@ app.http('login', {
     route: 'login',
     handler: async (request, context) => {
         try {
-            // Parse request body
-            let body;
-            try {
-                const text = await request.text();
-                body = text ? JSON.parse(text) : {};
-            } catch (parseError) {
-                context.log('Error parsing request body:', parseError);
-                body = {};
-            }
+            // In V4, request body is available as request.body
+            const body = await request.json();
+            context.log('Request body:', body);
 
             const { username, password } = body;
 
