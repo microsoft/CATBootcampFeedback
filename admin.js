@@ -18,6 +18,7 @@ import { createLoginRateLimiter } from './RateLimiter.js';
 
 // Global state
 let currentUser = null;
+let allModules = [];
 let allEvents = [];
 let allFeedback = [];
 let currentEventId = null;
@@ -72,6 +73,16 @@ function setupEventListeners() {
     tabButtons.forEach(button => {
         button.addEventListener('click', () => switchTab(button.dataset.tab));
     });
+
+    // Modules tab
+    document.getElementById('createModuleBtn').addEventListener('click', () => openModuleModal());
+    const debouncedFilterModules = debounce(filterModules, 300);
+    document.getElementById('moduleSearch').addEventListener('input', debouncedFilterModules);
+
+    // Module modal
+    document.getElementById('closeModuleModal').addEventListener('click', closeModuleModal);
+    document.getElementById('cancelModuleBtn').addEventListener('click', closeModuleModal);
+    document.getElementById('moduleForm').addEventListener('submit', handleSaveModule);
 
     // Events tab
     document.getElementById('createEventBtn').addEventListener('click', () => openEventModal());
@@ -185,14 +196,17 @@ async function showMainContent() {
 
     // Load data in parallel (optimization)
     try {
-        const [events, feedback] = await Promise.all([
+        const [modules, events, feedback] = await Promise.all([
+            fetchModules(),
             fetchEvents(),
             fetchFeedback()
         ]);
 
+        allModules = modules;
         allEvents = events;
         allFeedback = feedback;
 
+        renderModules(modules);
         renderEvents(events);
         populateEventFilter(events);
         renderFeedback(feedback);
@@ -215,7 +229,295 @@ function switchTab(tabName) {
         activeButton.classList.add('active');
         activeContent.classList.add('active');
     }
+
+    // Load content based on tab
+    if (tabName === 'modules') {
+        loadModules();
+    }
 }
+
+// ====================================
+// MODULES MANAGEMENT
+// ====================================
+
+// Load modules
+async function loadModules() {
+    try {
+        const modules = await fetchModules();
+        allModules = modules;
+        renderModules(modules);
+    } catch (error) {
+        console.error('Error loading modules:', error);
+    }
+}
+
+// Fetch modules from API
+async function fetchModules() {
+    if (CONFIG.USE_MOCK_DATA) {
+        return mockFetchModules();
+    }
+
+    try {
+        const modules = await apiGet('/modules');
+        return modules;
+    } catch (error) {
+        throw error;
+    }
+}
+
+// Mock fetch modules
+function mockFetchModules() {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const mockModules = [
+                {
+                    moduleId: 1,
+                    moduleName: 'Introduction to Copilot Studio',
+                    speakerName: 'John Doe',
+                    description: 'Getting started with Copilot Studio basics',
+                    isActive: true,
+                    eventCount: 2,
+                    feedbackCount: 5
+                },
+                {
+                    moduleId: 2,
+                    moduleName: 'Building Your First Copilot',
+                    speakerName: 'Jane Smith',
+                    description: 'Hands-on copilot development',
+                    isActive: true,
+                    eventCount: 1,
+                    feedbackCount: 3
+                },
+                {
+                    moduleId: 3,
+                    moduleName: 'Advanced Copilot Techniques',
+                    speakerName: 'Mike Johnson',
+                    description: 'Advanced features and best practices',
+                    isActive: true,
+                    eventCount: 0,
+                    feedbackCount: 0
+                }
+            ];
+            resolve(mockModules);
+        }, 500);
+    });
+}
+
+// Render modules
+function renderModules(modules) {
+    const modulesList = document.getElementById('modulesList');
+
+    if (modules.length === 0) {
+        modulesList.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📚</div>
+                <p>No modules found. Create your first module to get started.</p>
+            </div>
+        `;
+        return;
+    }
+
+    modulesList.innerHTML = modules.map(module => `
+        <div class="event-card" data-module-id="${module.moduleId}">
+            <div class="event-card-header">
+                <div>
+                    <div class="event-title">${escapeHtml(module.moduleName)}</div>
+                    <span class="event-meta-item">👤 ${escapeHtml(module.speakerName)}</span>
+                </div>
+                <div class="event-status">
+                    <span class="status-badge ${module.isActive ? 'active' : 'inactive'}">
+                        ${module.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                </div>
+            </div>
+            ${module.description ? `
+                <div class="event-meta">
+                    <p>${escapeHtml(module.description)}</p>
+                </div>
+            ` : ''}
+            <div class="event-meta">
+                <div class="event-meta-item">
+                    <span>📅</span>
+                    <span>${module.eventCount || 0} event${module.eventCount === 1 ? '' : 's'}</span>
+                </div>
+                <div class="event-meta-item">
+                    <span>💬</span>
+                    <span>${module.feedbackCount || 0} feedback</span>
+                </div>
+            </div>
+            <div class="event-actions">
+                <button class="btn btn-primary btn-icon" onclick="createEventForModule(${module.moduleId})">
+                    ➕ Create Event
+                </button>
+                <button class="btn btn-secondary btn-icon" onclick="editModule(${module.moduleId})">
+                    ✏️ Edit
+                </button>
+                <button class="btn btn-secondary btn-icon" onclick="toggleModuleStatus(${module.moduleId})">
+                    ${module.isActive ? '🚫 Deactivate' : '✅ Activate'}
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Filter modules
+function filterModules() {
+    const searchTerm = document.getElementById('moduleSearch').value.toLowerCase();
+    const filteredModules = allModules.filter(module =>
+        module.moduleName.toLowerCase().includes(searchTerm) ||
+        module.speakerName.toLowerCase().includes(searchTerm) ||
+        (module.description && module.description.toLowerCase().includes(searchTerm))
+    );
+    renderModules(filteredModules);
+}
+
+// Open module modal
+function openModuleModal(moduleId = null) {
+    const modal = document.getElementById('moduleModal');
+    const modalTitle = document.getElementById('moduleModalTitle');
+    const form = document.getElementById('moduleForm');
+
+    form.reset();
+
+    if (moduleId) {
+        const module = allModules.find(m => m.moduleId === moduleId);
+        if (module) {
+            modalTitle.textContent = 'Edit Module';
+            document.getElementById('moduleId').value = module.moduleId;
+            document.getElementById('moduleNameInput').value = module.moduleName;
+            document.getElementById('speakerNameInput').value = module.speakerName;
+            document.getElementById('moduleDescription').value = module.description || '';
+            document.getElementById('moduleIsActive').checked = module.isActive;
+        }
+    } else {
+        modalTitle.textContent = 'Create New Module';
+        document.getElementById('moduleId').value = '';
+        document.getElementById('moduleIsActive').checked = true;
+    }
+
+    modal.classList.remove('hidden');
+}
+
+// Close module modal
+function closeModuleModal() {
+    document.getElementById('moduleModal').classList.add('hidden');
+}
+
+// Handle save module
+async function handleSaveModule(e) {
+    e.preventDefault();
+
+    const formData = {
+        moduleId: document.getElementById('moduleId').value || null,
+        moduleName: document.getElementById('moduleNameInput').value,
+        speakerName: document.getElementById('speakerNameInput').value,
+        description: document.getElementById('moduleDescription').value || null,
+        isActive: document.getElementById('moduleIsActive').checked
+    };
+
+    try {
+        const result = await saveModule(formData);
+        if (result.success) {
+            closeModuleModal();
+            await loadModules();
+            showNotification(
+                'Success',
+                formData.moduleId ? 'Module updated successfully!' : 'Module created successfully!',
+                'success'
+            );
+        } else {
+            showNotification('Error', 'Error saving module. Please try again.', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving module:', error);
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showNotification('Error', friendlyError.message, 'error');
+    }
+}
+
+// Save module
+async function saveModule(data) {
+    if (CONFIG.USE_MOCK_DATA) {
+        return mockSaveModule(data);
+    }
+
+    try {
+        if (data.moduleId) {
+            const result = await apiPut(`/modules/${data.moduleId}`, data);
+            return result;
+        } else {
+            const result = await apiPost('/modules', data);
+            return result;
+        }
+    } catch (error) {
+        throw error;
+    }
+}
+
+// Mock save module
+function mockSaveModule(data) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            if (data.moduleId) {
+                // Update existing
+                const index = allModules.findIndex(m => m.moduleId == data.moduleId);
+                if (index !== -1) {
+                    allModules[index] = { ...allModules[index], ...data };
+                }
+            } else {
+                // Create new
+                const newModule = {
+                    ...data,
+                    moduleId: Date.now(),
+                    eventCount: 0,
+                    feedbackCount: 0
+                };
+                allModules.push(newModule);
+            }
+            resolve({ success: true });
+        }, 500);
+    });
+}
+
+// Edit module
+window.editModule = function(moduleId) {
+    openModuleModal(moduleId);
+};
+
+// Toggle module status
+window.toggleModuleStatus = async function(moduleId) {
+    const module = allModules.find(m => m.moduleId === moduleId);
+    if (!module) return;
+
+    const newStatus = !module.isActive;
+    const action = newStatus ? 'activate' : 'deactivate';
+
+    if (confirm(`Are you sure you want to ${action} this module?`)) {
+        try {
+            const result = await saveModule({
+                ...module,
+                isActive: newStatus
+            });
+
+            if (result.success) {
+                await loadModules();
+                showNotification('Success', `Module ${action}d successfully!`, 'success');
+            }
+        } catch (error) {
+            console.error('Error toggling status:', error);
+            showNotification('Error', 'Error updating module status.', 'error');
+        }
+    }
+};
+
+// Create event for module (quick create from modules tab)
+window.createEventForModule = function(moduleId) {
+    openEventModal(null, moduleId);
+};
+
+// ====================================
+// EVENT MANAGEMENT
+// ====================================
 
 // Load events
 async function loadEvents() {
@@ -236,7 +538,8 @@ async function fetchEvents() {
     }
 
     try {
-        const events = await apiGet('/admin/events');
+        // This endpoint should return events joined with module details
+        const events = await apiGet('/events');
         return events;
     } catch (error) {
         throw error;
@@ -251,9 +554,11 @@ function mockFetchEvents() {
                 {
                     eventId: 1,
                     eventCode: 'CSA1B2C3',
+                    moduleId: 1,
                     moduleName: 'Introduction to Copilot Studio',
-                    moduleDate: '2026-02-15',
                     speakerName: 'John Doe',
+                    startDate: '2026-02-15T09:00:00',
+                    endDate: '2026-02-15T17:00:00',
                     cohortId: 'Q1-2026',
                     isActive: true,
                     createdAt: '2026-02-01T10:00:00Z',
@@ -261,14 +566,29 @@ function mockFetchEvents() {
                 },
                 {
                     eventId: 2,
-                    eventCode: 'TEST123',
+                    eventCode: 'CSXYZ789',
+                    moduleId: 2,
                     moduleName: 'Building Your First Copilot',
-                    moduleDate: '2026-02-16',
                     speakerName: 'Jane Smith',
+                    startDate: '2026-02-16T09:00:00',
+                    endDate: '2026-02-16T17:00:00',
                     cohortId: 'Q1-2026',
                     isActive: true,
                     createdAt: '2026-02-01T11:00:00Z',
                     feedbackCount: 3
+                },
+                {
+                    eventId: 3,
+                    eventCode: 'CSABC456',
+                    moduleId: 3,
+                    moduleName: 'Advanced Copilot Techniques',
+                    speakerName: 'Mike Johnson',
+                    startDate: '2026-02-17T09:00:00',
+                    endDate: '2026-02-17T17:00:00',
+                    cohortId: 'Q1-2026',
+                    isActive: true,
+                    createdAt: '2026-02-01T12:00:00Z',
+                    feedbackCount: 0
                 }
             ];
             resolve(mockEvents);
@@ -290,7 +610,11 @@ function renderEvents(events) {
         return;
     }
 
-    eventsList.innerHTML = events.map(event => `
+    eventsList.innerHTML = events.map(event => {
+        const startDate = event.startDate || event.moduleDate; // Fallback for backwards compatibility
+        const displayDate = startDate ? formatDate(startDate) : 'No date';
+
+        return `
         <div class="event-card" data-event-id="${event.eventId}">
             <div class="event-card-header">
                 <div>
@@ -306,12 +630,18 @@ function renderEvents(events) {
             <div class="event-meta">
                 <div class="event-meta-item">
                     <span>📅</span>
-                    <span>${formatDate(event.moduleDate)}</span>
+                    <span>${displayDate}</span>
                 </div>
                 <div class="event-meta-item">
                     <span>👤</span>
                     <span>${escapeHtml(event.speakerName)}</span>
                 </div>
+                ${event.cohortId ? `
+                <div class="event-meta-item">
+                    <span>🎓</span>
+                    <span>${escapeHtml(event.cohortId)}</span>
+                </div>
+                ` : ''}
                 <div class="event-meta-item">
                     <span>💬</span>
                     <span>${event.feedbackCount || 0} feedback</span>
@@ -329,7 +659,8 @@ function renderEvents(events) {
                 </button>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
 
 // Filter events
@@ -344,35 +675,68 @@ function filterEvents() {
 }
 
 // Open event modal
-function openEventModal(eventId = null) {
+async function openEventModal(eventId = null, preSelectedModuleId = null) {
     const modal = document.getElementById('eventModal');
     const modalTitle = document.getElementById('modalTitle');
     const form = document.getElementById('eventForm');
+    const moduleSelect = document.getElementById('moduleSelect');
 
     form.reset();
+
+    // Populate module dropdown
+    await populateModuleSelect();
 
     if (eventId) {
         const event = allEvents.find(e => e.eventId === eventId);
         if (event) {
             modalTitle.textContent = 'Edit Event';
             document.getElementById('eventId').value = event.eventId;
+            document.getElementById('moduleSelect').value = event.moduleId;
             document.getElementById('eventCode').value = event.eventCode;
-            document.getElementById('moduleName').value = event.moduleName;
-            document.getElementById('moduleDate').value = event.moduleDate;
-            document.getElementById('speakerName').value = event.speakerName;
+            document.getElementById('startDate').value = formatDateTimeForInput(event.startDate);
+            document.getElementById('endDate').value = event.endDate ? formatDateTimeForInput(event.endDate) : '';
             document.getElementById('cohortId').value = event.cohortId || '';
-            document.getElementById('description').value = event.description || '';
-            document.getElementById('isActive').checked = event.isActive;
+            document.getElementById('eventIsActive').checked = event.isActive;
         }
     } else {
         modalTitle.textContent = 'Create New Event';
         document.getElementById('eventId').value = '';
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('moduleDate').value = today;
-        document.getElementById('isActive').checked = true;
+
+        // Pre-select module if provided
+        if (preSelectedModuleId) {
+            document.getElementById('moduleSelect').value = preSelectedModuleId;
+        }
+
+        // Set default start date to now
+        const now = new Date();
+        const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        document.getElementById('startDate').value = localDateTime;
+        document.getElementById('eventIsActive').checked = true;
     }
 
     modal.classList.remove('hidden');
+}
+
+// Populate module select dropdown
+async function populateModuleSelect() {
+    if (allModules.length === 0) {
+        await loadModules();
+    }
+
+    const moduleSelect = document.getElementById('moduleSelect');
+    const activeModules = allModules.filter(m => m.isActive);
+
+    moduleSelect.innerHTML = '<option value="">-- Select a Module --</option>' +
+        activeModules.map(m =>
+            `<option value="${m.moduleId}">${escapeHtml(m.moduleName)} - ${escapeHtml(m.speakerName)}</option>`
+        ).join('');
+}
+
+// Format datetime for input (datetime-local)
+function formatDateTimeForInput(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 
 // Close event modal
@@ -384,15 +748,21 @@ function closeEventModal() {
 async function handleSaveEvent(e) {
     e.preventDefault();
 
+    const moduleId = document.getElementById('moduleSelect').value;
+
+    if (!moduleId) {
+        showNotification('Error', 'Please select a module', 'error');
+        return;
+    }
+
     const formData = {
         eventId: document.getElementById('eventId').value || null,
+        moduleId: parseInt(moduleId),
         eventCode: document.getElementById('eventCode').value,
-        moduleName: document.getElementById('moduleName').value,
-        moduleDate: document.getElementById('moduleDate').value,
-        speakerName: document.getElementById('speakerName').value,
+        startDate: document.getElementById('startDate').value,
+        endDate: document.getElementById('endDate').value || null,
         cohortId: document.getElementById('cohortId').value || null,
-        description: document.getElementById('description').value || null,
-        isActive: document.getElementById('isActive').checked
+        isActive: document.getElementById('eventIsActive').checked
     };
 
     try {
@@ -400,6 +770,7 @@ async function handleSaveEvent(e) {
         if (result.success) {
             closeEventModal();
             await loadEvents();
+            await loadModules(); // Refresh modules to update event counts
             showNotification(
                 'Success',
                 formData.eventId ? 'Event updated successfully!' : 'Event created successfully!',
@@ -423,10 +794,10 @@ async function saveEvent(data) {
 
     try {
         if (data.eventId) {
-            const result = await apiPut(`/admin/events/${data.eventId}`, data);
+            const result = await apiPut(`/events/${data.eventId}`, data);
             return result;
         } else {
-            const result = await apiPost('/admin/events', data);
+            const result = await apiPost('/events', data);
             return result;
         }
     } catch (error) {
@@ -438,18 +809,26 @@ async function saveEvent(data) {
 function mockSaveEvent(data) {
     return new Promise((resolve) => {
         setTimeout(() => {
+            const module = allModules.find(m => m.moduleId == data.moduleId);
+
             if (data.eventId) {
                 // Update existing
                 const index = allEvents.findIndex(e => e.eventId == data.eventId);
                 if (index !== -1) {
-                    allEvents[index] = { ...allEvents[index], ...data };
+                    allEvents[index] = {
+                        ...allEvents[index],
+                        ...data,
+                        moduleName: module?.moduleName,
+                        speakerName: module?.speakerName
+                    };
                 }
             } else {
                 // Create new - use admin-provided event code
                 const newEvent = {
                     ...data,
                     eventId: Date.now(),
-                    eventCode: data.eventCode,  // Use admin-provided code, not generated
+                    moduleName: module?.moduleName || 'Unknown',
+                    speakerName: module?.speakerName || 'Unknown',
                     createdAt: new Date().toISOString(),
                     feedbackCount: 0
                 };
@@ -482,9 +861,15 @@ window.viewEventDetails = function(eventId) {
                     <span class="detail-value">${escapeHtml(event.eventCode)}</span>
                 </div>
                 <div class="detail-item">
-                    <span class="detail-label">Date</span>
-                    <span class="detail-value">${formatDate(event.moduleDate)}</span>
+                    <span class="detail-label">Start Date</span>
+                    <span class="detail-value">${formatDateTime(event.startDate || event.moduleDate)}</span>
                 </div>
+                ${event.endDate ? `
+                <div class="detail-item">
+                    <span class="detail-label">End Date</span>
+                    <span class="detail-value">${formatDateTime(event.endDate)}</span>
+                </div>
+                ` : ''}
                 <div class="detail-item">
                     <span class="detail-label">Speaker</span>
                     <span class="detail-value">${escapeHtml(event.speakerName)}</span>
@@ -608,7 +993,7 @@ async function fetchFeedback() {
     }
 
     try {
-        const feedback = await apiGet('/admin/feedback');
+        const feedback = await apiGet('/feedback');
         return feedback;
     } catch (error) {
         throw error;
