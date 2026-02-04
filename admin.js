@@ -674,7 +674,7 @@ function renderEvents(events) {
             <div class="event-card-header">
                 <div>
                     <div class="event-title">Event: ${escapeHtml(event.eventCode)}</div>
-                    <span class="event-code" style="font-size: 0.85em; color: #666;">${modules.length} module${modules.length !== 1 ? 's' : ''}</span>
+                    <span class="event-code" style="font-size: 0.85em; color: #333; font-weight: 500; background: #e3e8ff; padding: 2px 8px; border-radius: 12px;">${modules.length} module${modules.length !== 1 ? 's' : ''}</span>
                 </div>
                 <div class="event-status">
                     <span class="status-badge ${event.isActive ? 'active' : 'inactive'}">
@@ -738,6 +738,196 @@ function filterEvents() {
         return false;
     });
     renderEvents(filteredEvents);
+}
+
+// View event details with QR code
+async function viewEventDetails(eventId) {
+    const event = allEvents.find(e => e.eventId === eventId);
+    if (!event) {
+        showNotification('Error', 'Event not found', 'error');
+        return;
+    }
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.id = 'eventDetailsModal';
+
+    const modules = event.modules || [];
+    const modulesHTML = modules.length > 0
+        ? modules.map(m => `
+            <div style="padding: 8px; background: #f8f9fa; border-radius: 4px; margin-bottom: 8px;">
+                <strong>${escapeHtml(m.moduleName)}</strong><br>
+                <span style="color: #666;">Speaker: ${escapeHtml(m.speakerName)}</span><br>
+                <span style="color: #666; font-size: 0.9em;">Delivery: ${formatDate(m.deliveryDate)}</span>
+            </div>
+        `).join('')
+        : '<p style="color: #666;">No modules assigned to this event yet.</p>';
+
+    const feedbackUrl = `${window.location.origin}/?code=${event.eventCode}`;
+
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Event Details: ${escapeHtml(event.eventCode)}</h2>
+                <button class="modal-close" onclick="closeEventDetailsModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                        <strong>Status:</strong>
+                        <span class="status-badge ${event.isActive ? 'active' : 'inactive'}">
+                            ${event.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <strong>Start Date:</strong> ${formatDate(event.startDate)}
+                    </div>
+                    ${event.endDate ? `
+                    <div style="margin-bottom: 8px;">
+                        <strong>End Date:</strong> ${formatDate(event.endDate)}
+                    </div>
+                    ` : ''}
+                    ${event.cohortId ? `
+                    <div style="margin-bottom: 8px;">
+                        <strong>Cohort:</strong> ${escapeHtml(event.cohortId)}
+                    </div>
+                    ` : ''}
+                    <div style="margin-bottom: 8px;">
+                        <strong>Feedback Count:</strong> ${event.feedbackCount || 0}
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <h3 style="margin-bottom: 12px; color: #333;">Modules (${modules.length})</h3>
+                    ${modulesHTML}
+                </div>
+
+                <div style="border-top: 2px solid #e3e8ff; padding-top: 20px;">
+                    <h3 style="margin-bottom: 12px; color: #333;">Feedback Form QR Code</h3>
+                    <p style="color: #666; margin-bottom: 12px;">
+                        Participants can scan this QR code to submit feedback:
+                    </p>
+                    <div style="text-align: center; padding: 20px; background: white; border-radius: 8px; border: 2px solid #e3e8ff;">
+                        <div id="qrCodeContainer"></div>
+                        <div style="margin-top: 16px; padding: 12px; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 0.9em; word-break: break-all;">
+                            ${feedbackUrl}
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-top: 16px;">
+                        <button class="btn btn-primary" onclick="downloadQRCode('${event.eventCode}')">
+                            📥 Download QR Code
+                        </button>
+                        <button class="btn btn-secondary" onclick="copyFeedbackUrl('${feedbackUrl}')">
+                            📋 Copy URL
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+
+    // Generate QR code
+    setTimeout(() => {
+        QRCode.toCanvas(
+            document.getElementById('qrCodeContainer'),
+            feedbackUrl,
+            {
+                width: 300,
+                margin: 2,
+                color: {
+                    dark: CONFIG.QR_CODE_COLOR_DARK,
+                    light: CONFIG.QR_CODE_COLOR_LIGHT
+                },
+                errorCorrectionLevel: CONFIG.QR_CODE_ERROR_CORRECTION
+            },
+            (error) => {
+                if (error) {
+                    console.error('QR Code generation error:', error);
+                    document.getElementById('qrCodeContainer').innerHTML = '<p style="color: #dc3545;">Failed to generate QR code</p>';
+                }
+            }
+        );
+    }, 100);
+}
+
+// Close event details modal
+function closeEventDetailsModal() {
+    const modal = document.getElementById('eventDetailsModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Download QR code as image
+function downloadQRCode(eventCode) {
+    const canvas = document.querySelector('#qrCodeContainer canvas');
+    if (!canvas) {
+        showNotification('Error', 'QR code not found', 'error');
+        return;
+    }
+
+    canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${eventCode}-feedback-qr-code.png`;
+        link.click();
+        URL.revokeObjectURL(url);
+        showNotification('Success', 'QR code downloaded successfully', 'success');
+    });
+}
+
+// Copy feedback URL to clipboard
+async function copyFeedbackUrl(url) {
+    try {
+        await navigator.clipboard.writeText(url);
+        showNotification('Success', 'Feedback URL copied to clipboard', 'success');
+    } catch (error) {
+        console.error('Failed to copy URL:', error);
+        showNotification('Error', 'Failed to copy URL', 'error');
+    }
+}
+
+// Edit event - reuse existing modal
+function editEvent(eventId) {
+    openEventModal(eventId);
+}
+
+// Toggle event active status
+async function toggleEventStatus(eventId) {
+    const event = allEvents.find(e => e.eventId === eventId);
+    if (!event) {
+        showNotification('Error', 'Event not found', 'error');
+        return;
+    }
+
+    const action = event.isActive ? 'deactivate' : 'activate';
+    const confirmMessage = event.isActive
+        ? 'Are you sure you want to deactivate this event? Participants will no longer be able to submit feedback using this event code.'
+        : 'Are you sure you want to activate this event? Participants will be able to submit feedback using this event code.';
+
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    try {
+        const response = await apiPut(`/events/${eventId}/status`, {
+            isActive: !event.isActive
+        });
+
+        showNotification('Success', `Event ${action}d successfully`, 'success');
+
+        // Update local data
+        event.isActive = !event.isActive;
+        renderEvents(allEvents);
+
+    } catch (error) {
+        console.error(`Error ${action}ing event:`, error);
+        showNotification('Error', `Failed to ${action} event: ${error.message}`, 'error');
+    }
 }
 
 // Open event modal
