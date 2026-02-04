@@ -26,14 +26,25 @@ module.exports = async function (context, req) {
             return;
         }
 
-        // Query database
-        const result = await query(
-            `SELECT EventId, EventCode, ModuleName, ModuleDate, SpeakerName, CohortId,
-                    Description, IsActive, CreatedAt
-             FROM Events
-             WHERE EventCode = @eventCode AND IsActive = 1`,
-            { eventCode }
-        );
+        // Query database - join Events with Modules
+        const result = await query(`
+            SELECT
+                e.EventId,
+                e.EventCode,
+                e.ModuleId,
+                m.ModuleName,
+                m.SpeakerName,
+                m.Description,
+                e.StartDate,
+                e.EndDate,
+                e.CohortId,
+                e.IsActive AS EventIsActive,
+                m.IsActive AS ModuleIsActive,
+                e.CreatedAt
+            FROM Events e
+            INNER JOIN Modules m ON e.ModuleId = m.ModuleId
+            WHERE e.EventCode = @eventCode AND e.IsActive = 1 AND m.IsActive = 1
+        `, { eventCode });
 
         if (!result || result.length === 0) {
             context.res = error(404, 'Event not found or inactive', 'EVENT_NOT_FOUND');
@@ -41,6 +52,9 @@ module.exports = async function (context, req) {
         }
 
         const event = result[0];
+
+        // Format dates for response (backwards compatibility)
+        event.ModuleDate = event.StartDate; // For backwards compatibility with feedback form
 
         // Cache the result
         cacheSet(cacheKey, event, 300); // 5 minutes
