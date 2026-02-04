@@ -34,8 +34,11 @@ app.http('login', {
         try {
             context.log('Login request received');
 
-            // Parse request body
-            const body = await request.json();
+            // Parse request body - V4 way
+            const bodyText = await request.text();
+            context.log('Raw body:', bodyText);
+
+            const body = JSON.parse(bodyText);
             context.log('Parsed body:', JSON.stringify(body));
 
             const { username, password } = body;
