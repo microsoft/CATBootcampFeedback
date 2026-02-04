@@ -41,14 +41,20 @@ module.exports = async function (context, req) {
     }
 
     try {
-        // Debug logging
-        context.log('Request method:', req.method);
-        context.log('Request body type:', typeof req.body);
-        context.log('Request body:', JSON.stringify(req.body));
-        context.log('Request rawBody:', req.rawBody);
+        // Parse request body - handle both object and string formats
+        let body = req.body;
 
-        // Parse request body
-        const { username, password} = req.body || {};
+        // If body is a string, parse it as JSON
+        if (typeof body === 'string') {
+            try {
+                body = JSON.parse(body);
+            } catch (e) {
+                context.log('Failed to parse body as JSON:', e);
+                body = {};
+            }
+        }
+
+        const { username, password } = body || {};
 
         context.log(`Login attempt for username: ${username}`);
 
