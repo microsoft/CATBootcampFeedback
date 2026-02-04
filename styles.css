@@ -1,0 +1,495 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+/* Header Styles */
+header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 40px 30px;
+    text-align: center;
+}
+
+header h1 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.subtitle {
+    font-size: 1rem;
+    opacity: 0.95;
+}
+
+/* Form Styles */
+form {
+    padding: 30px;
+}
+
+.form-section {
+    margin-bottom: 40px;
+}
+
+.form-section h2 {
+    font-size: 1.5rem;
+    color: #333;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #667eea;
+}
+
+.form-group {
+    margin-bottom: 25px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10px;
+    font-size: 1rem;
+}
+
+.required {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+/* Input Styles */
+input[type="text"],
+input[type="date"],
+select,
+textarea {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.3s ease;
+}
+
+input[type="text"]:focus,
+input[type="date"]:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+select {
+    cursor: pointer;
+    background-color: white;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+/* Rating Scale Styles */
+.rating-container {
+    margin-top: 15px;
+}
+
+.rating-scale {
+    display: flex;
+    gap: 15px;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.rating-option {
+    flex: 1;
+    text-align: center;
+}
+
+.rating-option input[type="radio"] {
+    display: none;
+}
+
+.rating-option label {
+    display: block;
+    padding: 15px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1.2rem;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.rating-option label:hover {
+    border-color: #667eea;
+    background: #f8f9ff;
+    transform: translateY(-2px);
+}
+
+.rating-option input[type="radio"]:checked + label {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: #667eea;
+    transform: scale(1.05);
+}
+
+.rating-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    color: #666;
+    font-style: italic;
+    padding: 0 5px;
+}
+
+/* Radio Group Styles */
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.radio-option {
+    display: flex;
+    align-items: center;
+}
+
+.radio-option input[type="radio"] {
+    width: 20px;
+    height: 20px;
+    margin-right: 12px;
+    cursor: pointer;
+    accent-color: #667eea;
+}
+
+.radio-option label {
+    cursor: pointer;
+    margin: 0;
+    padding: 12px 20px;
+    flex: 1;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.radio-option:hover label {
+    border-color: #667eea;
+    background: #f8f9ff;
+}
+
+.radio-option input[type="radio"]:checked + label {
+    border-color: #667eea;
+    background: #f8f9ff;
+    font-weight: 600;
+    color: #667eea;
+}
+
+/* Character Counter */
+.char-counter {
+    text-align: right;
+    font-size: 0.875rem;
+    color: #666;
+    margin-top: 5px;
+}
+
+/* Error Message Styles */
+.error-message {
+    display: block;
+    color: #e74c3c;
+    font-size: 0.875rem;
+    margin-top: 5px;
+    min-height: 20px;
+}
+
+.form-group.error input,
+.form-group.error select,
+.form-group.error textarea {
+    border-color: #e74c3c;
+}
+
+/* Button Styles */
+.form-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: flex-end;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.btn {
+    padding: 14px 30px;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+    background: white;
+    color: #666;
+    border: 2px solid #ddd;
+}
+
+.btn-secondary:hover {
+    border-color: #999;
+    color: #333;
+}
+
+/* Success Message Styles */
+.success-message {
+    padding: 60px 30px;
+    text-align: center;
+    animation: fadeIn 0.5s ease;
+}
+
+.success-message.hidden {
+    display: none;
+}
+
+.success-content {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.success-icon {
+    width: 80px;
+    height: 80px;
+    color: #2ecc71;
+    margin-bottom: 20px;
+    animation: scaleIn 0.5s ease;
+}
+
+.success-message h3 {
+    font-size: 1.75rem;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.success-message p {
+    color: #666;
+    font-size: 1.1rem;
+    margin-bottom: 30px;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        transform: scale(0);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    header {
+        padding: 30px 20px;
+    }
+
+    header h1 {
+        font-size: 1.5rem;
+    }
+
+    form {
+        padding: 20px;
+    }
+
+    .form-section h2 {
+        font-size: 1.25rem;
+    }
+
+    .rating-scale {
+        gap: 8px;
+    }
+
+    .rating-option label {
+        padding: 12px 8px;
+        font-size: 1rem;
+    }
+
+    .rating-labels {
+        font-size: 0.75rem;
+    }
+
+    .form-actions {
+        flex-direction: column-reverse;
+    }
+
+    .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .rating-scale {
+        gap: 5px;
+    }
+
+    .rating-option label {
+        padding: 10px 5px;
+        font-size: 0.9rem;
+    }
+
+    .rating-labels span:first-child::after {
+        content: " →";
+    }
+
+    .rating-labels span:last-child::before {
+        content: "← ";
+    }
+}
+
+/* Loading State Styles */
+.loading-state {
+    padding: 60px 30px;
+    text-align: center;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    margin: 0 auto 20px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-state p {
+    color: #666;
+    font-size: 1.1rem;
+}
+
+/* Error State Styles */
+.error-state {
+    padding: 60px 30px;
+    text-align: center;
+}
+
+.error-icon {
+    width: 80px;
+    height: 80px;
+    color: #e74c3c;
+    margin: 0 auto 20px;
+}
+
+.error-state h3 {
+    font-size: 1.75rem;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.error-state p {
+    color: #666;
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+}
+
+.error-help {
+    color: #999;
+    font-size: 0.9rem;
+    font-style: italic;
+}
+
+/* Info Display Styles */
+.info-display {
+    background: #f8f9ff;
+    border: 2px solid #e0e5ff;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.info-row {
+    display: flex;
+    padding: 10px 0;
+    border-bottom: 1px solid #e0e5ff;
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #667eea;
+    min-width: 120px;
+}
+
+.info-value {
+    color: #333;
+    flex: 1;
+}
+
+/* Button Spinner */
+.btn-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+/* Hidden Class */
+.hidden {
+    display: none !important;
+}

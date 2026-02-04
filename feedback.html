@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copilot Studio Bootcamp Feedback</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Copilot Studio Bootcamp Feedback</h1>
+            <p class="subtitle">Help us improve future sessions by sharing your feedback</p>
+        </header>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading module information...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="error-state hidden">
+            <svg class="error-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <h3>Unable to Load Feedback Form</h3>
+            <p id="errorMessage">The feedback link appears to be invalid or expired.</p>
+            <p class="error-help">Please contact the event organizer for assistance.</p>
+        </div>
+
+        <!-- Feedback Form -->
+        <form id="feedbackForm" class="hidden" novalidate>
+            <!-- Module Information Section (Display Only) -->
+            <section class="form-section">
+                <h2>Module Information</h2>
+                <div class="info-display">
+                    <div class="info-row">
+                        <span class="info-label">Module Name:</span>
+                        <span class="info-value" id="displayModuleName">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Date:</span>
+                        <span class="info-value" id="displayModuleDate">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Speaker:</span>
+                        <span class="info-value" id="displaySpeakerName">-</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Feedback Questions Section -->
+            <section class="form-section">
+                <h2>Feedback Questions</h2>
+
+                <!-- Question 1: Speaker Knowledge -->
+                <div class="form-group">
+                    <label>1. How would you rate the speaker's knowledge of the subject matter? <span class="required">*</span></label>
+                    <div class="rating-container">
+                        <div class="rating-scale">
+                            <div class="rating-option">
+                                <input type="radio" id="speaker1" name="speakerKnowledge" value="1" required>
+                                <label for="speaker1">1</label>
+                            </div>
+                            <div class="rating-option">
+                                <input type="radio" id="speaker2" name="speakerKnowledge" value="2">
+                                <label for="speaker2">2</label>
+                            </div>
+                            <div class="rating-option">
+                                <input type="radio" id="speaker3" name="speakerKnowledge" value="3">
+                                <label for="speaker3">3</label>
+                            </div>
+                            <div class="rating-option">
+                                <input type="radio" id="speaker4" name="speakerKnowledge" value="4">
+                                <label for="speaker4">4</label>
+                            </div>
+                            <div class="rating-option">
+                                <input type="radio" id="speaker5" name="speakerKnowledge" value="5">
+                                <label for="speaker5">5</label>
+                            </div>
+                        </div>
+                        <div class="rating-labels">
+                            <span>Poor</span>
+                            <span>Excellent</span>
+                        </div>
+                    </div>
+                    <span class="error-message" id="speakerKnowledgeError"></span>
+                </div>
+
+                <!-- Question 2: Content Depth -->
+                <div class="form-group">
+                    <label>2. How would you rate the technical depth of the content? <span class="required">*</span></label>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="depthTechnical" name="contentDepth" value="Too Technical" required>
+                            <label for="depthTechnical">Too Technical</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="depthRight" name="contentDepth" value="Just Right">
+                            <label for="depthRight">Just Right</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="depthLow" name="contentDepth" value="Too Low Level">
+                            <label for="depthLow">Too Low Level</label>
+                        </div>
+                    </div>
+                    <span class="error-message" id="contentDepthError"></span>
+                </div>
+
+                <!-- Question 3: Module Satisfaction -->
+                <div class="form-group">
+                    <label>3. Overall, how satisfied are you with this module? <span class="required">*</span></label>
+                    <div class="rating-container">
+                        <div class="rating-scale">
+                            <div class="rating-option">
+                                <input type="radio" id="satisfaction1" name="moduleSatisfaction" value="1" required>
+                                <label for="satisfaction1">1</label>
+                            </div>
+                            <div class="rating-option">
+                                <input type="radio" id="satisfaction2" name="moduleSatisfaction" value="2">
+                                <label for="satisfaction2">2</label>
+                            </div>
+                            <div class="rating-option">
+                                <input type="radio" id="satisfaction3" name="moduleSatisfaction" value="3">
+                                <label for="satisfaction3">3</label>
+                            </div>
+                            <div class="rating-option">
+                                <input type="radio" id="satisfaction4" name="moduleSatisfaction" value="4">
+                                <label for="satisfaction4">4</label>
+                            </div>
+                            <div class="rating-option">
+                                <input type="radio" id="satisfaction5" name="moduleSatisfaction" value="5">
+                                <label for="satisfaction5">5</label>
+                            </div>
+                        </div>
+                        <div class="rating-labels">
+                            <span>Very Unsatisfactory</span>
+                            <span>Very Satisfactory</span>
+                        </div>
+                    </div>
+                    <span class="error-message" id="moduleSatisfactionError"></span>
+                </div>
+
+                <!-- Question 4: Additional Comments -->
+                <div class="form-group">
+                    <label for="additionalComments">4. Do you have any additional thoughts or suggestions?</label>
+                    <textarea
+                        id="additionalComments"
+                        name="additionalComments"
+                        rows="5"
+                        maxlength="1000"
+                        placeholder="Share any additional feedback, suggestions, or thoughts..."></textarea>
+                    <div class="char-counter">
+                        <span id="charCount">0</span> / 1000 characters
+                    </div>
+                </div>
+            </section>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" id="clearBtn">Clear Form</button>
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    <span class="btn-text">Submit Feedback</span>
+                    <span class="btn-spinner hidden"></span>
+                </button>
+            </div>
+        </form>
+
+        <!-- Success Message (Hidden by default) -->
+        <div id="successMessage" class="success-message hidden">
+            <div class="success-content">
+                <svg class="success-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                <h3>Thank you for your feedback!</h3>
+                <p>Your submission has been recorded successfully.</p>
+                <button type="button" class="btn btn-primary" id="submitAnotherBtn">Submit Another Response</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="feedback.js"></script>
+</body>
+</html>

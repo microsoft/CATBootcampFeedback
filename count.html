@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback Count Display</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .count-container {
+            background: white;
+            border-radius: 20px;
+            padding: 60px 80px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .module-name {
+            font-size: 1.5rem;
+            color: #666;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .count-label {
+            font-size: 1.25rem;
+            color: #999;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .count-display {
+            font-size: 8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 30px 0;
+            line-height: 1;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .feedback-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: #d4edda;
+            color: #155724;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-top: 20px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background: #28a745;
+            border-radius: 50%;
+            animation: blink 2s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        .last-updated {
+            font-size: 0.85rem;
+            color: #999;
+            margin-top: 20px;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 1.1rem;
+            padding: 20px;
+        }
+
+        .loading {
+            font-size: 1.5rem;
+            color: #666;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            margin: 20px auto;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .qr-section {
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .qr-label {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        #qrCode {
+            display: inline-block;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .instructions {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* Full screen mode */
+        .fullscreen-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .fullscreen-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .count-container {
+                padding: 40px 30px;
+            }
+
+            .count-display {
+                font-size: 5rem;
+            }
+
+            .module-name {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="fullscreen-btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+
+    <div class="count-container">
+        <div id="loadingState">
+            <div class="spinner"></div>
+            <p class="loading">Loading feedback count...</p>
+        </div>
+
+        <div id="countDisplay" style="display: none;">
+            <div class="feedback-icon">💬</div>
+            <div class="module-name" id="moduleName">Module Name</div>
+            <div class="count-label">Feedback Submissions</div>
+            <div class="count-display" id="feedbackCount">0</div>
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span>Live Updates Active</span>
+            </div>
+            <div class="last-updated">Last updated: <span id="lastUpdated">-</span></div>
+
+            <div class="qr-section">
+                <div class="qr-label">Scan to Submit Feedback</div>
+                <canvas id="qrCode"></canvas>
+                <div class="instructions">
+                    Attendees can scan this QR code or visit the feedback link to submit their responses.
+                    The count above updates automatically every 5 seconds.
+                </div>
+            </div>
+        </div>
+
+        <div id="errorState" style="display: none;">
+            <div class="error-message" id="errorMessage">Unable to load feedback count.</div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="count.js"></script>
+</body>
+</html>
