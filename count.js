@@ -1,9 +1,15 @@
-// Configuration
-const API_BASE_URL = '/api';
-// Auto-detect environment - use real API in production
-const USE_MOCK_DATA = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+/**
+ * Live Feedback Count Display
+ * Integrated with utility modules
+ */
+
+import { CONFIG } from './config.js';
+import { getUrlParameter, formatDate, escapeHtml } from './utils.js';
+import { apiGet } from './api.js';
+import { getUserFriendlyErrorMessage } from './errors.js';
+
+// Determine base URLs
 const FEEDBACK_BASE_URL = window.location.origin + '/feedback.html';
-const REFRESH_INTERVAL = 5000; // 5 seconds
 
 // Global state
 let eventCode = null;
@@ -29,7 +35,7 @@ async function initialize() {
     // Get event code from URL parameter
     eventCode = getUrlParameter('code');
     console.log('Count page initializing with event code:', eventCode);
-    console.log('Using mock data:', USE_MOCK_DATA);
+    console.log('Using mock data:', CONFIG.USE_MOCK_DATA);
 
     if (!eventCode) {
         showError('No event code provided. Please access this page from the admin panel.');
@@ -65,43 +71,23 @@ async function initialize() {
     } catch (error) {
         console.error('Error initializing count page:', error);
         console.error('Error stack:', error.stack);
-        showError('Unable to load event information. Please try again later.');
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showError(friendlyError.message);
     }
-}
-
-// Get URL parameter
-function getUrlParameter(name) {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get(name);
 }
 
 // Load event details
 async function loadEventDetails(code) {
-    if (USE_MOCK_DATA) {
+    if (CONFIG.USE_MOCK_DATA) {
         console.log('Using mock data');
         return mockLoadEventDetails(code);
     }
 
     try {
-        const url = `${API_BASE_URL}/events/${code}`;
-        console.log('Fetching event from:', url);
-        const response = await fetch(url);
-        console.log('Response status:', response.status, response.statusText);
-
-        if (!response.ok) {
-            console.error('API returned error status:', response.status);
-            const errorText = await response.text();
-            console.error('Error response:', errorText);
-            return null;
-        }
-
-        const result = await response.json();
-        console.log('API response:', result);
-        return result.data || result; // Handle API response format
+        const event = await apiGet(`/events/${code}`);
+        return event;
     } catch (error) {
         console.error('Error loading event:', error);
-        console.error('Error name:', error.name);
-        console.error('Error message:', error.message);
         throw error;
     }
 }
@@ -132,7 +118,7 @@ function mockLoadEventDetails(code) {
             };
 
             resolve(mockEvents[code] || null);
-        }, 500);
+        }, CONFIG.MOCK_API_DELAY);
     });
 }
 
@@ -162,14 +148,13 @@ async function updateCount() {
 
 // Get feedback count from API
 async function getFeedbackCount(code) {
-    if (USE_MOCK_DATA) {
+    if (CONFIG.USE_MOCK_DATA) {
         return mockGetFeedbackCount(code);
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/events/${code}/count`);
-        const data = await response.json();
-        return data.data?.count || 0;
+        const response = await apiGet(`/events/${code}/count`);
+        return response.count || response.data?.count || 0;
     } catch (error) {
         console.error('Error fetching count:', error);
         return 0;
@@ -188,7 +173,7 @@ function mockGetFeedbackCount(code) {
 
 // Animate count change
 function animateCount(from, to) {
-    const duration = 1000; // 1 second
+    const duration = CONFIG.COUNT_ANIMATION_DURATION;
     const steps = 20;
     const stepDuration = duration / steps;
     const increment = (to - from) / steps;
@@ -213,7 +198,7 @@ function animateCount(from, to) {
 function startLiveUpdates() {
     refreshTimer = setInterval(() => {
         updateCount();
-    }, REFRESH_INTERVAL);
+    }, CONFIG.COUNT_REFRESH_INTERVAL);
 }
 
 // Stop live updates
@@ -229,18 +214,22 @@ function generateQRCode() {
     const feedbackUrl = `${FEEDBACK_BASE_URL}?code=${eventCode}`;
     const canvas = document.getElementById('qrCode');
 
-    QRCode.toCanvas(canvas, feedbackUrl, {
-        width: 200,
-        margin: 2,
-        color: {
-            dark: '#667eea',
-            light: '#ffffff'
-        }
-    }, function(error) {
-        if (error) {
-            console.error('QR Code generation error:', error);
-        }
-    });
+    if (typeof QRCode !== 'undefined') {
+        QRCode.toCanvas(canvas, feedbackUrl, {
+            width: 200,
+            margin: CONFIG.QR_CODE_MARGIN,
+            color: {
+                dark: CONFIG.QR_CODE_COLOR_DARK,
+                light: CONFIG.QR_CODE_COLOR_LIGHT
+            }
+        }, function(error) {
+            if (error) {
+                console.error('QR Code generation error:', error);
+            }
+        });
+    } else {
+        console.error('QRCode library not loaded');
+    }
 }
 
 // Show count display
@@ -250,7 +239,8 @@ function showCountDisplay() {
     countDisplay.style.display = 'block';
 
     // API returns PascalCase (ModuleName), handle both cases for compatibility
-    moduleName.textContent = currentEvent.ModuleName || currentEvent.moduleName || 'Unknown Module';
+    const moduleNameText = currentEvent.ModuleName || currentEvent.moduleName || 'Unknown Module';
+    moduleName.textContent = escapeHtml(moduleNameText);
 }
 
 // Show error
@@ -274,6 +264,9 @@ function toggleFullscreen() {
     }
 }
 
+// Make toggleFullscreen available globally
+window.toggleFullscreen = toggleFullscreen;
+
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {
     stopLiveUpdates();
@@ -281,5 +274,5 @@ window.addEventListener('beforeunload', () => {
 
 console.log('Feedback Count Display Loaded');
 console.log('Event Code:', eventCode);
-console.log('Using Mock Data:', USE_MOCK_DATA);
-console.log('Auto-refresh every', REFRESH_INTERVAL / 1000, 'seconds');
+console.log('Using Mock Data:', CONFIG.USE_MOCK_DATA);
+console.log('Auto-refresh every', CONFIG.COUNT_REFRESH_INTERVAL / 1000, 'seconds');

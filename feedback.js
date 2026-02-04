@@ -1,11 +1,30 @@
-// Configuration
-const API_BASE_URL = '/api';
-// Auto-detect environment - use real API in production
-const USE_MOCK_DATA = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+/**
+ * Feedback Form - Main Application
+ * Integrated with utility modules for better security, error handling, and maintainability
+ */
+
+import { CONFIG } from './config.js';
+import {
+    InputSanitizer,
+    escapeHtml,
+    getUrlParameter,
+    formatDate,
+    validateFeedbackData
+} from './utils.js';
+import {
+    getUserFriendlyErrorMessage,
+    FeedbackError,
+    EventError,
+    NetworkError
+} from './errors.js';
+import { apiGet, apiPost } from './api.js';
+import { createFeedbackRateLimiter } from './RateLimiter.js';
+import { eventCache } from './Cache.js';
 
 // Global state
 let currentEvent = null;
 let eventCode = null;
+let rateLimiter = null;
 
 // DOM elements
 const loadingState = document.getElementById('loadingState');
@@ -34,6 +53,15 @@ async function initializeForm() {
         return;
     }
 
+    // Validate event code format
+    if (!InputSanitizer.validateEventCode(eventCode)) {
+        showError('Invalid event code format. Please check your feedback link.');
+        return;
+    }
+
+    // Initialize rate limiter for this event
+    rateLimiter = createFeedbackRateLimiter(eventCode);
+
     // Load event details
     try {
         const event = await loadEventDetails(eventCode);
@@ -47,37 +75,37 @@ async function initializeForm() {
         }
     } catch (error) {
         console.error('Error loading event:', error);
-        showError('Unable to load event information. Please try again later.');
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showError(friendlyError.message);
     }
-}
-
-// Get URL parameter
-function getUrlParameter(name) {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get(name);
 }
 
 // Load event details from API
 async function loadEventDetails(code) {
-    if (USE_MOCK_DATA) {
-        // Mock data for testing
+    if (CONFIG.USE_MOCK_DATA) {
         return mockLoadEventDetails(code);
     }
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/events/${code}`);
+    // Check cache first
+    const cached = eventCache.get(code);
+    if (cached) {
+        console.log('Using cached event data');
+        return cached;
+    }
 
-        if (!response.ok) {
-            if (response.status === 404) {
-                return null;
-            }
-            throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+        const event = await apiGet(`/events/${code}`);
+
+        // Cache the result
+        if (event) {
+            eventCache.set(code, event);
         }
 
-        const event = await response.json();
         return event;
     } catch (error) {
-        console.error('Error fetching event:', error);
+        if (error instanceof EventError) {
+            return null;
+        }
         throw error;
     }
 }
@@ -110,25 +138,15 @@ function mockLoadEventDetails(code) {
 
             const event = mockEvents[code];
             resolve(event || null);
-        }, 1000); // Simulate network delay
+        }, CONFIG.MOCK_API_DELAY);
     });
 }
 
 // Display event information
 function displayEventInfo(event) {
-    document.getElementById('displayModuleName').textContent = event.moduleName;
+    document.getElementById('displayModuleName').textContent = escapeHtml(event.moduleName);
     document.getElementById('displayModuleDate').textContent = formatDate(event.moduleDate);
-    document.getElementById('displaySpeakerName').textContent = event.speakerName;
-}
-
-// Format date for display
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
+    document.getElementById('displaySpeakerName').textContent = escapeHtml(event.speakerName);
 }
 
 // Show form
@@ -160,10 +178,13 @@ function updateCharCount() {
     const count = additionalComments.value.length;
     charCount.textContent = count;
 
-    if (count > 900) {
+    const warningThreshold = CONFIG.COMMENTS_MAX_LENGTH * 0.9;
+    const dangerThreshold = CONFIG.COMMENTS_MAX_LENGTH * 0.8;
+
+    if (count > warningThreshold) {
         charCount.style.color = '#e74c3c';
         charCount.style.fontWeight = 'bold';
-    } else if (count > 800) {
+    } else if (count > dangerThreshold) {
         charCount.style.color = '#f39c12';
     } else {
         charCount.style.color = '#666';
@@ -187,8 +208,27 @@ async function handleSubmit(e) {
         return;
     }
 
+    // Check rate limiting
+    if (CONFIG.FEATURES.ENABLE_CLIENT_RATE_LIMITING && !rateLimiter.canAttempt()) {
+        const waitTime = rateLimiter.getFormattedTimeUntilNextAttempt();
+        showNotification(
+            'Rate Limit Exceeded',
+            `You've submitted feedback recently. Please wait ${waitTime} before submitting again.`,
+            'error',
+            false
+        );
+        return;
+    }
+
     // Collect form data
-    const formData = collectFormData();
+    let formData;
+    try {
+        formData = collectFormData();
+    } catch (error) {
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showNotification(friendlyError.title, friendlyError.message, 'error', true);
+        return;
+    }
 
     // Show loading state on button
     setButtonLoading(true);
@@ -197,15 +237,30 @@ async function handleSubmit(e) {
         // Submit feedback
         const result = await submitFeedback(formData);
 
-        if (result.success) {
+        if (result.success || result.feedbackId) {
+            // Record attempt for rate limiting
+            if (CONFIG.FEATURES.ENABLE_CLIENT_RATE_LIMITING) {
+                rateLimiter.recordAttempt();
+            }
             showSuccess();
         } else {
-            alert('There was an error submitting your feedback. Please try again.');
+            showNotification(
+                'Submission Failed',
+                'There was an error submitting your feedback. Please try again.',
+                'error',
+                true
+            );
             setButtonLoading(false);
         }
     } catch (error) {
         console.error('Error submitting feedback:', error);
-        alert('There was an error submitting your feedback. Please try again.');
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showNotification(
+            friendlyError.title,
+            friendlyError.message,
+            'error',
+            friendlyError.canRetry
+        );
         setButtonLoading(false);
     }
 }
@@ -244,13 +299,19 @@ function showValidationError(fieldName, message) {
     const formGroup = errorElement.closest('.form-group');
 
     errorElement.textContent = message;
+    errorElement.setAttribute('role', 'alert');
+    errorElement.setAttribute('aria-live', 'assertive');
     formGroup.classList.add('error');
 }
 
 // Clear all errors
 function clearErrors() {
     const errorMessages = document.querySelectorAll('.error-message');
-    errorMessages.forEach(error => error.textContent = '');
+    errorMessages.forEach(error => {
+        error.textContent = '';
+        error.removeAttribute('role');
+        error.removeAttribute('aria-live');
+    });
 
     const errorGroups = document.querySelectorAll('.form-group.error');
     errorGroups.forEach(group => group.classList.remove('error'));
@@ -258,39 +319,34 @@ function clearErrors() {
 
 // Collect form data
 function collectFormData() {
-    return {
+    const data = {
         eventCode: eventCode,
         eventId: currentEvent.eventId,
         speakerKnowledge: parseInt(document.querySelector('input[name="speakerKnowledge"]:checked').value),
         contentDepth: document.querySelector('input[name="contentDepth"]:checked').value,
         moduleSatisfaction: parseInt(document.querySelector('input[name="moduleSatisfaction"]:checked').value),
-        additionalComments: document.getElementById('additionalComments').value.trim()
+        additionalComments: InputSanitizer.sanitizeText(
+            document.getElementById('additionalComments').value.trim(),
+            CONFIG.COMMENTS_MAX_LENGTH
+        )
     };
+
+    // Validate data
+    validateFeedbackData(data);
+
+    return data;
 }
 
 // Submit feedback to API
 async function submitFeedback(data) {
-    if (USE_MOCK_DATA) {
+    if (CONFIG.USE_MOCK_DATA) {
         return mockSubmitFeedback(data);
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/feedback`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
+        const result = await apiPost('/feedback', data);
         return result;
     } catch (error) {
-        console.error('Error submitting feedback:', error);
         throw error;
     }
 }
@@ -315,7 +371,7 @@ function mockSubmitFeedback(data) {
             localStorage.setItem('bootcampFeedback', JSON.stringify(allFeedback));
 
             resolve({ success: true, feedbackId: Date.now() });
-        }, 1000); // Simulate network delay
+        }, CONFIG.MOCK_API_DELAY);
     });
 }
 
@@ -386,6 +442,8 @@ function addRealTimeValidation() {
                 const errorElement = formGroup.querySelector('.error-message');
                 if (errorElement) {
                     errorElement.textContent = '';
+                    errorElement.removeAttribute('role');
+                    errorElement.removeAttribute('aria-live');
                 }
             }
         });
@@ -397,10 +455,40 @@ function addRealTimeValidation() {
                 const errorElement = formGroup.querySelector('.error-message');
                 if (errorElement) {
                     errorElement.textContent = '';
+                    errorElement.removeAttribute('role');
+                    errorElement.removeAttribute('aria-live');
                 }
             }
         });
     });
+}
+
+// Show notification
+function showNotification(title, message, type = 'error', canRetry = false) {
+    // Remove any existing notifications
+    const existing = document.querySelector('.error-notification');
+    if (existing) {
+        existing.remove();
+    }
+
+    const notification = document.createElement('div');
+    notification.className = `error-notification ${type}`;
+    notification.innerHTML = `
+        <div class="error-content">
+            <strong>${escapeHtml(title)}</strong>
+            <p>${escapeHtml(message)}</p>
+            <button class="notification-close" onclick="this.closest('.error-notification').remove()">Close</button>
+        </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 10000);
 }
 
 // Utility function to view all stored feedback (for debugging)
@@ -421,8 +509,8 @@ window.clearAllFeedback = function() {
 
 console.log('CAT Bootcamp Feedback Form Loaded');
 console.log('Event Code:', eventCode);
-console.log('Using Mock Data:', USE_MOCK_DATA);
-if (USE_MOCK_DATA) {
+console.log('Using Mock Data:', CONFIG.USE_MOCK_DATA);
+if (CONFIG.USE_MOCK_DATA) {
     console.log('Try these event codes: CSA1B2C3, TEST123');
     console.log('Developer tools: viewAllFeedback(), clearAllFeedback()');
 }

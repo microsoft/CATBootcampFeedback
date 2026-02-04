@@ -1,14 +1,30 @@
-// Configuration
-const API_BASE_URL = '/api';
-// Auto-detect environment - use real API in production
-const USE_MOCK_DATA = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const FEEDBACK_BASE_URL = window.location.origin + '/feedback.html';
+/**
+ * Admin Panel - Main Application
+ * Integrated with utility modules, security fixes, and optimizations
+ */
+
+import { CONFIG } from './config.js';
+import {
+    escapeHtml,
+    formatDate,
+    formatDateTime,
+    getStars,
+    debounce,
+    generateEventCode
+} from './utils.js';
+import { getUserFriendlyErrorMessage } from './errors.js';
+import { apiGet, apiPost, apiPut } from './api.js';
+import { createLoginRateLimiter } from './RateLimiter.js';
 
 // Global state
 let currentUser = null;
 let allEvents = [];
 let allFeedback = [];
 let currentEventId = null;
+let loginRateLimiter = null;
+
+// Determine base URLs
+const FEEDBACK_BASE_URL = window.location.origin + '/feedback.html';
 
 // DOM Elements
 const loginScreen = document.getElementById('loginScreen');
@@ -24,17 +40,23 @@ const tabContents = document.querySelectorAll('.tab-content');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
+    loginRateLimiter = createLoginRateLimiter();
     checkAuthentication();
     setupEventListeners();
 });
 
 // Check if user is already authenticated
 function checkAuthentication() {
-    const token = localStorage.getItem('adminToken');
+    const token = sessionStorage.getItem('adminToken');
     if (token) {
         // Validate token (in real app, verify with server)
-        currentUser = JSON.parse(localStorage.getItem('adminUser'));
-        showMainContent();
+        const userStr = sessionStorage.getItem('adminUser');
+        if (userStr) {
+            currentUser = JSON.parse(userStr);
+            showMainContent();
+        } else {
+            showLoginScreen();
+        }
     } else {
         showLoginScreen();
     }
@@ -53,7 +75,10 @@ function setupEventListeners() {
 
     // Events tab
     document.getElementById('createEventBtn').addEventListener('click', () => openEventModal());
-    document.getElementById('eventSearch').addEventListener('input', filterEvents);
+
+    // Debounced search
+    const debouncedFilterEvents = debounce(filterEvents, 300);
+    document.getElementById('eventSearch').addEventListener('input', debouncedFilterEvents);
 
     // Event modal
     document.getElementById('closeModal').addEventListener('click', closeEventModal);
@@ -77,25 +102,39 @@ async function handleLogin(e) {
 
     loginError.textContent = '';
 
+    // Check rate limiting
+    if (!loginRateLimiter.canAttempt()) {
+        const waitTime = loginRateLimiter.getFormattedTimeUntilNextAttempt();
+        loginError.textContent = `Too many login attempts. Please wait ${waitTime}.`;
+        return;
+    }
+
     try {
         const result = await authenticateUser(username, password);
         if (result.success) {
             currentUser = result.user;
-            localStorage.setItem('adminToken', result.token);
-            localStorage.setItem('adminUser', JSON.stringify(result.user));
+            sessionStorage.setItem('adminToken', result.token);
+            sessionStorage.setItem('adminUser', JSON.stringify(result.user));
+
+            // Reset rate limiter on successful login
+            loginRateLimiter.reset();
+
             showMainContent();
         } else {
+            loginRateLimiter.recordAttempt();
             loginError.textContent = 'Invalid username or password';
         }
     } catch (error) {
         console.error('Login error:', error);
-        loginError.textContent = 'An error occurred. Please try again.';
+        loginRateLimiter.recordAttempt();
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        loginError.textContent = friendlyError.message;
     }
 }
 
 // Authenticate user
 async function authenticateUser(username, password) {
-    if (USE_MOCK_DATA) {
+    if (CONFIG.USE_MOCK_DATA) {
         return new Promise((resolve) => {
             setTimeout(() => {
                 if (username === 'admin' && password === 'admin123') {
@@ -112,20 +151,19 @@ async function authenticateUser(username, password) {
     }
 
     // Real API call
-    const response = await fetch(`${API_BASE_URL}/admin/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-    });
-
-    return await response.json();
+    try {
+        const result = await apiPost('/admin/auth/login', { username, password });
+        return result;
+    } catch (error) {
+        throw error;
+    }
 }
 
 // Handle logout
 function handleLogout() {
     if (confirm('Are you sure you want to logout?')) {
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('adminUser');
+        sessionStorage.removeItem('adminToken');
+        sessionStorage.removeItem('adminUser');
         currentUser = null;
         showLoginScreen();
     }
@@ -138,15 +176,31 @@ function showLoginScreen() {
 }
 
 // Show main content
-function showMainContent() {
+async function showMainContent() {
     loginScreen.classList.add('hidden');
     mainContent.classList.remove('hidden');
     if (currentUser) {
-        adminUser.textContent = currentUser.fullName || currentUser.username;
+        adminUser.textContent = escapeHtml(currentUser.fullName || currentUser.username);
     }
-    loadEvents();
-    loadFeedback();
-    updateAnalytics();
+
+    // Load data in parallel (optimization)
+    try {
+        const [events, feedback] = await Promise.all([
+            fetchEvents(),
+            fetchFeedback()
+        ]);
+
+        allEvents = events;
+        allFeedback = feedback;
+
+        renderEvents(events);
+        populateEventFilter(events);
+        renderFeedback(feedback);
+        updateAnalyticsUI();
+    } catch (error) {
+        console.error('Error loading data:', error);
+        showNotification('Error', 'Failed to load data. Please refresh the page.', 'error');
+    }
 }
 
 // Switch tabs
@@ -177,15 +231,16 @@ async function loadEvents() {
 
 // Fetch events from API
 async function fetchEvents() {
-    if (USE_MOCK_DATA) {
+    if (CONFIG.USE_MOCK_DATA) {
         return mockFetchEvents();
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/events`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
-    });
-
-    return await response.json();
+    try {
+        const events = await apiGet('/admin/events');
+        return events;
+    } catch (error) {
+        throw error;
+    }
 }
 
 // Mock fetch events
@@ -239,8 +294,8 @@ function renderEvents(events) {
         <div class="event-card" data-event-id="${event.eventId}">
             <div class="event-card-header">
                 <div>
-                    <div class="event-title">${event.moduleName}</div>
-                    <span class="event-code">${event.eventCode}</span>
+                    <div class="event-title">${escapeHtml(event.moduleName)}</div>
+                    <span class="event-code">${escapeHtml(event.eventCode)}</span>
                 </div>
                 <div class="event-status">
                     <span class="status-badge ${event.isActive ? 'active' : 'inactive'}">
@@ -255,7 +310,7 @@ function renderEvents(events) {
                 </div>
                 <div class="event-meta-item">
                     <span>👤</span>
-                    <span>${event.speakerName}</span>
+                    <span>${escapeHtml(event.speakerName)}</span>
                 </div>
                 <div class="event-meta-item">
                     <span>💬</span>
@@ -342,39 +397,39 @@ async function handleSaveEvent(e) {
         const result = await saveEvent(formData);
         if (result.success) {
             closeEventModal();
-            loadEvents();
-            alert(formData.eventId ? 'Event updated successfully!' : 'Event created successfully!');
+            await loadEvents();
+            showNotification(
+                'Success',
+                formData.eventId ? 'Event updated successfully!' : 'Event created successfully!',
+                'success'
+            );
         } else {
-            alert('Error saving event. Please try again.');
+            showNotification('Error', 'Error saving event. Please try again.', 'error');
         }
     } catch (error) {
         console.error('Error saving event:', error);
-        alert('Error saving event. Please try again.');
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showNotification('Error', friendlyError.message, 'error');
     }
 }
 
 // Save event
 async function saveEvent(data) {
-    if (USE_MOCK_DATA) {
+    if (CONFIG.USE_MOCK_DATA) {
         return mockSaveEvent(data);
     }
 
-    const url = data.eventId
-        ? `${API_BASE_URL}/admin/events/${data.eventId}`
-        : `${API_BASE_URL}/admin/events`;
-
-    const method = data.eventId ? 'PUT' : 'POST';
-
-    const response = await fetch(url, {
-        method: method,
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        },
-        body: JSON.stringify(data)
-    });
-
-    return await response.json();
+    try {
+        if (data.eventId) {
+            const result = await apiPut(`/admin/events/${data.eventId}`, data);
+            return result;
+        } else {
+            const result = await apiPost('/admin/events', data);
+            return result;
+        }
+    } catch (error) {
+        throw error;
+    }
 }
 
 // Mock save event
@@ -403,17 +458,6 @@ function mockSaveEvent(data) {
     });
 }
 
-// Generate event code
-function generateEventCode() {
-    const prefix = 'CS';
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = prefix;
-    for (let i = 0; i < 6; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-}
-
 // View event details
 window.viewEventDetails = function(eventId) {
     const event = allEvents.find(e => e.eventId === eventId);
@@ -429,11 +473,11 @@ window.viewEventDetails = function(eventId) {
             <div class="detail-grid">
                 <div class="detail-item">
                     <span class="detail-label">Module Name</span>
-                    <span class="detail-value">${event.moduleName}</span>
+                    <span class="detail-value">${escapeHtml(event.moduleName)}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Event Code</span>
-                    <span class="detail-value">${event.eventCode}</span>
+                    <span class="detail-value">${escapeHtml(event.eventCode)}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Date</span>
@@ -441,11 +485,11 @@ window.viewEventDetails = function(eventId) {
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Speaker</span>
-                    <span class="detail-value">${event.speakerName}</span>
+                    <span class="detail-value">${escapeHtml(event.speakerName)}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Cohort</span>
-                    <span class="detail-value">${event.cohortId || 'N/A'}</span>
+                    <span class="detail-value">${escapeHtml(event.cohortId || 'N/A')}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Status</span>
@@ -456,10 +500,10 @@ window.viewEventDetails = function(eventId) {
 
         <div class="detail-section qr-code-section">
             <h4>Feedback URL & QR Code</h4>
-            <div class="url-display">${feedbackUrl}</div>
+            <div class="url-display">${escapeHtml(feedbackUrl)}</div>
             <canvas id="qrCanvas"></canvas>
             <div class="qr-actions">
-                <button class="btn btn-primary" onclick="copyFeedbackUrl('${feedbackUrl}')">📋 Copy URL</button>
+                <button class="btn btn-primary" onclick="copyFeedbackUrl('${feedbackUrl.replace(/'/g, "\\'")}')">📋 Copy URL</button>
                 <button class="btn btn-secondary" onclick="downloadQRCode()">💾 Download QR Code</button>
                 <button class="btn btn-secondary" onclick="window.open('/count.html?code=${event.eventCode}', '_blank')">
                     📊 Open Count Display
@@ -471,17 +515,19 @@ window.viewEventDetails = function(eventId) {
     // Generate QR code
     setTimeout(() => {
         const canvas = document.getElementById('qrCanvas');
-        QRCode.toCanvas(canvas, feedbackUrl, {
-            width: 300,
-            margin: 2,
-            color: {
-                dark: '#667eea',
-                light: '#ffffff'
-            }
-        });
+        if (typeof QRCode !== 'undefined') {
+            QRCode.toCanvas(canvas, feedbackUrl, {
+                width: CONFIG.QR_CODE_SIZE,
+                margin: CONFIG.QR_CODE_MARGIN,
+                color: {
+                    dark: CONFIG.QR_CODE_COLOR_DARK,
+                    light: CONFIG.QR_CODE_COLOR_LIGHT
+                }
+            });
+        }
     }, 100);
 
-    document.getElementById('eventDetailsTitle').textContent = event.moduleName;
+    document.getElementById('eventDetailsTitle').textContent = escapeHtml(event.moduleName);
     modal.classList.remove('hidden');
 };
 
@@ -491,12 +537,14 @@ function closeEventDetailsModal() {
 }
 
 // Copy feedback URL
-window.copyFeedbackUrl = function(url) {
-    navigator.clipboard.writeText(url).then(() => {
-        alert('URL copied to clipboard!');
-    }).catch(err => {
+window.copyFeedbackUrl = async function(url) {
+    try {
+        await navigator.clipboard.writeText(url);
+        showNotification('Success', 'URL copied to clipboard!', 'success');
+    } catch (err) {
         console.error('Failed to copy:', err);
-    });
+        showNotification('Error', 'Failed to copy URL', 'error');
+    }
 };
 
 // Download QR code
@@ -530,11 +578,12 @@ window.toggleEventStatus = async function(eventId) {
             });
 
             if (result.success) {
-                loadEvents();
+                await loadEvents();
+                showNotification('Success', `Event ${action}d successfully!`, 'success');
             }
         } catch (error) {
             console.error('Error toggling status:', error);
-            alert('Error updating event status.');
+            showNotification('Error', 'Error updating event status.', 'error');
         }
     }
 };
@@ -552,15 +601,16 @@ async function loadFeedback() {
 
 // Fetch feedback
 async function fetchFeedback() {
-    if (USE_MOCK_DATA) {
+    if (CONFIG.USE_MOCK_DATA) {
         return mockFetchFeedback();
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/feedback`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
-    });
-
-    return await response.json();
+    try {
+        const feedback = await apiGet('/admin/feedback');
+        return feedback;
+    } catch (error) {
+        throw error;
+    }
 }
 
 // Mock fetch feedback
@@ -573,7 +623,7 @@ function mockFetchFeedback() {
     });
 }
 
-// Render feedback
+// Render feedback (with XSS protection)
 function renderFeedback(feedback) {
     const feedbackList = document.getElementById('feedbackList');
 
@@ -590,7 +640,7 @@ function renderFeedback(feedback) {
     feedbackList.innerHTML = feedback.map(fb => `
         <div class="feedback-card">
             <div class="feedback-header">
-                <div class="feedback-event">${fb.moduleName || 'Unknown Module'}</div>
+                <div class="feedback-event">${escapeHtml(fb.moduleName || 'Unknown Module')}</div>
                 <div class="feedback-date">${formatDateTime(fb.submittedAt)}</div>
             </div>
             <div class="feedback-ratings">
@@ -600,7 +650,7 @@ function renderFeedback(feedback) {
                 </div>
                 <div class="rating-item">
                     <span class="rating-label">Content Depth</span>
-                    <span class="rating-value">${fb.contentDepth}</span>
+                    <span class="rating-value">${escapeHtml(fb.contentDepth)}</span>
                 </div>
                 <div class="rating-item">
                     <span class="rating-label">Overall Satisfaction</span>
@@ -610,7 +660,7 @@ function renderFeedback(feedback) {
             ${fb.additionalComments ? `
                 <div class="feedback-comments">
                     <span class="feedback-comments-label">Additional Comments:</span>
-                    <div class="feedback-comments-text">${fb.additionalComments}</div>
+                    <div class="feedback-comments-text">${escapeHtml(fb.additionalComments)}</div>
                 </div>
             ` : ''}
         </div>
@@ -639,13 +689,11 @@ function filterFeedback() {
 function populateEventFilter(events) {
     const filterEvent = document.getElementById('filterEvent');
     filterEvent.innerHTML = '<option value="">All Events</option>' +
-        events.map(e => `<option value="${e.eventCode}">${e.moduleName}</option>`).join('');
+        events.map(e => `<option value="${escapeHtml(e.eventCode)}">${escapeHtml(e.moduleName)}</option>`).join('');
 }
 
-// Update analytics
-async function updateAnalytics() {
-    await loadFeedback();
-
+// Update analytics UI (optimized - doesn't reload data)
+function updateAnalyticsUI() {
     const totalEvents = allEvents.length;
     const totalFeedback = allFeedback.length;
     const avgSatisfaction = allFeedback.length > 0
@@ -679,7 +727,7 @@ async function updateAnalytics() {
         const percentage = ((count / total) * 100).toFixed(0);
         return `
             <div class="depth-bar">
-                <div class="depth-label">${label}</div>
+                <div class="depth-label">${escapeHtml(label)}</div>
                 <div class="depth-bar-container">
                     <div class="depth-bar-fill" style="width: ${percentage}%">
                         ${count} (${percentage}%)
@@ -690,64 +738,83 @@ async function updateAnalytics() {
     }).join('');
 }
 
-// Export feedback to CSV
+// Export feedback to CSV (with proper escaping)
 function exportFeedbackToCSV() {
     if (allFeedback.length === 0) {
-        alert('No feedback to export.');
+        showNotification('Info', 'No feedback to export.', 'info');
         return;
     }
 
-    const headers = ['Module Name', 'Event Code', 'Speaker Name', 'Date', 'Speaker Knowledge', 'Content Depth', 'Module Satisfaction', 'Additional Comments', 'Submitted At'];
+    // Helper to properly escape CSV values
+    const escapeCsvValue = (value) => {
+        if (value === null || value === undefined) return '';
+        const str = String(value);
+        // If contains comma, newline, or quote, wrap in quotes and escape quotes
+        if (/[",\n\r]/.test(str)) {
+            return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+    };
+
+    const headers = ['Module Name', 'Event Code', 'Speaker Name', 'Date',
+                    'Speaker Knowledge', 'Content Depth', 'Module Satisfaction',
+                    'Additional Comments', 'Submitted At'];
+
     const rows = allFeedback.map(fb => [
-        fb.moduleName || '',
-        fb.eventCode || '',
-        fb.speakerName || '',
-        fb.moduleDate || '',
+        escapeCsvValue(fb.moduleName),
+        escapeCsvValue(fb.eventCode),
+        escapeCsvValue(fb.speakerName),
+        escapeCsvValue(fb.moduleDate),
         fb.speakerKnowledge,
-        fb.contentDepth,
+        escapeCsvValue(fb.contentDepth),
         fb.moduleSatisfaction,
-        (fb.additionalComments || '').replace(/"/g, '""'),
+        escapeCsvValue(fb.additionalComments),
         fb.submittedAt
     ]);
 
     const csvContent = [
         headers.join(','),
-        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ...rows.map(row => row.join(','))
     ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = `feedback-export-${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+
+    showNotification('Success', 'Feedback exported successfully!', 'success');
 }
 
-// Utility functions
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
-}
+// Show notification
+function showNotification(title, message, type = 'info') {
+    // Remove any existing notifications
+    const existing = document.querySelector('.error-notification');
+    if (existing) {
+        existing.remove();
+    }
 
-function formatDateTime(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
+    const notification = document.createElement('div');
+    notification.className = `error-notification ${type}`;
+    notification.innerHTML = `
+        <div class="error-content">
+            <strong>${escapeHtml(title)}</strong>
+            <p>${escapeHtml(message)}</p>
+            <button class="notification-close" onclick="this.closest('.error-notification').remove()">Close</button>
+        </div>
+    `;
 
-function getStars(rating) {
-    return '⭐'.repeat(rating);
+    document.body.appendChild(notification);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, CONFIG.TOAST_DURATION);
 }
 
 console.log('Admin Panel Loaded');
-console.log('Using Mock Data:', USE_MOCK_DATA);
+console.log('Using Mock Data:', CONFIG.USE_MOCK_DATA);
