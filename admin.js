@@ -831,22 +831,26 @@ async function viewEventDetails(eventId) {
 
     // Generate QR code
     setTimeout(() => {
+        const container = document.getElementById('qrCodeContainer');
+        const canvas = document.createElement('canvas');
+        container.appendChild(canvas);
+
         QRCode.toCanvas(
-            document.getElementById('qrCodeContainer'),
+            canvas,
             feedbackUrl,
             {
                 width: 300,
                 margin: 2,
                 color: {
-                    dark: CONFIG.QR_CODE_COLOR_DARK,
-                    light: CONFIG.QR_CODE_COLOR_LIGHT
+                    dark: CONFIG.QR_CODE_COLOR_DARK || '#667eea',
+                    light: CONFIG.QR_CODE_COLOR_LIGHT || '#ffffff'
                 },
-                errorCorrectionLevel: CONFIG.QR_CODE_ERROR_CORRECTION
+                errorCorrectionLevel: CONFIG.QR_CODE_ERROR_CORRECTION || 'M'
             },
             (error) => {
                 if (error) {
                     console.error('QR Code generation error:', error);
-                    document.getElementById('qrCodeContainer').innerHTML = '<p style="color: #dc3545;">Failed to generate QR code</p>';
+                    container.innerHTML = '<p style="color: #dc3545;">Failed to generate QR code</p>';
                 }
             }
         );
