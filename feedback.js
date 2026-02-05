@@ -46,8 +46,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Initialize form
 async function initializeForm() {
-    // Get event code from URL parameter
+    // Get event code and module ID from URL parameters
     eventCode = getUrlParameter('code');
+    const moduleId = getUrlParameter('module');
 
     if (!eventCode) {
         showError('No event code provided. Please use the correct feedback link.');
@@ -63,16 +64,46 @@ async function initializeForm() {
     // Initialize rate limiter for this event
     rateLimiter = createFeedbackRateLimiter(eventCode);
 
-    // Load event details
+    // Load event/module details
     try {
-        const event = await loadEventDetails(eventCode);
-        if (event) {
-            currentEvent = event;
-            displayEventInfo(event);
-            showForm();
-            setupFormListeners();
+        if (moduleId) {
+            // Module-specific URL - load specific module delivery details
+            const moduleData = await loadModuleDetails(eventCode, moduleId);
+            if (moduleData) {
+                currentEvent = {
+                    eventId: moduleData.eventId,
+                    eventCode: moduleData.eventCode,
+                    eventName: moduleData.eventName,
+                    startDate: moduleData.startDate,
+                    endDate: moduleData.endDate,
+                    cohortId: moduleData.cohortId,
+                    isActive: moduleData.isActive
+                };
+                selectedEventModule = {
+                    eventModuleId: moduleData.eventModuleId,
+                    moduleId: moduleData.moduleId,
+                    moduleName: moduleData.moduleName,
+                    speakerName: moduleData.speakerName,
+                    deliveryDate: moduleData.deliveryDate,
+                    deliveryOrder: moduleData.deliveryOrder
+                };
+                displayModuleInfo(selectedEventModule);
+                showForm();
+                setupFormListeners();
+            } else {
+                showError('Not a valid event code or module.');
+            }
         } else {
-            showError('Not a valid event code.');
+            // Legacy event-level URL - load event with all modules
+            const event = await loadEventDetails(eventCode);
+            if (event) {
+                currentEvent = event;
+                displayEventInfo(event);
+                showForm();
+                setupFormListeners();
+            } else {
+                showError('Not a valid event code.');
+            }
         }
     } catch (error) {
         console.error('Error loading event:', error);
@@ -109,6 +140,81 @@ async function loadEventDetails(code) {
         }
         throw error;
     }
+}
+
+// Load specific module delivery details from API
+async function loadModuleDetails(code, moduleId) {
+    if (CONFIG.USE_MOCK_DATA) {
+        return mockLoadModuleDetails(code, moduleId);
+    }
+
+    // Check cache first
+    const cacheKey = `${code}_${moduleId}`;
+    const cached = eventCache.get(cacheKey);
+    if (cached) {
+        console.log('Using cached module data');
+        return cached;
+    }
+
+    try {
+        const moduleData = await apiGet(`/events/${code}/modules/${moduleId}`);
+
+        // Cache the result
+        if (moduleData) {
+            eventCache.set(cacheKey, moduleData);
+        }
+
+        return moduleData;
+    } catch (error) {
+        if (error instanceof EventError) {
+            return null;
+        }
+        throw error;
+    }
+}
+
+// Mock function for loading specific module details
+function mockLoadModuleDetails(code, moduleId) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const mockModules = {
+                'CSA1B2C3_1': {
+                    eventId: 1,
+                    eventCode: 'CSA1B2C3',
+                    eventName: 'CAT Bootcamp Q1-2026',
+                    startDate: '2026-02-15',
+                    endDate: '2026-02-20',
+                    cohortId: 'Q1-2026',
+                    isActive: true,
+                    eventModuleId: 1,
+                    moduleId: 1,
+                    moduleName: 'Introduction to Copilot Studio',
+                    speakerName: 'John Doe',
+                    deliveryOrder: 1,
+                    deliveryDate: '2026-02-15T09:00:00'
+                },
+                'TEST123_2': {
+                    eventId: 2,
+                    eventCode: 'TEST123',
+                    eventName: 'Test Event',
+                    startDate: '2026-02-16',
+                    endDate: '2026-02-17',
+                    cohortId: 'Q1-2026',
+                    isActive: true,
+                    eventModuleId: 2,
+                    moduleId: 2,
+                    moduleName: 'Building Your First Copilot',
+                    speakerName: 'Jane Smith',
+                    deliveryOrder: 1,
+                    deliveryDate: '2026-02-16T09:00:00'
+                }
+            };
+
+            const key = `${code}_${moduleId}`;
+            const moduleData = mockModules[key];
+            resolve(moduleData || null);
+        }, CONFIG.MOCK_API_DELAY);
+    });
 }
 
 // Mock function for testing without backend
@@ -207,6 +313,16 @@ function displayEventInfo(event) {
             }
         });
     }
+}
+
+// Display module information (for module-specific URLs)
+function displayModuleInfo(module) {
+    // Hide module selector (not needed when module is pre-selected from URL)
+    document.getElementById('moduleSelector').style.display = 'none';
+
+    // Show module info display
+    document.getElementById('moduleInfoDisplay').style.display = 'block';
+    updateModuleDisplay(module);
 }
 
 // Update module display with selected module info

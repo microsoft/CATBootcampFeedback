@@ -808,35 +808,60 @@ async function viewEventDetails(eventId) {
     const sortedModules = [...modules].sort((a, b) => (a.deliveryOrder || 0) - (b.deliveryOrder || 0));
 
     const modulesHTML = sortedModules.length > 0
-        ? sortedModules.map((m, index) => `
-            <div style="padding: 8px; background: #f8f9fa; border-radius: 4px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                <div style="flex: 1;">
-                    <strong>${escapeHtml(m.moduleName)}</strong><br>
-                    <span style="color: #666;">Speaker: ${escapeHtml(m.speakerName)}</span><br>
-                    <span style="color: #666; font-size: 0.9em;">Delivery: ${formatDate(m.deliveryDate)}</span>
-                    <span style="color: #999; font-size: 0.85em; margin-left: 10px;">Order: ${m.deliveryOrder || index + 1}</span>
+        ? sortedModules.map((m, index) => {
+            const moduleUrl = `${window.location.origin}/feedback.html?code=${event.eventCode}&module=${m.eventModuleId}`;
+            return `
+            <div style="padding: 12px; background: #f8f9fa; border-radius: 8px; margin-bottom: 16px; border: 1px solid #e3e8ff;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                        <strong style="font-size: 1.1em;">${escapeHtml(m.moduleName)}</strong><br>
+                        <span style="color: #666;">Speaker: ${escapeHtml(m.speakerName)}</span><br>
+                        <span style="color: #666; font-size: 0.9em;">Delivery: ${formatDate(m.deliveryDate)}</span>
+                        <span style="color: #999; font-size: 0.85em; margin-left: 10px;">Order: ${m.deliveryOrder || index + 1}</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <button class="btn btn-icon btn-reorder-up"
+                                data-event-module-id="${m.eventModuleId}"
+                                data-current-order="${m.deliveryOrder || index + 1}"
+                                ${index === 0 ? 'disabled' : ''}
+                                style="padding: 2px 8px; font-size: 0.8em; min-width: 32px;">
+                            ▲
+                        </button>
+                        <button class="btn btn-icon btn-reorder-down"
+                                data-event-module-id="${m.eventModuleId}"
+                                data-current-order="${m.deliveryOrder || index + 1}"
+                                ${index === sortedModules.length - 1 ? 'disabled' : ''}
+                                style="padding: 2px 8px; font-size: 0.8em; min-width: 32px;">
+                            ▼
+                        </button>
+                    </div>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 4px;">
-                    <button class="btn btn-icon btn-reorder-up"
-                            data-event-module-id="${m.eventModuleId}"
-                            data-current-order="${m.deliveryOrder || index + 1}"
-                            ${index === 0 ? 'disabled' : ''}
-                            style="padding: 2px 8px; font-size: 0.8em; min-width: 32px;">
-                        ▲
-                    </button>
-                    <button class="btn btn-icon btn-reorder-down"
-                            data-event-module-id="${m.eventModuleId}"
-                            data-current-order="${m.deliveryOrder || index + 1}"
-                            ${index === sortedModules.length - 1 ? 'disabled' : ''}
-                            style="padding: 2px 8px; font-size: 0.8em; min-width: 32px;">
-                        ▼
-                    </button>
+                <div style="background: white; padding: 12px; border-radius: 4px; border: 1px solid #e3e8ff;">
+                    <div style="text-align: center; margin-bottom: 8px;">
+                        <div id="qrCodeModule_${m.eventModuleId}"></div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 0.75em; word-break: break-all; background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                        ${moduleUrl}
+                    </div>
+                    <div style="display: flex; gap: 8px; justify-content: center;">
+                        <button class="btn btn-sm btn-primary btn-download-module-qr"
+                                data-event-code="${event.eventCode}"
+                                data-module-id="${m.eventModuleId}"
+                                data-module-name="${escapeHtml(m.moduleName)}"
+                                style="font-size: 0.85em; padding: 6px 12px;">
+                            📥 Download
+                        </button>
+                        <button class="btn btn-sm btn-secondary btn-copy-module-url"
+                                data-feedback-url="${escapeHtml(moduleUrl)}"
+                                style="font-size: 0.85em; padding: 6px 12px;">
+                            📋 Copy URL
+                        </button>
+                    </div>
                 </div>
             </div>
-        `).join('')
+        `;
+        }).join('')
         : '<p style="color: #666;">No modules assigned to this event yet.</p>';
-
-    const feedbackUrl = `${window.location.origin}/?code=${event.eventCode}`;
 
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 600px;">
@@ -871,29 +896,11 @@ async function viewEventDetails(eventId) {
                 </div>
 
                 <div style="margin-bottom: 20px;">
-                    <h3 style="margin-bottom: 12px; color: #333;">Modules (${modules.length})</h3>
-                    ${modulesHTML}
-                </div>
-
-                <div style="border-top: 2px solid #e3e8ff; padding-top: 20px;">
-                    <h3 style="margin-bottom: 12px; color: #333;">Feedback Form QR Code</h3>
-                    <p style="color: #666; margin-bottom: 12px;">
-                        Participants can scan this QR code to submit feedback:
+                    <h3 style="margin-bottom: 12px; color: #333;">Module Feedback QR Codes (${modules.length})</h3>
+                    <p style="color: #666; margin-bottom: 12px; font-size: 0.9em;">
+                        Each module has its own QR code. Participants scan the specific module's QR code to provide targeted feedback.
                     </p>
-                    <div style="text-align: center; padding: 20px; background: white; border-radius: 8px; border: 2px solid #e3e8ff;">
-                        <div id="qrCodeContainer"></div>
-                        <div style="margin-top: 16px; padding: 12px; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 0.9em; word-break: break-all;">
-                            ${feedbackUrl}
-                        </div>
-                    </div>
-                    <div style="text-align: center; margin-top: 16px;">
-                        <button class="btn btn-primary" id="downloadQRBtn" data-event-code="${event.eventCode}">
-                            📥 Download QR Code
-                        </button>
-                        <button class="btn btn-secondary" id="copyUrlBtn" data-feedback-url="${escapeHtml(feedbackUrl)}">
-                            📋 Copy URL
-                        </button>
-                    </div>
+                    ${modulesHTML}
                 </div>
             </div>
         </div>
@@ -904,34 +911,55 @@ async function viewEventDetails(eventId) {
 
     // Add event listeners for modal buttons
     document.getElementById('closeEventDetailsBtn').addEventListener('click', closeEventDetailsModal);
-    document.getElementById('downloadQRBtn').addEventListener('click', () => downloadQRCode(event.eventCode));
-    document.getElementById('copyUrlBtn').addEventListener('click', () => copyFeedbackUrl(feedbackUrl));
 
-    // Generate QR code
+    // Add event listeners for module QR download and copy buttons
+    document.querySelectorAll('.btn-download-module-qr').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const eventCode = e.target.dataset.eventCode;
+            const moduleId = e.target.dataset.moduleId;
+            const moduleName = e.target.dataset.moduleName;
+            downloadModuleQRCode(eventCode, moduleId, moduleName);
+        });
+    });
+
+    document.querySelectorAll('.btn-copy-module-url').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const url = e.target.dataset.feedbackUrl;
+            copyFeedbackUrl(url);
+        });
+    });
+
+    // Generate QR codes for each module
     setTimeout(() => {
-        const container = document.getElementById('qrCodeContainer');
-        const canvas = document.createElement('canvas');
-        container.appendChild(canvas);
+        sortedModules.forEach(m => {
+            const container = document.getElementById(`qrCodeModule_${m.eventModuleId}`);
+            if (container) {
+                const canvas = document.createElement('canvas');
+                container.appendChild(canvas);
 
-        QRCode.toCanvas(
-            canvas,
-            feedbackUrl,
-            {
-                width: 300,
-                margin: 2,
-                color: {
-                    dark: CONFIG.QR_CODE_COLOR_DARK || '#667eea',
-                    light: CONFIG.QR_CODE_COLOR_LIGHT || '#ffffff'
-                },
-                errorCorrectionLevel: CONFIG.QR_CODE_ERROR_CORRECTION || 'M'
-            },
-            (error) => {
-                if (error) {
-                    console.error('QR Code generation error:', error);
-                    container.innerHTML = '<p style="color: #dc3545;">Failed to generate QR code</p>';
-                }
+                const moduleUrl = `${window.location.origin}/feedback.html?code=${event.eventCode}&module=${m.eventModuleId}`;
+
+                QRCode.toCanvas(
+                    canvas,
+                    moduleUrl,
+                    {
+                        width: 200,
+                        margin: 2,
+                        color: {
+                            dark: CONFIG.QR_CODE_COLOR_DARK || '#667eea',
+                            light: CONFIG.QR_CODE_COLOR_LIGHT || '#ffffff'
+                        },
+                        errorCorrectionLevel: CONFIG.QR_CODE_ERROR_CORRECTION || 'M'
+                    },
+                    (error) => {
+                        if (error) {
+                            console.error(`QR Code generation error for module ${m.eventModuleId}:`, error);
+                            container.innerHTML = '<p style="color: #dc3545; font-size: 0.85em;">QR code failed</p>';
+                        }
+                    }
+                );
             }
-        );
+        });
     }, 100);
 }
 
@@ -943,7 +971,7 @@ function closeEventDetailsModal() {
     }
 }
 
-// Download QR code as image
+// Download QR code as image (legacy - for event-level QR codes)
 function downloadQRCode(eventCode) {
     const canvas = document.querySelector('#qrCodeContainer canvas');
     if (!canvas) {
@@ -959,6 +987,27 @@ function downloadQRCode(eventCode) {
         link.click();
         URL.revokeObjectURL(url);
         showNotification('Success', 'QR code downloaded successfully', 'success');
+    });
+}
+
+// Download module-specific QR code as image
+function downloadModuleQRCode(eventCode, moduleId, moduleName) {
+    const canvas = document.querySelector(`#qrCodeModule_${moduleId} canvas`);
+    if (!canvas) {
+        showNotification('Error', 'QR code not found for this module', 'error');
+        return;
+    }
+
+    canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        // Sanitize module name for filename
+        const safeModuleName = moduleName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+        link.download = `${eventCode}-${safeModuleName}-qr-code.png`;
+        link.click();
+        URL.revokeObjectURL(url);
+        showNotification('Success', `QR code for "${moduleName}" downloaded successfully`, 'success');
     });
 }
 

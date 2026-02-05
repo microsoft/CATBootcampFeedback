@@ -13,8 +13,11 @@ const FEEDBACK_BASE_URL = window.location.origin + '/feedback.html';
 
 // Global state
 let eventCode = null;
+let moduleId = null;
 let currentEvent = null;
+let currentModule = null;
 let refreshTimer = null;
+let isModuleMode = false;
 
 // DOM elements
 const loadingState = document.getElementById('loadingState');
@@ -33,9 +36,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Initialize the count display
 async function initialize() {
-    // Get event code from URL parameter
+    // Get event code and optional module ID from URL parameters
     eventCode = getUrlParameter('code');
-    console.log('Count page initializing with event code:', eventCode);
+    moduleId = getUrlParameter('module');
+    isModuleMode = !!moduleId;
+
+    console.log('Count page initializing with event code:', eventCode, 'module:', moduleId || 'none');
     console.log('Using mock data:', CONFIG.USE_MOCK_DATA);
 
     if (!eventCode) {
@@ -44,19 +50,42 @@ async function initialize() {
     }
 
     try {
-        // Load event details
-        console.log('Loading event details from API...');
-        const event = await loadEventDetails(eventCode);
-        console.log('Event data received:', event);
+        if (isModuleMode) {
+            // Module-specific mode: load specific module details
+            console.log('Loading module details from API...');
+            const moduleData = await loadModuleDetails(eventCode, moduleId);
+            console.log('Module data received:', moduleData);
 
-        if (!event) {
-            console.error('Event is null or undefined');
-            showError('Event not found or invalid event code.');
-            return;
+            if (!moduleData) {
+                console.error('Module is null or undefined');
+                showError('Module not found or invalid module ID.');
+                return;
+            }
+
+            currentModule = moduleData;
+            currentEvent = {
+                eventId: moduleData.eventId,
+                eventCode: moduleData.eventCode,
+                eventName: moduleData.eventName,
+                cohortId: moduleData.cohortId
+            };
+            console.log('Module mode - current module set:', currentModule);
+        } else {
+            // Event-level mode: load event with all modules
+            console.log('Loading event details from API...');
+            const event = await loadEventDetails(eventCode);
+            console.log('Event data received:', event);
+
+            if (!event) {
+                console.error('Event is null or undefined');
+                showError('Event not found or invalid event code.');
+                return;
+            }
+
+            currentEvent = event;
+            console.log('Event mode - current event set:', currentEvent);
         }
 
-        currentEvent = event;
-        console.log('Current event set:', currentEvent);
         showCountDisplay();
 
         // Generate QR code
@@ -85,12 +114,67 @@ async function loadEventDetails(code) {
     }
 
     try {
-        const event = await apiGet(`/events/${code}`);
-        return event;
+        const response = await apiGet(`/events/${code}/count`);
+        return response.data || response;
     } catch (error) {
         console.error('Error loading event:', error);
         throw error;
     }
+}
+
+// Load module details (module-specific mode)
+async function loadModuleDetails(code, modId) {
+    if (CONFIG.USE_MOCK_DATA) {
+        console.log('Using mock module data');
+        return mockLoadModuleDetails(code, modId);
+    }
+
+    try {
+        const response = await apiGet(`/events/${code}/modules/${modId}/count`);
+        return response.data || response;
+    } catch (error) {
+        console.error('Error loading module:', error);
+        throw error;
+    }
+}
+
+// Mock load module details
+function mockLoadModuleDetails(code, modId) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const mockModules = {
+                'CSA1B2C3_1': {
+                    eventId: 1,
+                    eventCode: 'CSA1B2C3',
+                    eventName: 'CAT Bootcamp Q1-2026',
+                    cohortId: 'Q1-2026',
+                    eventModuleId: 1,
+                    moduleId: 1,
+                    moduleName: 'Introduction to CAT Bootcamp',
+                    speakerName: 'John Doe',
+                    deliveryOrder: 1,
+                    deliveryDate: '2026-02-15T09:00:00',
+                    count: Math.floor(Math.random() * 10)
+                },
+                'TEST123_2': {
+                    eventId: 2,
+                    eventCode: 'TEST123',
+                    eventName: 'Test Event',
+                    cohortId: 'Q1-2026',
+                    eventModuleId: 2,
+                    moduleId: 2,
+                    moduleName: 'Building Your First Copilot',
+                    speakerName: 'Jane Smith',
+                    deliveryOrder: 1,
+                    deliveryDate: '2026-02-16T09:00:00',
+                    count: Math.floor(Math.random() * 8)
+                }
+            };
+
+            const key = `${code}_${modId}`;
+            resolve(mockModules[key] || null);
+        }, CONFIG.MOCK_API_DELAY);
+    });
 }
 
 // Mock load event details
@@ -150,25 +234,35 @@ function mockLoadEventDetails(code) {
 // Update feedback count
 async function updateCount() {
     try {
-        const data = await getFeedbackCount(eventCode);
+        if (isModuleMode) {
+            // Module-specific mode: update single module count
+            const data = await getModuleFeedbackCount(eventCode, moduleId);
+            const currentTotal = parseInt(totalCount.textContent);
+            if (data.count !== currentTotal) {
+                animateCount(totalCount, currentTotal, data.count);
+            }
+        } else {
+            // Event-level mode: update total and per-module counts
+            const data = await getFeedbackCount(eventCode);
 
-        // Update total count with animation
-        const currentTotal = parseInt(totalCount.textContent);
-        if (data.totalCount !== currentTotal) {
-            animateCount(totalCount, currentTotal, data.totalCount);
-        }
+            // Update total count with animation
+            const currentTotal = parseInt(totalCount.textContent);
+            if (data.totalCount !== currentTotal) {
+                animateCount(totalCount, currentTotal, data.totalCount);
+            }
 
-        // Update module counts
-        if (data.modules && data.modules.length > 0) {
-            data.modules.forEach(module => {
-                const moduleCountEl = document.getElementById(`module-count-${module.eventModuleId}`);
-                if (moduleCountEl) {
-                    const currentModuleCount = parseInt(moduleCountEl.textContent);
-                    if (module.feedbackCount !== currentModuleCount) {
-                        animateCount(moduleCountEl, currentModuleCount, module.feedbackCount);
+            // Update module counts
+            if (data.modules && data.modules.length > 0) {
+                data.modules.forEach(module => {
+                    const moduleCountEl = document.getElementById(`module-count-${module.eventModuleId}`);
+                    if (moduleCountEl) {
+                        const currentModuleCount = parseInt(moduleCountEl.textContent);
+                        if (module.feedbackCount !== currentModuleCount) {
+                            animateCount(moduleCountEl, currentModuleCount, module.feedbackCount);
+                        }
                     }
-                }
-            });
+                });
+            }
         }
 
         // Update last updated time
@@ -184,7 +278,7 @@ async function updateCount() {
     }
 }
 
-// Get feedback count from API
+// Get feedback count from API (event-level)
 async function getFeedbackCount(code) {
     if (CONFIG.USE_MOCK_DATA) {
         return mockGetFeedbackCount(code);
@@ -197,6 +291,34 @@ async function getFeedbackCount(code) {
         console.error('Error fetching count:', error);
         return { totalCount: 0, modules: [] };
     }
+}
+
+// Get module feedback count from API (module-specific)
+async function getModuleFeedbackCount(code, modId) {
+    if (CONFIG.USE_MOCK_DATA) {
+        return mockGetModuleFeedbackCount(code, modId);
+    }
+
+    try {
+        const response = await apiGet(`/events/${code}/modules/${modId}/count`);
+        return response.data || response;
+    } catch (error) {
+        console.error('Error fetching module count:', error);
+        return { count: 0 };
+    }
+}
+
+// Mock get module feedback count
+function mockGetModuleFeedbackCount(code, modId) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const allFeedback = JSON.parse(localStorage.getItem('bootcampFeedback')) || [];
+            const moduleFeedback = allFeedback.filter(
+                fb => fb.eventCode === code && fb.eventModuleId === parseInt(modId)
+            );
+            resolve({ count: moduleFeedback.length });
+        }, CONFIG.MOCK_API_DELAY);
+    });
 }
 
 // Mock get feedback count
