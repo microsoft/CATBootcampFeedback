@@ -331,42 +331,99 @@ Feedback Questions:
 
 ## Data Model
 
-### Event Object (Module with Feedback Collection)
+**Architecture:** The system uses a many-to-many relationship between Events and Modules through the EventModules junction table.
 
-**Note:** An "Event" represents a **module** (training session) along with its feedback collection mechanism. The event object contains:
-- Module information (name, date, speaker)
-- Event code for feedback collection
-- Generated feedback URL and QR code
+```
+Events (1) ←→ (many) EventModules (many) ←→ (1) Modules
+                        ↓
+                  Feedback (many)
+```
 
-The event code is captured from the URL when participants submit feedback about the module.
+### Event Object
+
+**Note:** An "Event" represents a training session or bootcamp instance with a unique event code. Events can contain multiple modules.
+
 ```json
 {
   "eventId": 1,
   "eventCode": "CSA1B2C3",
-  "moduleName": "Introduction to Copilot Studio",
-  "moduleDate": "2026-02-15",
-  "speakerName": "John Doe",
+  "eventName": "Cloud Adoption Training - Q1 2026",
+  "startDate": "2026-02-15",
+  "endDate": "2026-02-20",
   "cohortId": "Q1-2026",
-  "description": "Getting started with Copilot Studio basics",
   "isActive": true,
-  "feedbackUrl": "https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3",
-  "qrCodeUrl": "https://feedbackapp.azurewebsites.net/qr/CSA1B2C3.png",
   "createdAt": "2026-02-01T10:00:00Z",
   "createdBy": "admin@company.com",
-  "updatedAt": null,
-  "updatedBy": null
+  "modules": [
+    {
+      "eventModuleId": 5,
+      "moduleId": 1,
+      "moduleName": "Introduction to Copilot Studio",
+      "speakerName": "John Doe",
+      "deliveryOrder": 1,
+      "deliveryDate": "2026-02-15T09:00:00Z",
+      "feedbackUrl": "https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3&module=5"
+    }
+  ]
 }
 ```
 
+**Key Fields:**
+- `eventCode`: Unique identifier for the event (e.g., "CSA1B2C3")
+  - NVARCHAR(20), UNIQUE, NOT NULL
+  - Admin-provided when creating events
+  - Used in feedback URLs and QR codes
+- `eventName`: Descriptive name for the event (e.g., "CAT Bootcamp Q1-2026")
+- `modules`: Array of module deliveries associated with this event
+
+### Module Object
+
+**Note:** Modules are reusable training content that can be delivered at multiple events.
+
+```json
+{
+  "moduleId": 1,
+  "moduleName": "Introduction to Copilot Studio",
+  "description": "Getting started with Copilot Studio basics",
+  "isActive": true,
+  "createdAt": "2026-01-15T10:00:00Z"
+}
+```
+
+### Event Module Delivery Object
+
+**Note:** Links a module to an event with delivery-specific details (speaker, order, date).
+
+```json
+{
+  "eventModuleId": 5,
+  "eventId": 1,
+  "moduleId": 1,
+  "speakerName": "John Doe",
+  "deliveryOrder": 1,
+  "deliveryDate": "2026-02-15T09:00:00Z",
+  "notes": "Morning session",
+  "feedbackUrl": "https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3&module=5"
+}
+```
+
+**Key Fields:**
+- `eventModuleId`: Unique identifier for this specific module delivery
+  - Used in feedback URLs as the `module` parameter
+  - Links feedback to specific module delivery at specific event
+- `speakerName`: Who is delivering this module at this event
+- `deliveryOrder`: Sequence of this module within the event
+
 ### Feedback Submission Object
 
-**Note:** Feedback is collected **about modules**. The `eventCode` field captures the code from the feedback URL, linking the feedback to the specific module.
+**Note:** Feedback is collected for specific module deliveries. Both `eventId` and `eventModuleId` link feedback to the exact module delivery instance.
 
 ```json
 {
   "feedbackId": 123,
   "eventId": 1,
-  "eventCode": "CSA1B2C3",  // Captured from URL parameter
+  "eventModuleId": 5,
+  "eventCode": "CSA1B2C3",
   "speakerKnowledge": 5,
   "contentDepth": "Just Right",
   "moduleSatisfaction": 5,
@@ -376,6 +433,11 @@ The event code is captured from the URL when participants submit feedback about 
   "userAgent": "Mozilla/5.0..."
 }
 ```
+
+**Key Fields:**
+- `eventCode`: Captured from URL parameter `code`
+- `eventModuleId`: Captured from URL parameter `module`
+- Links feedback to specific module delivery at specific event
 
 ## Technical Architecture
 
