@@ -462,6 +462,77 @@ textarea {
     font-style: italic;
 }
 
+.error-details {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 6px;
+    padding: 10px 15px;
+    margin: 15px auto;
+    max-width: 600px;
+    color: #856404;
+    font-size: 0.9rem;
+    font-family: 'Courier New', monospace;
+}
+
+/* Manual Entry Section Styles */
+.manual-entry-section {
+    margin: 30px auto;
+    padding: 30px;
+    background: #f8f9ff;
+    border: 2px solid #e0e5ff;
+    border-radius: 10px;
+    max-width: 500px;
+}
+
+.manual-entry-prompt {
+    font-size: 1rem;
+    color: #333;
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+.manual-entry-form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.manual-entry-form input {
+    flex: 1;
+    padding: 12px 15px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    letter-spacing: 1px;
+    transition: border-color 0.3s ease;
+}
+
+.manual-entry-form input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.manual-entry-form .btn {
+    padding: 12px 24px;
+    white-space: nowrap;
+}
+
+.manual-entry-error {
+    color: #e74c3c;
+    font-size: 0.875rem;
+    padding: 10px;
+    background: #ffe6e6;
+    border-radius: 6px;
+    border: 1px solid #e74c3c;
+    margin-top: 10px;
+}
+
+.manual-entry-error.hidden {
+    display: none;
+}
+
 /* Info Display Styles */
 .info-display {
     background: #f8f9ff;

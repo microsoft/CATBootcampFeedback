@@ -28,27 +28,80 @@ document.addEventListener('DOMContentLoaded', function() {
 async function initialize() {
     // Get event code from URL parameter
     eventCode = getUrlParameter('code');
+
+    // Clean up event code (remove any extra characters/spaces)
+    if (eventCode) {
+        eventCode = eventCode.trim().toUpperCase();
+    }
+
     console.log('Count page initializing with event code:', eventCode);
     console.log('Using mock data:', USE_MOCK_DATA);
 
     if (!eventCode) {
-        showError('No event code provided. Please access this page from the admin panel.');
+        showError(
+            'No Event Code Provided',
+            'The count display link is missing the event code parameter.',
+            'The URL should look like: count.html?code=ABC123'
+        );
         return;
+    }
+
+    // Load event with the code
+    await loadEventByCode(eventCode);
+}
+
+// Load event by code (used by both URL and manual entry)
+async function loadEventByCode(code) {
+    // Clean and validate code
+    code = code.trim().toUpperCase();
+
+    if (!code) {
+        showError(
+            'Invalid Event Code',
+            'The event code cannot be empty.',
+            null
+        );
+        return false;
+    }
+
+    // Validate format (alphanumeric, 4-20 characters)
+    if (!/^[A-Z0-9]{4,20}$/.test(code)) {
+        showError(
+            'Invalid Event Code Format',
+            'The event code must be 4-20 alphanumeric characters.',
+            `Provided code: "${code}"`
+        );
+        return false;
     }
 
     try {
         // Load event details
         console.log('Loading event details from API...');
-        const event = await loadEventDetails(eventCode);
+        const event = await loadEventDetails(code);
         console.log('Event data received:', event);
 
         if (!event) {
             console.error('Event is null or undefined');
-            showError('Event not found or invalid event code.');
-            return;
+            showError(
+                'Event Not Found',
+                'No event exists with this code. Please check the code and try again.',
+                `Event Code: ${code}`
+            );
+            return false;
+        }
+
+        // Check if event is active
+        if (event.isActive === false || event.IsActive === false) {
+            showError(
+                'Event Inactive',
+                'This event is no longer active.',
+                `Event Code: ${code}`
+            );
+            return false;
         }
 
         currentEvent = event;
+        eventCode = code;
         console.log('Current event set:', currentEvent);
         showCountDisplay();
 
@@ -62,10 +115,17 @@ async function initialize() {
         startLiveUpdates();
         console.log('Count page fully initialized');
 
+        return true;
+
     } catch (error) {
         console.error('Error initializing count page:', error);
         console.error('Error stack:', error.stack);
-        showError('Unable to load event information. Please try again later.');
+        showError(
+            'Connection Error',
+            'Unable to load event information. Please check your internet connection and try again.',
+            error.message
+        );
+        return false;
     }
 }
 
@@ -89,15 +149,41 @@ async function loadEventDetails(code) {
         console.log('Response status:', response.status, response.statusText);
 
         if (!response.ok) {
+            if (response.status === 404) {
+                console.log(`Event not found: ${code}`);
+                return null;
+            }
             console.error('API returned error status:', response.status);
             const errorText = await response.text();
             console.error('Error response:', errorText);
-            return null;
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const result = await response.json();
         console.log('API response:', result);
-        return result.data || result; // Handle API response format
+
+        // Handle API response format - API may return { success: true, data: {...} } or just the event object
+        let event = null;
+        if (result.success && result.data) {
+            event = result.data;
+        } else if (result.data) {
+            event = result.data;
+        } else {
+            event = result;
+        }
+
+        // Normalize field names (API returns PascalCase, we use camelCase)
+        if (event) {
+            event.eventId = event.EventId || event.eventId;
+            event.eventCode = event.EventCode || event.eventCode;
+            event.moduleName = event.ModuleName || event.moduleName;
+            event.moduleDate = event.ModuleDate || event.moduleDate;
+            event.speakerName = event.SpeakerName || event.speakerName;
+            event.cohortId = event.CohortId || event.cohortId;
+            event.isActive = event.IsActive !== undefined ? event.IsActive : event.isActive;
+        }
+
+        return event;
     } catch (error) {
         console.error('Error loading event:', error);
         console.error('Error name:', error.name);
@@ -254,12 +340,99 @@ function showCountDisplay() {
 }
 
 // Show error
-function showError(message) {
+function showError(title, message, details = null) {
     loadingState.style.display = 'none';
     countDisplay.style.display = 'none';
+
+    // Update error content
+    const errorTitle = document.getElementById('errorTitle');
+    if (errorTitle) errorTitle.textContent = title || 'Unable to Load Count Display';
+
+    errorMessage.textContent = message || 'Unable to load feedback count.';
+
+    // Show details if provided
+    const errorDetailsEl = document.getElementById('errorDetails');
+    if (errorDetailsEl) {
+        if (details) {
+            errorDetailsEl.textContent = details;
+            errorDetailsEl.style.display = 'block';
+        } else {
+            errorDetailsEl.textContent = '';
+            errorDetailsEl.style.display = 'none';
+        }
+    }
+
+    // Clear manual entry error
+    const manualError = document.getElementById('manualEntryError');
+    if (manualError) {
+        manualError.style.display = 'none';
+        manualError.textContent = '';
+    }
+
+    // Clear manual entry input
+    const manualInput = document.getElementById('manualEventCode');
+    if (manualInput) {
+        manualInput.value = '';
+    }
+
     errorState.style.display = 'block';
-    errorMessage.textContent = message;
 }
+
+// Load event from manual entry
+window.loadManualEventCode = async function() {
+    const input = document.getElementById('manualEventCode');
+    const btn = document.getElementById('loadCountBtn');
+    const errorEl = document.getElementById('manualEntryError');
+    const code = input.value.trim().toUpperCase();
+
+    // Clear previous error
+    errorEl.style.display = 'none';
+    errorEl.textContent = '';
+
+    if (!code) {
+        errorEl.textContent = 'Please enter an event code';
+        errorEl.style.display = 'block';
+        input.focus();
+        return;
+    }
+
+    // Show loading on button
+    const btnText = btn.querySelector('.btn-text');
+    const btnSpinner = btn.querySelector('.btn-spinner');
+    btn.disabled = true;
+    btnText.textContent = 'Loading...';
+    btnSpinner.style.display = 'inline-block';
+
+    // Try to load event
+    const success = await loadEventByCode(code);
+
+    // Reset button
+    btn.disabled = false;
+    btnText.textContent = 'Load Count';
+    btnSpinner.style.display = 'none';
+
+    if (!success) {
+        // Error is already shown by loadEventByCode
+        input.focus();
+    }
+};
+
+// Handle Enter key in manual entry input
+document.addEventListener('DOMContentLoaded', function() {
+    const manualInput = document.getElementById('manualEventCode');
+    if (manualInput) {
+        manualInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                window.loadManualEventCode();
+            }
+        });
+
+        // Auto-uppercase as user types
+        manualInput.addEventListener('input', function(e) {
+            this.value = this.value.toUpperCase();
+        });
+    }
+});
 
 // Toggle fullscreen
 function toggleFullscreen() {

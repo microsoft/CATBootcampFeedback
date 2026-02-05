@@ -437,12 +437,17 @@ function generateEventCode() {
 
 // View event details
 window.viewEventDetails = function(eventId) {
-    const event = allEvents.find(e => e.eventId === eventId);
+    const event = allEvents.find(e => (e.EventId || e.eventId) === eventId);
     if (!event) return;
 
     const modal = document.getElementById('eventDetailsModal');
     const content = document.getElementById('eventDetailsContent');
-    const feedbackUrl = `${FEEDBACK_BASE_URL}?code=${event.eventCode}`;
+
+    // Get event code (handle both PascalCase and camelCase)
+    const eventCode = event.EventCode || event.eventCode;
+
+    // Generate clean feedback URL (only code parameter, no extras)
+    const feedbackUrl = `${FEEDBACK_BASE_URL}?code=${encodeURIComponent(eventCode)}`;
 
     content.innerHTML = `
         <div class="detail-section">

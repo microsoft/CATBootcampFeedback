@@ -28,7 +28,27 @@
             </svg>
             <h3>Unable to Load Feedback Form</h3>
             <p id="errorMessage">The feedback link appears to be invalid or expired.</p>
-            <p class="error-help">Please contact the event organizer for assistance.</p>
+            <p class="error-details" id="errorDetails"></p>
+
+            <!-- Manual Event Code Entry -->
+            <div class="manual-entry-section">
+                <p class="manual-entry-prompt">Have a valid event code? Enter it below:</p>
+                <div class="manual-entry-form">
+                    <input
+                        type="text"
+                        id="manualEventCode"
+                        placeholder="Enter event code (e.g., CSA1B2C3)"
+                        maxlength="20"
+                        style="text-transform: uppercase;">
+                    <button type="button" class="btn btn-primary" id="loadEventBtn" onclick="loadManualEventCode()">
+                        <span class="btn-text">Load Event</span>
+                        <span class="btn-spinner hidden"></span>
+                    </button>
+                </div>
+                <p class="manual-entry-error hidden" id="manualEntryError"></p>
+            </div>
+
+            <p class="error-help">Don't have a code? Please contact the event organizer for assistance.</p>
         </div>
 
         <!-- Feedback Form -->

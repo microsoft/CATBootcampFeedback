@@ -29,25 +29,84 @@ async function initializeForm() {
     // Get event code from URL parameter
     eventCode = getUrlParameter('code');
 
+    // Clean up event code (remove any extra characters/spaces)
+    if (eventCode) {
+        eventCode = eventCode.trim().toUpperCase();
+    }
+
     if (!eventCode) {
-        showError('No event code provided. Please use the correct feedback link.');
+        showError(
+            'No Event Code Provided',
+            'The feedback link is missing the event code parameter.',
+            'The URL should look like: feedback.html?code=ABC123'
+        );
         return;
+    }
+
+    // Load event with the code
+    await loadEventByCode(eventCode);
+}
+
+// Load event by code (used by both URL and manual entry)
+async function loadEventByCode(code) {
+    // Clean and validate code
+    code = code.trim().toUpperCase();
+
+    if (!code) {
+        showError(
+            'Invalid Event Code',
+            'The event code cannot be empty.',
+            null
+        );
+        return false;
+    }
+
+    // Validate format (alphanumeric, 4-20 characters)
+    if (!/^[A-Z0-9]{4,20}$/.test(code)) {
+        showError(
+            'Invalid Event Code Format',
+            'The event code must be 4-20 alphanumeric characters.',
+            `Provided code: "${code}"`
+        );
+        return false;
     }
 
     // Load event details
     try {
-        const event = await loadEventDetails(eventCode);
+        const event = await loadEventDetails(code);
         if (event) {
+            // Check if event is active
+            if (event.isActive === false || event.IsActive === false) {
+                showError(
+                    'Event Inactive',
+                    'This event is no longer accepting feedback.',
+                    `Event Code: ${code}`
+                );
+                return false;
+            }
+
             currentEvent = event;
+            eventCode = code;
             displayEventInfo(event);
             showForm();
             setupFormListeners();
+            return true;
         } else {
-            showError('The feedback link appears to be invalid or expired.');
+            showError(
+                'Event Not Found',
+                'No event exists with this code. Please check the code and try again.',
+                `Event Code: ${code}`
+            );
+            return false;
         }
     } catch (error) {
         console.error('Error loading event:', error);
-        showError('Unable to load event information. Please try again later.');
+        showError(
+            'Connection Error',
+            'Unable to load event information. Please check your internet connection and try again.',
+            error.message
+        );
+        return false;
     }
 }
 
@@ -69,12 +128,36 @@ async function loadEventDetails(code) {
 
         if (!response.ok) {
             if (response.status === 404) {
+                console.log(`Event not found: ${code}`);
                 return null;
             }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const event = await response.json();
+        const result = await response.json();
+        console.log('API response:', result);
+
+        // Handle API response format - API may return { success: true, data: {...} } or just the event object
+        let event = null;
+        if (result.success && result.data) {
+            event = result.data;
+        } else if (result.data) {
+            event = result.data;
+        } else {
+            event = result;
+        }
+
+        // Normalize field names (API returns PascalCase, we use camelCase)
+        if (event) {
+            event.eventId = event.EventId || event.eventId;
+            event.eventCode = event.EventCode || event.eventCode;
+            event.moduleName = event.ModuleName || event.moduleName;
+            event.moduleDate = event.ModuleDate || event.moduleDate;
+            event.speakerName = event.SpeakerName || event.speakerName;
+            event.cohortId = event.CohortId || event.cohortId;
+            event.isActive = event.IsActive !== undefined ? event.IsActive : event.isActive;
+        }
+
         return event;
     } catch (error) {
         console.error('Error fetching event:', error);
@@ -139,12 +222,101 @@ function showForm() {
 }
 
 // Show error
-function showError(message) {
+function showError(title, message, details = null) {
     loadingState.classList.add('hidden');
     feedbackForm.classList.add('hidden');
-    errorMessage.textContent = message;
+    successMessage.classList.add('hidden');
+
+    // Update error content
+    const errorTitle = errorState.querySelector('h3');
+    if (errorTitle) errorTitle.textContent = title || 'Unable to Load Feedback Form';
+
+    errorMessage.textContent = message || 'The feedback link appears to be invalid or expired.';
+
+    // Show details if provided
+    const errorDetailsEl = document.getElementById('errorDetails');
+    if (errorDetailsEl) {
+        if (details) {
+            errorDetailsEl.textContent = details;
+            errorDetailsEl.style.display = 'block';
+        } else {
+            errorDetailsEl.textContent = '';
+            errorDetailsEl.style.display = 'none';
+        }
+    }
+
+    // Clear manual entry error
+    const manualError = document.getElementById('manualEntryError');
+    if (manualError) {
+        manualError.classList.add('hidden');
+        manualError.textContent = '';
+    }
+
+    // Clear manual entry input
+    const manualInput = document.getElementById('manualEventCode');
+    if (manualInput) {
+        manualInput.value = '';
+    }
+
     errorState.classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+// Load event from manual entry
+window.loadManualEventCode = async function() {
+    const input = document.getElementById('manualEventCode');
+    const btn = document.getElementById('loadEventBtn');
+    const errorEl = document.getElementById('manualEntryError');
+    const code = input.value.trim().toUpperCase();
+
+    // Clear previous error
+    errorEl.classList.add('hidden');
+    errorEl.textContent = '';
+
+    if (!code) {
+        errorEl.textContent = 'Please enter an event code';
+        errorEl.classList.remove('hidden');
+        input.focus();
+        return;
+    }
+
+    // Show loading on button
+    const btnText = btn.querySelector('.btn-text');
+    const btnSpinner = btn.querySelector('.btn-spinner');
+    btn.disabled = true;
+    btnText.textContent = 'Loading...';
+    btnSpinner.classList.remove('hidden');
+
+    // Try to load event
+    const success = await loadEventByCode(code);
+
+    // Reset button
+    btn.disabled = false;
+    btnText.textContent = 'Load Event';
+    btnSpinner.classList.add('hidden');
+
+    if (!success) {
+        // Error is already shown by loadEventByCode
+        input.focus();
+    }
+};
+
+// Handle Enter key in manual entry input
+document.addEventListener('DOMContentLoaded', function() {
+    const manualInput = document.getElementById('manualEventCode');
+    if (manualInput) {
+        manualInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                window.loadManualEventCode();
+            }
+        });
+
+        // Auto-uppercase as user types
+        manualInput.addEventListener('input', function(e) {
+            this.value = this.value.toUpperCase();
+        });
+    }
+});
 
 // Setup form listeners
 function setupFormListeners() {
