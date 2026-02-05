@@ -4,8 +4,28 @@
 A web application to collect structured feedback on modules delivered during the CAT Bootcamp. The application will gather quantitative ratings and qualitative feedback to assess module effectiveness and instructor performance.
 
 The system consists of two main components:
-1. **Public Feedback Form** - Unauthenticated forms accessed via unique URLs with embedded event codes
+1. **Public Feedback Form** - Unauthenticated forms accessed via unique URLs with embedded event codes AND module IDs
 2. **Admin Interface** - Authenticated portal for managing modules and generating feedback collection URLs
+
+## Key Architecture Decision: Module-Specific QR Codes
+
+**Each module delivery within an event gets its own unique QR code and feedback URL.**
+
+- **Previous approach**: One QR code per event → users select which module → submit feedback
+- **New approach**: One QR code per module → users scan specific module QR → feedback form auto-loaded → submit feedback
+
+**Benefits:**
+- **Targeted feedback collection**: Each module's QR code links directly to its feedback form
+- **No user selection needed**: Module, speaker, and date are pre-populated
+- **Better tracking**: Feedback is directly tied to specific module deliveries
+- **Clearer user experience**: Scan QR code → see module info → provide ratings → done
+
+**URL Format:**
+```
+https://yourdomain.com/feedback.html?code=CSA1B2C3&module=5
+```
+- `code`: Event code (e.g., CSA1B2C3)
+- `module`: EventModuleId (unique identifier for this module's delivery in this event)
 
 ## Terminology
 
@@ -48,10 +68,13 @@ Events (1) ←→ (many) EventModules (many) ←→ (1) Modules
    - Which module
    - Who's delivering it (speaker name)
    - When it's delivered (order/sequence)
-4. System generates feedback URL for the event: `feedback.html?code=CSA1B2C3`
-5. Participants access the URL and select which module they're providing feedback for
-6. Feedback is captured for the specific module delivery at that event
-7. If event code is invalid, user sees error: "Not a valid event code"
+4. System generates **unique feedback URL for each module delivery**: `feedback.html?code=CSA1B2C3&module=5`
+   - `code` parameter = event code
+   - `module` parameter = EventModuleId (unique identifier for this specific module delivery)
+5. Participants scan QR code or access URL with both event and module pre-selected
+6. Feedback form auto-loads with the specific event and module information
+7. Feedback is captured for the specific module delivery at that event
+8. If event code or module is invalid, user sees error: "Not a valid event code or module"
 
 **In the Admin Interface:**
 - Create and manage **modules** (reusable training content)
@@ -118,34 +141,52 @@ Events (1) ←→ (many) EventModules (many) ←→ (1) Modules
 
 ### Module Information
 Each feedback submission should be associated with:
-- **Event Code** (passed via URL parameter, not visible to user)
-- Module name/title (auto-populated from event code)
-- Module date/session (auto-populated from event code)
-- Speaker name (auto-populated from event code)
-- Bootcamp cohort/batch (optional, auto-populated from event code)
+- **Event Code** (passed via URL parameter `code`, not visible to user)
+- **EventModuleId** (passed via URL parameter `module`, not visible to user)
+- Module name/title (auto-populated from EventModuleId lookup)
+- Module delivery date (auto-populated from EventModuleId lookup)
+- Speaker name (auto-populated from EventModuleId lookup - specific to this delivery)
+- Event name and cohort (auto-populated from Event lookup)
+
+**Key Change**: The feedback form now receives BOTH event code AND module ID via URL parameters, eliminating the need for users to select which module they're providing feedback for.
 
 ## Functional Requirements
 
 ### User Stories
-1. As a bootcamp participant, I want to provide feedback on a module via a simple URL/QR code so that I can quickly share my thoughts
+1. As a bootcamp participant, I want to scan a QR code for a specific module and immediately provide feedback without selecting from a list
+   - QR code takes me directly to the feedback form for that specific module
+   - Module name, speaker, and date are already shown - no selection needed
+   - I can quickly provide my ratings and submit
 2. As a bootcamp organizer, I want to collect standardized feedback so that I can measure module effectiveness
+   - Each module delivery gets its own unique QR code
+   - Participants scan the relevant QR code during or after each module
 3. As an instructor, I want to receive constructive feedback so that I can improve my delivery
-4. As an admin, I want to create modules and provide event codes for collecting feedback
-   - Create a module (training session with name, date, speaker)
-   - Provide a unique event code (e.g., "CSA1B2C3")
-   - System creates a feedback URL with the event code embedded
-   - System generates a QR code for easy access to the feedback form
-   - Invalid event codes in URLs show error: "Not a valid event code"
-5. As an admin, I want to view and manage all feedback submissions for each module in one place
+   - Feedback is tied directly to my specific module delivery
+   - Can track feedback across multiple events where I deliver the same module
+4. As an admin, I want to create events with multiple modules and generate unique QR codes for each module
+   - Create an event with event code (e.g., "CSA1B2C3")
+   - Add multiple modules to the event, each with a speaker and delivery order
+   - System generates a unique feedback URL for each module: `feedback.html?code=CSA1B2C3&module=5`
+   - System generates a unique QR code for each module delivery
+   - Download and print individual QR codes for each module
+   - Invalid event codes or module IDs show error: "Not a valid event code or module"
+5. As an admin, I want to view and manage all feedback submissions for each module delivery
+   - View feedback aggregated by module across all events
+   - View feedback for a specific module delivery at a specific event
 
 ### Key Features
 
 #### Public Feedback Form
-- **URL-Based Access**: Each module has unique URL with embedded event code (e.g., `feedback.html?code=ABC123`)
+- **URL-Based Access**: Each module delivery has unique URL with event code AND module ID (e.g., `feedback.html?code=CSA1B2C3&module=5`)
+  - `code` parameter (required): Event code identifying the training event
+  - `module` parameter (required): EventModuleId identifying the specific module delivery
 - **No Authentication Required**: Participants can submit feedback without logging in
-- **Auto-Population**: Module details loaded automatically based on event code
+- **Auto-Population**: Event and module details loaded automatically based on URL parameters
+  - Module name, speaker name, and delivery date pre-populated
+  - No module selection dropdown needed
 - **Clean UI**: Intuitive form with clear labels and validation
 - **Form Validation**: Prevent submission until all required fields are completed
+- **Error Handling**: Display friendly error if event code or module ID is invalid
 - **Confirmation**: Display success message after submission
 - **Responsive Design**: Work on desktop, tablet, and mobile devices
 - **Accessibility**: WCAG 2.1 AA compliant
@@ -175,10 +216,13 @@ Each feedback submission should be associated with:
     - Real-time UI update after change
     - Deactivated events cannot receive new feedback
 - **Feedback URL Creation**: System generates URLs with the admin-provided event codes (e.g., `feedback.html?code=CSA1B2C3`)
-- **QR Code Generation**: System automatically generates QR codes for feedback URLs
-  - QR codes link to the feedback form with the module's event code
-  - Participants scan to provide feedback about the module
+- **QR Code Generation**: System automatically generates **unique QR codes for each module delivery**
+  - Each QR code links to feedback form with both event code AND module ID
+  - URL format: `feedback.html?code={EVENT_CODE}&module={EVENT_MODULE_ID}`
+  - Participants scan to provide feedback about the specific module
+  - No module selection needed - pre-populated from URL parameters
   - Customizable QR code colors (purple theme)
+  - Each module in an event has its own downloadable QR code
 - **Error Handling**: Invalid event codes in feedback URLs display: "Not a valid event code"
 - **Event Deletion**: Delete modules/events with cascade deletion of all associated feedback (requires confirmation)
 - **Feedback Viewing**: View all submitted feedback for each module, filtered by event code
@@ -190,17 +234,23 @@ Each feedback submission should be associated with:
 - **Visual Accessibility**: High contrast module count badges for better readability
 
 ### Count Display Page
-- **Access Pattern**: `count.html?code={EVENT_CODE}`
+- **Access Patterns**:
+  - Event-level: `count.html?code={EVENT_CODE}` (shows total feedback for all modules)
+  - Module-level: `count.html?code={EVENT_CODE}&module={EVENT_MODULE_ID}` (shows feedback for specific module)
 - **Purpose**: Live display of feedback count during presentations
 - **Features**:
   - Real-time feedback count with auto-refresh (5 second intervals)
   - Animated count transitions when numbers change
-  - QR code display for attendees to scan
-  - Event information display (module name)
+  - QR code display for attendees to scan (includes module parameter if module-specific)
+  - Event and module information display
+    - Event-level: Shows event name and total module count
+    - Module-level: Shows specific module name and speaker
   - Last updated timestamp
   - Fullscreen mode toggle for presentations
-  - Error handling for invalid/missing event codes
+  - Error handling for invalid/missing event codes or module IDs
 - **Use Case**: Displayed on projector/screen during bootcamp sessions to encourage participation
+  - Module-level display shown during individual module presentations
+  - Event-level display shown for overall event feedback tracking
 
 ## User Interface Design
 
@@ -312,15 +362,17 @@ The event code is captured from the URL when participants submit feedback about 
 
 #### Public Feedback Form
 - **Technology**: HTML5, CSS3, Vanilla JavaScript
-- **Access Pattern**: `feedback.html?code={EVENT_CODE}`
+- **Access Pattern**: `feedback.html?code={EVENT_CODE}&module={EVENT_MODULE_ID}`
 - **URL Parameters**:
-  - `code` (required) - Unique event identifier
+  - `code` (required) - Unique event identifier (e.g., CSA1B2C3)
+  - `module` (required) - EventModuleId identifying the specific module delivery
 - **Client-Side Operations**:
-  - Parse URL parameter for event code
-  - Fetch event details from API using event code
-  - Display error if invalid/expired event code
+  - Parse URL parameters for event code and module ID
+  - Fetch event and module details from API using both parameters
+  - Display error if invalid/expired event code or module ID
+  - Auto-populate form with module name, speaker, and delivery date
   - Client-side validation before submission
-  - POST feedback to API
+  - POST feedback to API with EventModuleId
 - **No Authentication**: Publicly accessible
 
 #### Admin Interface
@@ -346,16 +398,31 @@ The event code is captured from the URL when participants submit feedback about 
 
 ##### Public Endpoints (No Authentication)
 ```
+GET  /api/events/{eventCode}/modules/{eventModuleId}
+     - Get specific module delivery details for feedback form
+     - Parameters:
+       - eventCode: Event code (e.g., CSA1B2C3)
+       - eventModuleId: EventModuleId from URL parameter
+     - Returns: { success: true, data: { EventId, EventCode, EventModuleId, ModuleName, SpeakerName, DeliveryDate, DeliveryOrder, EventName, CohortId, IsActive } }
+     - Returns 404 if event or module not found or inactive
+     - Used by feedback form to load event and module details
+     - Note: Returns PascalCase field names from database
+
 GET  /api/events/{eventCode}
-     - Get event details by code
-     - Returns: { success: true, data: { EventId, EventCode, ModuleName, ModuleDate, SpeakerName, CohortId, IsActive } }
+     - Get event details with all modules (legacy support)
+     - Returns: { success: true, data: { EventId, EventCode, EventName, StartDate, EndDate, CohortId, IsActive, Modules: [...] } }
      - Returns 404 if not found or inactive
      - Note: Returns PascalCase field names from database
 
-GET  /api/events/{eventCode}/count
-     - Get feedback count for an event
+GET  /api/events/{eventCode}/modules/{eventModuleId}/count
+     - Get feedback count for a specific module delivery
      - Returns: { success: true, data: { count: number } }
-     - Used by count display page for live updates
+     - Used by count display page for live updates per module
+
+GET  /api/events/{eventCode}/count
+     - Get total feedback count for an event (all modules)
+     - Returns: { success: true, data: { count: number } }
+     - Used by count display page for event-level updates
 
 GET  /api/events
      - List all events (supports admin interface)
@@ -370,10 +437,18 @@ GET  /api/feedback
      - Includes event details (ModuleName, SpeakerName, ModuleDate) via JOIN
 
 POST /api/feedback
-     - Submit feedback
-     - Body: { eventCode, speakerKnowledge, contentDepth, moduleSatisfaction, additionalComments }
+     - Submit feedback for a specific module delivery
+     - Body: { eventCode, eventModuleId, speakerKnowledge, contentDepth, moduleSatisfaction, additionalComments }
+     - Parameters:
+       - eventCode: Event code from URL
+       - eventModuleId: EventModuleId from URL (identifies specific module delivery)
+       - speakerKnowledge: Rating 1-5
+       - contentDepth: 'Too Technical' | 'Just Right' | 'Too Low Level'
+       - moduleSatisfaction: Rating 1-5
+       - additionalComments: Optional text
      - Returns: { success: true, data: { feedbackId } }
      - Validates rating ranges (1-5) and content depth options
+     - Links feedback to specific module delivery via EventModuleId
 ```
 
 ##### Admin Endpoints (Authentication Not Required - Implemented with Client-Side Auth)
@@ -615,19 +690,27 @@ The application implements client-side rate limiting to prevent abuse and enhanc
 ### QR Code Generation
 
 - **Library**: QRCode.js (client-side) or qrcode npm package (server-side)
-- **Content**: Full feedback URL with event code
+- **Content**: Full feedback URL with event code AND module ID
 - **Format**: PNG or SVG
 - **Size**: 300x300px minimum for print
 - **Error Correction**: Level M or H for reliability
 - **Storage**:
-  - Option 1: Generate on-the-fly in admin interface
+  - Option 1: Generate on-the-fly in admin interface (per module)
   - Option 2: Generate and store in Azure Blob Storage
   - Option 3: Both (cache in blob, regenerate if missing)
+- **Generation Scope**: One unique QR code per module delivery
+  - Each module in an event gets its own QR code
+  - QR codes embed both event code and EventModuleId
+  - Allows targeted feedback collection per module
 
 Example URL in QR Code:
 ```
-https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3
+https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3&module=5
 ```
+
+Where:
+- `code=CSA1B2C3` identifies the event
+- `module=5` identifies the specific EventModuleId (this module's delivery in this event)
 
 ## Reporting & Analytics (Future Enhancement)
 
@@ -657,17 +740,18 @@ https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3
 ## Acceptance Criteria
 
 ### Public Feedback Form
-- [ ] Form loads with event code from URL parameter
-- [ ] Invalid/missing event code shows user-friendly error
-- [ ] Module information auto-populated from event code
-- [ ] Event code not visible anywhere on the form
+- [ ] Form loads with event code AND module ID from URL parameters
+- [ ] Invalid/missing event code or module ID shows user-friendly error
+- [ ] Module information auto-populated from URL parameters (module name, speaker, date)
+- [ ] Event code and module ID not visible anywhere on the form (pre-populated behind the scenes)
+- [ ] No module selection dropdown needed - module is pre-selected via URL
 - [ ] All required fields must be filled before submission
 - [ ] Rating scales clearly indicate 5 as the best score
 - [ ] Form provides immediate validation feedback
 - [ ] Successful submission shows confirmation message
 - [ ] Form is responsive on mobile devices
 - [ ] Form is accessible to users with disabilities
-- [ ] Feedback is saved to Azure SQL database
+- [ ] Feedback is saved to Azure SQL database with EventModuleId
 - [ ] Optional comments field has no submission requirement
 - [ ] No authentication required to submit feedback
 
@@ -687,13 +771,16 @@ https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3
 - [x] Export feedback data to CSV
 - [x] Responsive design for admin interface
 - [x] Login form with consistent input styling
-- [x] **View Details & QR button**: Display event details modal
-  - [x] Show complete event information (dates, cohort, status)
-  - [x] List all modules with speaker names and delivery dates
-  - [x] Display feedback count
-  - [x] Generate and display QR code in modal
-  - [x] Download QR code as PNG
-  - [x] Copy feedback URL to clipboard
+- [ ] **View Details & QR button**: Display event details modal
+  - [ ] Show complete event information (dates, cohort, status)
+  - [ ] List all modules with speaker names and delivery dates
+  - [ ] Display feedback count per module
+  - [ ] **Generate and display unique QR code for EACH module delivery**
+    - [ ] Each module row shows its own QR code
+    - [ ] QR code includes both event code and EventModuleId
+    - [ ] Download individual QR code as PNG per module
+    - [ ] Copy module-specific feedback URL to clipboard
+  - [ ] Optional: Show event-level QR code for all modules (if needed)
 - [x] **Edit button**: Open event editing modal
 - [x] **Activate/Deactivate button**: Toggle event status
   - [x] Confirmation dialog before status change
@@ -750,9 +837,15 @@ https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3
 ## Notes
 
 ### URL Structure
-- Feedback form: `https://yourdomain.com/feedback.html?code=CSA1B2C3`
-- Each module gets its own unique URL via event code
-- QR codes encode the full URL for easy scanning
+- **Feedback form**: `https://yourdomain.com/feedback.html?code=CSA1B2C3&module=5`
+  - `code` parameter: Event code (e.g., CSA1B2C3)
+  - `module` parameter: EventModuleId (e.g., 5)
+- **Each module delivery gets its own unique URL**
+  - Event code identifies which event
+  - Module ID identifies which specific module within that event
+- **QR codes encode the full URL** with both parameters for easy scanning
+- **Count display**: `https://yourdomain.com/count.html?code=CSA1B2C3&module=5`
+  - Can omit `module` parameter for event-level count
 - Short URLs (bit.ly, etc.) can be added later for easier sharing
 
 ### Event Code Best Practices
