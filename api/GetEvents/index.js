@@ -15,6 +15,7 @@ module.exports = async function (context, req) {
         const events = await query(`
             SELECT
                 e.EventId,
+                e.EventName,
                 e.EventCode,
                 e.StartDate,
                 e.EndDate,
@@ -26,7 +27,7 @@ module.exports = async function (context, req) {
             FROM Events e
             LEFT JOIN Feedback f ON e.EventId = f.EventId
             GROUP BY
-                e.EventId, e.EventCode, e.StartDate, e.EndDate, e.CohortId,
+                e.EventId, e.EventName, e.EventCode, e.StartDate, e.EndDate, e.CohortId,
                 e.IsActive, e.CreatedAt, e.CreatedBy
             ORDER BY e.CreatedAt DESC
         `);
@@ -52,6 +53,7 @@ module.exports = async function (context, req) {
 
                 return {
                     eventId: event.EventId,
+                    eventName: event.EventName,
                     eventCode: event.EventCode,
                     startDate: event.StartDate,
                     endDate: event.EndDate,

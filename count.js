@@ -45,7 +45,8 @@ async function initialize() {
     console.log('Using mock data:', CONFIG.USE_MOCK_DATA);
 
     if (!eventCode) {
-        showError('No event code provided. Please access this page from the admin panel.');
+        // Show event selector instead of error
+        await showEventSelector();
         return;
     }
 
@@ -229,6 +230,85 @@ function mockLoadEventDetails(code) {
             resolve(mockEvents[code] || null);
         }, CONFIG.MOCK_API_DELAY);
     });
+}
+
+// Show event selector (fallback when no event code in URL)
+async function showEventSelector() {
+    const eventSelectionView = document.getElementById('eventSelectionView');
+    const eventSelect = document.getElementById('eventSelect');
+    const continueBtn = document.getElementById('continueBtn');
+    const viewModeSelection = document.getElementById('viewModeSelection');
+    const moduleSelect = document.getElementById('moduleSelect');
+
+    loadingState.style.display = 'none';
+    eventSelectionView.style.display = 'block';
+
+    try {
+        // Load events list
+        const response = await apiGet('/events');
+        const events = response.data || response;
+
+        if (!events || events.length === 0) {
+            showError('No active events found.');
+            return;
+        }
+
+        // Populate event selector
+        eventSelect.innerHTML = '<option value="">-- Select an Event --</option>' +
+            events.filter(e => e.isActive).map(e =>
+                `<option value="${e.eventCode}" data-event-id="${e.eventId}">${escapeHtml(e.eventName || e.eventCode)} - ${formatDate(e.startDate)}</option>`
+            ).join('');
+
+        // Handle event selection
+        eventSelect.addEventListener('change', async function() {
+            const selectedCode = this.value;
+            if (selectedCode) {
+                viewModeSelection.style.display = 'block';
+                continueBtn.disabled = false;
+
+                // Load modules for selected event
+                const selectedEvent = events.find(e => e.eventCode === selectedCode);
+                if (selectedEvent && selectedEvent.modules) {
+                    moduleSelect.innerHTML = '<option value="">-- Select a Module --</option>' +
+                        selectedEvent.modules.map(m =>
+                            `<option value="${m.eventModuleId}">${escapeHtml(m.moduleName)} - ${escapeHtml(m.speakerName)}</option>`
+                        ).join('');
+                }
+            } else {
+                viewModeSelection.style.display = 'none';
+                continueBtn.disabled = true;
+            }
+        });
+
+        // Handle view mode selection
+        document.querySelectorAll('input[name="viewMode"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                moduleSelect.style.display = this.value === 'module' ? 'block' : 'none';
+            });
+        });
+
+        // Handle continue button
+        continueBtn.addEventListener('click', function() {
+            const selectedCode = eventSelect.value;
+            const viewMode = document.querySelector('input[name="viewMode"]:checked').value;
+            const selectedModuleId = moduleSelect.value;
+
+            if (selectedCode) {
+                const url = new URL(window.location);
+                url.searchParams.set('code', selectedCode);
+
+                if (viewMode === 'module' && selectedModuleId) {
+                    url.searchParams.set('module', selectedModuleId);
+                }
+
+                window.history.pushState({}, '', url);
+                window.location.reload();
+            }
+        });
+    } catch (error) {
+        console.error('Error loading events:', error);
+        showError('Unable to load events.');
+    }
 }
 
 // Update feedback count

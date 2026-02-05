@@ -50,24 +50,24 @@ async function initializeForm() {
     eventCode = getUrlParameter('code');
     const moduleId = getUrlParameter('module');
 
-    if (!eventCode) {
-        showError('No event code provided. Please use the correct feedback link.');
-        return;
-    }
-
-    // Validate event code format
-    if (!InputSanitizer.validateEventCode(eventCode)) {
-        showError('Not a valid event code.');
-        return;
-    }
-
-    // Initialize rate limiter for this event
-    rateLimiter = createFeedbackRateLimiter(eventCode);
-
-    // Load event/module details
     try {
+        // Case 1: No event code - show event selector
+        if (!eventCode) {
+            await showEventSelector();
+            return;
+        }
+
+        // Validate event code format
+        if (!InputSanitizer.validateEventCode(eventCode)) {
+            showError('Not a valid event code.');
+            return;
+        }
+
+        // Initialize rate limiter for this event
+        rateLimiter = createFeedbackRateLimiter(eventCode);
+
+        // Case 2: Event code present, module ID present - direct to feedback
         if (moduleId) {
-            // Module-specific URL - load specific module delivery details
             const moduleData = await loadModuleDetails(eventCode, moduleId);
             if (moduleData) {
                 currentEvent = {
@@ -94,7 +94,7 @@ async function initializeForm() {
                 showError('Not a valid event code or module.');
             }
         } else {
-            // Legacy event-level URL - load event with all modules
+            // Case 3: Event code present, no module ID - show module selector
             const event = await loadEventDetails(eventCode);
             if (event) {
                 currentEvent = event;
@@ -269,6 +269,96 @@ function mockLoadEventDetails(code) {
 
             const event = mockEvents[code];
             resolve(event || null);
+        }, CONFIG.MOCK_API_DELAY);
+    });
+}
+
+// Show event selector (fallback when no event code in URL)
+async function showEventSelector() {
+    const eventSelectionView = document.getElementById('eventSelectionView');
+    const eventSelect = document.getElementById('eventSelect');
+    const continueBtn = document.getElementById('continueWithEventBtn');
+
+    loadingState.classList.add('hidden');
+    eventSelectionView.classList.remove('hidden');
+
+    try {
+        // Load list of active events
+        const events = await loadEventsList();
+
+        if (!events || events.length === 0) {
+            showError('No active events found. Please contact the event organizer.');
+            return;
+        }
+
+        // Populate event selector
+        eventSelect.innerHTML = '<option value="">-- Select an Event --</option>' +
+            events.filter(e => e.isActive).map(e =>
+                `<option value="${e.eventCode}">${escapeHtml(e.eventName || e.eventCode)} - ${formatDate(e.startDate)}</option>`
+            ).join('');
+
+        // Enable continue button when event is selected
+        eventSelect.addEventListener('change', function() {
+            continueBtn.disabled = !this.value;
+        });
+
+        // Handle continue button click
+        continueBtn.addEventListener('click', function() {
+            const selectedEventCode = eventSelect.value;
+            if (selectedEventCode) {
+                // Update URL and reinitialize
+                const url = new URL(window.location);
+                url.searchParams.set('code', selectedEventCode);
+                window.history.pushState({}, '', url);
+
+                // Reload with event code
+                eventCode = selectedEventCode;
+                eventSelectionView.classList.add('hidden');
+                loadingState.classList.remove('hidden');
+                initializeForm();
+            }
+        });
+    } catch (error) {
+        console.error('Error loading events list:', error);
+        showError('Unable to load events. Please try again later.');
+    }
+}
+
+// Load list of all active events
+async function loadEventsList() {
+    if (CONFIG.USE_MOCK_DATA) {
+        return mockLoadEventsList();
+    }
+
+    try {
+        const response = await apiGet('/events');
+        return response.data || response;
+    } catch (error) {
+        console.error('Error fetching events list:', error);
+        throw error;
+    }
+}
+
+// Mock load events list
+function mockLoadEventsList() {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve([
+                {
+                    eventId: 1,
+                    eventCode: 'CSA1B2C3',
+                    eventName: 'CAT Bootcamp Q1-2026',
+                    startDate: '2026-02-15',
+                    isActive: true
+                },
+                {
+                    eventId: 2,
+                    eventCode: 'TEST123',
+                    eventName: 'Test Event',
+                    startDate: '2026-02-16',
+                    isActive: true
+                }
+            ]);
         }, CONFIG.MOCK_API_DELAY);
     });
 }

@@ -31,13 +31,34 @@
             <p class="error-help">Please contact the event organizer for assistance.</p>
         </div>
 
+        <!-- Event Selection (shown when no URL parameters) -->
+        <div id="eventSelectionView" class="selection-view hidden">
+            <section class="form-section">
+                <h2>Select Event</h2>
+                <p class="subtitle">Please select the event you want to provide feedback for:</p>
+
+                <div class="form-group">
+                    <label for="eventSelect">Event <span class="required">*</span></label>
+                    <select id="eventSelect" name="eventSelect" required>
+                        <option value="">-- Loading events... --</option>
+                    </select>
+                    <small style="color: #666;">Select the training event or bootcamp session.</small>
+                    <span class="error-message" id="eventSelectError" aria-live="polite"></span>
+                </div>
+
+                <button type="button" id="continueWithEventBtn" class="btn btn-primary" disabled>
+                    Continue →
+                </button>
+            </section>
+        </div>
+
         <!-- Feedback Form -->
         <form id="feedbackForm" class="hidden" novalidate>
             <!-- Module Information Section -->
             <section class="form-section">
                 <h2>Module Information</h2>
 
-                <!-- Module Selector (shown when event has multiple modules) -->
+                <!-- Module Selector (shown when event code present but no module parameter) -->
                 <div id="moduleSelector" class="form-group" style="display: none;">
                     <label for="moduleSelect">Select Module <span class="required">*</span></label>
                     <select id="moduleSelect" name="moduleSelect" required>
