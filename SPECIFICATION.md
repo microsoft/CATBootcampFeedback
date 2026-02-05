@@ -141,14 +141,22 @@ Events (1) ←→ (many) EventModules (many) ←→ (1) Modules
 
 ### Module Information
 Each feedback submission should be associated with:
-- **Event Code** (passed via URL parameter `code`, not visible to user)
-- **EventModuleId** (passed via URL parameter `module`, not visible to user)
+- **Event Code** (transparently passed via URL parameter `code`, not visible as form field)
+- **EventModuleId** (transparently passed via URL parameter `module`, not visible as form field)
 - Module name/title (auto-populated from EventModuleId lookup)
 - Module delivery date (auto-populated from EventModuleId lookup)
 - Speaker name (auto-populated from EventModuleId lookup - specific to this delivery)
 - Event name and cohort (auto-populated from Event lookup)
 
-**Key Change**: The feedback form now receives BOTH event code AND module ID via URL parameters, eliminating the need for users to select which module they're providing feedback for.
+**URL Parameter Transparency**:
+- **Primary Flow**: URL parameters (`code` and `module`) transparently provide event and module identification
+  - Parameters are embedded in QR codes and shared links
+  - Users never see or need to know about these technical identifiers
+  - Information flows through the URL without user interaction
+- **Fallback Flow**: If URL parameters are missing, users are presented with user-friendly selection interfaces
+  - Event selector: Shows event names, dates, and descriptions (not technical codes)
+  - Module selector: Shows module names, speakers, and delivery dates (not technical IDs)
+  - After selection, URL is updated with appropriate parameters for future sharing
 
 ## Functional Requirements
 
@@ -178,15 +186,28 @@ Each feedback submission should be associated with:
 
 #### Public Feedback Form
 - **URL-Based Access**: Each module delivery has unique URL with event code AND module ID (e.g., `feedback.html?code=CSA1B2C3&module=5`)
-  - `code` parameter (required): Event code identifying the training event
-  - `module` parameter (required): EventModuleId identifying the specific module delivery
-- **No Authentication Required**: Participants can submit feedback without logging in
-- **Auto-Population**: Event and module details loaded automatically based on URL parameters
+  - `code` parameter: Event code identifying the training event
+  - `module` parameter: EventModuleId identifying the specific module delivery
+- **Transparent URL Parameter Flow** (Primary):
+  - When both `code` and `module` parameters are provided in URL
+  - Event and module details loaded automatically from URL parameters
   - Module name, speaker name, and delivery date pre-populated
-  - No module selection dropdown needed
+  - No selection dropdowns needed - information transparently passed through URL
+  - User proceeds directly to providing feedback ratings
+- **Manual Selection Fallback** (When URL Parameters Missing):
+  - If `code` parameter is missing or invalid: Display user-friendly event selector
+    - Show list of active events with event names and dates
+    - User selects event from dropdown or search interface
+  - If `module` parameter is missing (but code is present): Display module selector
+    - Show list of modules for the selected event
+    - Display module name, speaker, and delivery date for each option
+    - User selects which module to provide feedback for
+  - After selections are made, proceed to feedback form with information populated
+  - URL is updated to include selected parameters for sharing
+- **No Authentication Required**: Participants can submit feedback without logging in
 - **Clean UI**: Intuitive form with clear labels and validation
 - **Form Validation**: Prevent submission until all required fields are completed
-- **Error Handling**: Display friendly error if event code or module ID is invalid
+- **Error Handling**: Display friendly error messages for invalid parameters or selections
 - **Confirmation**: Display success message after submission
 - **Responsive Design**: Work on desktop, tablet, and mobile devices
 - **Accessibility**: WCAG 2.1 AA compliant
@@ -238,6 +259,21 @@ Each feedback submission should be associated with:
   - Event-level: `count.html?code={EVENT_CODE}` (shows total feedback for all modules)
   - Module-level: `count.html?code={EVENT_CODE}&module={EVENT_MODULE_ID}` (shows feedback for specific module)
 - **Purpose**: Live display of feedback count during presentations
+- **Transparent URL Parameter Flow** (Primary):
+  - When `code` parameter is provided: Display event-level or module-level count
+  - Information automatically loaded from URL parameters
+  - QR code generated with parameters included
+  - Auto-refresh every 5 seconds
+- **Manual Selection Fallback** (When URL Parameters Missing):
+  - If `code` parameter is missing: Display user-friendly event selector
+    - Show list of active events with names and dates
+    - User selects event to display counts for
+    - Option to further select specific module or view event-level counts
+  - If `code` is present but `module` is missing:
+    - Default to event-level view (shows all modules)
+    - Provide option to select specific module for module-level view
+  - After selection, URL is updated with parameters and display begins
+  - Selection interface can be hidden after initial setup for clean presentation view
 - **Features**:
   - Real-time feedback count with auto-refresh (5 second intervals)
   - Animated count transitions when numbers change
@@ -364,15 +400,26 @@ The event code is captured from the URL when participants submit feedback about 
 - **Technology**: HTML5, CSS3, Vanilla JavaScript
 - **Access Pattern**: `feedback.html?code={EVENT_CODE}&module={EVENT_MODULE_ID}`
 - **URL Parameters**:
-  - `code` (required) - Unique event identifier (e.g., CSA1B2C3)
-  - `module` (required) - EventModuleId identifying the specific module delivery
+  - `code` - Unique event identifier (e.g., CSA1B2C3)
+  - `module` - EventModuleId identifying the specific module delivery
+  - Both parameters are optional; fallback UI shown if missing
 - **Client-Side Operations**:
-  - Parse URL parameters for event code and module ID
-  - Fetch event and module details from API using both parameters
-  - Display error if invalid/expired event code or module ID
-  - Auto-populate form with module name, speaker, and delivery date
-  - Client-side validation before submission
-  - POST feedback to API with EventModuleId
+  - **Primary Flow (URL parameters present)**:
+    - Parse URL parameters for event code and module ID
+    - Fetch event and module details from API using both parameters
+    - Display error if invalid/expired event code or module ID
+    - Auto-populate form with module name, speaker, and delivery date
+    - Show feedback form directly without selection screens
+  - **Fallback Flow (URL parameters missing)**:
+    - If `code` missing: Fetch list of active events, display event selector
+    - If `code` present but `module` missing: Fetch modules for event, display module selector
+    - User selects event and/or module from user-friendly dropdown/list
+    - Update URL with selected parameters (enables sharing)
+    - Fetch details and display form
+  - **Common Operations**:
+    - Client-side validation before submission
+    - POST feedback to API with EventModuleId
+    - Display success confirmation or error messages
 - **No Authentication**: Publicly accessible
 
 #### Admin Interface
@@ -740,20 +787,29 @@ Where:
 ## Acceptance Criteria
 
 ### Public Feedback Form
-- [ ] Form loads with event code AND module ID from URL parameters
-- [ ] Invalid/missing event code or module ID shows user-friendly error
-- [ ] Module information auto-populated from URL parameters (module name, speaker, date)
-- [ ] Event code and module ID not visible anywhere on the form (pre-populated behind the scenes)
-- [ ] No module selection dropdown needed - module is pre-selected via URL
-- [ ] All required fields must be filled before submission
-- [ ] Rating scales clearly indicate 5 as the best score
-- [ ] Form provides immediate validation feedback
-- [ ] Successful submission shows confirmation message
-- [ ] Form is responsive on mobile devices
-- [ ] Form is accessible to users with disabilities
-- [ ] Feedback is saved to Azure SQL database with EventModuleId
-- [ ] Optional comments field has no submission requirement
-- [ ] No authentication required to submit feedback
+- [ ] **URL Parameter Flow (Primary)**:
+  - [ ] Form loads with event code AND module ID from URL parameters
+  - [ ] Module information auto-populated from URL parameters (module name, speaker, date)
+  - [ ] Event code and module ID not visible as form fields (transparently passed)
+  - [ ] No selection dropdowns shown when parameters are present
+  - [ ] Invalid event code or module ID shows user-friendly error
+- [ ] **Fallback Selection Flow (When Parameters Missing)**:
+  - [ ] If no `code` parameter: Show event selector with active events
+  - [ ] Event selector displays user-friendly names and dates (not technical codes)
+  - [ ] If `code` present but no `module`: Show module selector for that event
+  - [ ] Module selector displays module names, speakers, delivery dates
+  - [ ] After selection, URL updates to include parameters
+  - [ ] Form proceeds with selected event/module information populated
+- [ ] **General Form Behavior**:
+  - [ ] All required fields must be filled before submission
+  - [ ] Rating scales clearly indicate 5 as the best score
+  - [ ] Form provides immediate validation feedback
+  - [ ] Successful submission shows confirmation message
+  - [ ] Form is responsive on mobile devices
+  - [ ] Form is accessible to users with disabilities
+  - [ ] Feedback is saved to Azure SQL database with EventModuleId
+  - [ ] Optional comments field has no submission requirement
+  - [ ] No authentication required to submit feedback
 
 ### Admin Interface
 - [x] Authentication required to access admin interface
@@ -794,13 +850,26 @@ Where:
   - [x] Real-time UI update after reordering
 
 ### Count Display
-- [x] Display live feedback count for specific event
-- [x] Auto-refresh count every 5 seconds
-- [x] Display event information (module name, date, speaker)
-- [x] Generate and display QR code for feedback form
-- [x] Handle zero feedback gracefully (display 0)
-- [x] Fullscreen mode for presentations
-- [x] Last updated timestamp display
+- [ ] **URL Parameter Flow (Primary)**:
+  - [x] Display live feedback count when URL parameters provided
+  - [x] Event-level: `code` parameter shows total count for all modules
+  - [ ] Module-level: `code` and `module` parameters show count for specific module
+  - [x] Auto-refresh count every 5 seconds
+  - [x] Display event/module information (name, date, speaker)
+  - [x] Generate and display QR code with URL parameters included
+- [ ] **Fallback Selection Flow (When Parameters Missing)**:
+  - [ ] If no `code` parameter: Show event selector interface
+  - [ ] Display list of active events for selection
+  - [ ] After event selection, show option for event-level or module-level view
+  - [ ] If module-level selected, show module selector
+  - [ ] Update URL with selected parameters after selection
+  - [ ] Hide selection interface after setup for clean presentation view
+- [ ] **General Display Behavior**:
+  - [x] Handle zero feedback gracefully (display 0)
+  - [x] Fullscreen mode toggle for presentations
+  - [x] Last updated timestamp display
+  - [x] Animated count transitions when numbers change
+  - [ ] Responsive design for various screen sizes
 
 ## Implementation Phases
 
@@ -896,6 +965,64 @@ Where:
 - Mobile app version
 
 ## Implementation Notes
+
+### URL Parameter Handling and Fallback Flows
+
+The application implements a transparent URL parameter system with intelligent fallback behavior.
+
+#### Primary Flow: Transparent URL Parameters
+When users access feedback or count pages via QR codes or shared links, parameters are transparently passed through the URL:
+- **Feedback Form**: `feedback.html?code=CSA1B2C3&module=5`
+- **Count Display**: `count.html?code=CSA1B2C3&module=5` or `count.html?code=CSA1B2C3`
+
+**User Experience:**
+- Users never see or interact with technical identifiers (event codes, module IDs)
+- Information is automatically loaded and displayed in user-friendly format
+- Module name, speaker, date, and event details are shown clearly
+- Users proceed directly to providing feedback or viewing counts
+- No selection screens or dropdowns required
+
+#### Fallback Flow: Manual Selection
+When users access pages without URL parameters (bookmarked base URL, direct navigation, etc.):
+
+**Feedback Form Fallback:**
+1. **No `code` parameter**: Display event selector
+   - Show active events with readable names, dates, descriptions
+   - User selects event from dropdown or list interface
+   - Fetch modules for selected event
+2. **`code` present, no `module`**: Display module selector
+   - Show modules for the event with names, speakers, delivery dates
+   - User selects specific module to provide feedback for
+3. **After selection**:
+   - URL updates to include parameters: `?code=CSA1B2C3&module=5`
+   - Form proceeds with selected information pre-populated
+   - URL can be bookmarked or shared for future direct access
+
+**Count Display Fallback:**
+1. **No `code` parameter**: Display event selector
+   - Show active events with names and dates
+   - User selects event
+   - Option to view event-level (all modules) or select specific module
+2. **`code` present, no `module`**: Default to event-level view
+   - Display total count for all modules in event
+   - Provide option to switch to module-specific view
+   - Show module selector if user requests module-level view
+3. **After selection**:
+   - URL updates with parameters
+   - Selection interface can be hidden for clean presentation view
+   - Counts refresh automatically every 5 seconds
+
+#### Implementation Considerations
+- **API Requirements**: Need endpoints to list active events and modules
+  - `GET /api/events` - List all active events
+  - `GET /api/events/{eventCode}/modules` - List modules for an event (already exists)
+- **User-Friendly Display**: Show business-readable information, not technical IDs
+  - Event names, not event codes
+  - Module names with speakers, not module IDs
+- **URL Updates**: Use `history.pushState()` to update URL without page reload
+- **Session Persistence**: Consider storing last selection in sessionStorage
+- **Error Handling**: Gracefully handle cases where no events or modules exist
+- **Accessibility**: Ensure selection interfaces are keyboard navigable and screen reader friendly
 
 ### Delete Functionality
 The delete feature includes comprehensive safeguards:
