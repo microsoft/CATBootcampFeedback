@@ -6,8 +6,8 @@
  * Used by the live counter display
  */
 
-const { query } = require('../shared/database');
-const { success, error, validateEventCode } = require('../shared/utils');
+const { query } = require('../src/shared/database');
+const { success, error, validateEventCode } = require('../src/shared/utils');
 
 module.exports = async function (context, req) {
     try {
