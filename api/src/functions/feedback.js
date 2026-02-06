@@ -211,3 +211,78 @@ app.http('submitFeedback', {
         }
     }
 });
+
+// DELETE single feedback submission
+app.http('deleteFeedback', {
+    methods: ['DELETE'],
+    authLevel: 'anonymous',
+    route: 'feedback/{feedbackId}',
+    handler: async (request, context) => {
+        try {
+            const feedbackId = parseInt(request.params.feedbackId);
+
+            if (!feedbackId || isNaN(feedbackId)) {
+                return { status: 400, jsonBody: { success: false, message: 'Invalid feedback ID', error: 'INVALID_ID' } };
+            }
+
+            // Delete feedback
+            const result = await query('DELETE FROM Feedback WHERE FeedbackId = @feedbackId', { feedbackId });
+
+            if (result.rowsAffected[0] === 0) {
+                return { status: 404, jsonBody: { success: false, message: 'Feedback not found', error: 'NOT_FOUND' } };
+            }
+
+            return {
+                status: 200,
+                jsonBody: {
+                    success: true,
+                    message: 'Feedback deleted successfully',
+                    data: { feedbackId }
+                }
+            };
+
+        } catch (err) {
+            context.error('Error deleting feedback:', err);
+            return { status: 500, jsonBody: { success: false, message: 'Server error', error: 'SERVER_ERROR' } };
+        }
+    }
+});
+
+// DELETE multiple feedback submissions (bulk delete)
+app.http('deleteFeedbackBulk', {
+    methods: ['POST'],  // Using POST for bulk delete to send body
+    authLevel: 'anonymous',
+    route: 'feedback/bulk-delete',
+    handler: async (request, context) => {
+        try {
+            const data = await request.json();
+            const { feedbackIds } = data;
+
+            if (!feedbackIds || !Array.isArray(feedbackIds) || feedbackIds.length === 0) {
+                return { status: 400, jsonBody: { success: false, message: 'Invalid feedback IDs array', error: 'INVALID_DATA' } };
+            }
+
+            let deletedCount = 0;
+
+            for (const feedbackId of feedbackIds) {
+                const result = await query('DELETE FROM Feedback WHERE FeedbackId = @feedbackId', { feedbackId });
+                if (result.rowsAffected[0] > 0) {
+                    deletedCount++;
+                }
+            }
+
+            return {
+                status: 200,
+                jsonBody: {
+                    success: true,
+                    message: `Deleted ${deletedCount} feedback submission(s)`,
+                    data: { deletedCount }
+                }
+            };
+
+        } catch (err) {
+            context.error('Error in bulk delete feedback:', err);
+            return { status: 500, jsonBody: { success: false, message: 'Server error', error: 'SERVER_ERROR' } };
+        }
+    }
+});

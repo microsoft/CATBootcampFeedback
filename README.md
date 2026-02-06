@@ -67,6 +67,8 @@ Azure Static Web Apps' managed functions have **limited support for custom route
 - Manage module deliveries and speakers
 - Activate/deactivate events
 - Reorder modules within events
+- **Delete events** - Single or bulk deletion with confirmation
+- **Delete modules** - Single or bulk deletion with confirmation
 - Search and filter
 
 #### QR Code Generation
@@ -79,6 +81,7 @@ Azure Static Web Apps' managed functions have **limited support for custom route
 #### Feedback Viewing & Analytics
 - View all submissions with filtering
 - Export to CSV
+- **Delete feedback** - Single or bulk deletion with confirmation
 - Analytics dashboard with statistics
 - Real-time feedback counts
 

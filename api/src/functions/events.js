@@ -257,3 +257,100 @@ app.http('getModuleCount', {
         }
     }
 });
+
+// DELETE single event (with cascade deletion of feedback)
+app.http('deleteEvent', {
+    methods: ['DELETE'],
+    authLevel: 'anonymous',
+    route: 'events/{eventId}',
+    handler: async (request, context) => {
+        try {
+            const eventId = parseInt(request.params.eventId);
+
+            if (!eventId || isNaN(eventId)) {
+                return { status: 400, jsonBody: { success: false, message: 'Invalid event ID', error: 'INVALID_ID' } };
+            }
+
+            // Check if event exists
+            const eventCheck = await query('SELECT EventId FROM Events WHERE EventId = @eventId', { eventId });
+            if (eventCheck.length === 0) {
+                return { status: 404, jsonBody: { success: false, message: 'Event not found', error: 'NOT_FOUND' } };
+            }
+
+            // Count feedback that will be deleted (for reporting)
+            const feedbackCount = await query(`
+                SELECT COUNT(*) AS Count FROM Feedback WHERE EventId = @eventId
+            `, { eventId });
+
+            // Delete event (cascade will delete EventModules and Feedback)
+            await query('DELETE FROM Events WHERE EventId = @eventId', { eventId });
+
+            return {
+                status: 200,
+                jsonBody: {
+                    success: true,
+                    message: 'Event deleted successfully',
+                    data: {
+                        eventId,
+                        feedbackDeleted: feedbackCount[0].Count
+                    }
+                }
+            };
+
+        } catch (err) {
+            context.error('Error deleting event:', err);
+            return { status: 500, jsonBody: { success: false, message: 'Server error', error: 'SERVER_ERROR' } };
+        }
+    }
+});
+
+// DELETE multiple events (bulk delete with cascade)
+app.http('deleteEventsBulk', {
+    methods: ['POST'],  // Using POST for bulk delete to send body
+    authLevel: 'anonymous',
+    route: 'events/bulk-delete',
+    handler: async (request, context) => {
+        try {
+            const data = await request.json();
+            const { eventIds } = data;
+
+            if (!eventIds || !Array.isArray(eventIds) || eventIds.length === 0) {
+                return { status: 400, jsonBody: { success: false, message: 'Invalid event IDs array', error: 'INVALID_DATA' } };
+            }
+
+            let deletedCount = 0;
+            let totalFeedbackDeleted = 0;
+
+            for (const eventId of eventIds) {
+                // Count feedback that will be deleted
+                const feedbackCount = await query(`
+                    SELECT COUNT(*) AS Count FROM Feedback WHERE EventId = @eventId
+                `, { eventId });
+
+                // Delete event (cascade will delete EventModules and Feedback)
+                const result = await query('DELETE FROM Events WHERE EventId = @eventId', { eventId });
+
+                if (result.rowsAffected[0] > 0) {
+                    deletedCount++;
+                    totalFeedbackDeleted += feedbackCount[0].Count;
+                }
+            }
+
+            return {
+                status: 200,
+                jsonBody: {
+                    success: true,
+                    message: `Deleted ${deletedCount} event(s) and ${totalFeedbackDeleted} feedback submission(s)`,
+                    data: {
+                        deletedCount,
+                        feedbackDeleted: totalFeedbackDeleted
+                    }
+                }
+            };
+
+        } catch (err) {
+            context.error('Error in bulk delete events:', err);
+            return { status: 500, jsonBody: { success: false, message: 'Server error', error: 'SERVER_ERROR' } };
+        }
+    }
+});

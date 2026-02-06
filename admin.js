@@ -401,7 +401,8 @@ function renderModules(modules) {
     modulesList.innerHTML = modules.map(module => `
         <div class="event-card" data-module-id="${module.moduleId}">
             <div class="event-card-header">
-                <div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" class="module-checkbox" data-module-id="${module.moduleId}" style="cursor: pointer; width: 18px; height: 18px;">
                     <div class="event-title">${escapeHtml(module.moduleName)}</div>
                 </div>
                 <div class="event-status">
@@ -722,9 +723,12 @@ function renderEvents(events) {
         return `
         <div class="event-card" data-event-id="${event.eventId}">
             <div class="event-card-header">
-                <div>
-                    <div class="event-title">Event: ${escapeHtml(event.eventCode)}</div>
-                    <span class="event-code" style="font-size: 0.85em; color: #333; font-weight: 500; background: #e3e8ff; padding: 2px 8px; border-radius: 12px;">${modules.length} module${modules.length !== 1 ? 's' : ''}</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" class="event-checkbox" data-event-id="${event.eventId}" style="cursor: pointer; width: 18px; height: 18px;">
+                    <div>
+                        <div class="event-title">Event: ${escapeHtml(event.eventCode)}</div>
+                        <span class="event-code" style="font-size: 0.85em; color: #333; font-weight: 500; background: #e3e8ff; padding: 2px 8px; border-radius: 12px;">${modules.length} module${modules.length !== 1 ? 's' : ''}</span>
+                    </div>
                 </div>
                 <div class="event-status">
                     <span class="status-badge ${event.isActive ? 'active' : 'inactive'}">
@@ -1599,7 +1603,10 @@ function renderFeedback(feedback) {
     feedbackList.innerHTML = feedback.map(fb => `
         <div class="feedback-card">
             <div class="feedback-header">
-                <div class="feedback-event">${escapeHtml(fb.moduleName || 'Unknown Module')}</div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" class="feedback-checkbox" data-feedback-id="${fb.feedbackId}" style="cursor: pointer; width: 18px; height: 18px;">
+                    <div class="feedback-event">${escapeHtml(fb.moduleName || 'Unknown Module')}</div>
+                </div>
                 <div class="feedback-date">${formatDateTime(fb.submittedAt)}</div>
             </div>
             <div class="feedback-ratings">
@@ -1774,6 +1781,226 @@ function showNotification(title, message, type = 'info') {
         }
     }, CONFIG.TOAST_DURATION);
 }
+
+// ============================================
+// BULK DELETE FUNCTIONALITY
+// ============================================
+
+// Track selected items
+let selectedModules = new Set();
+let selectedEvents = new Set();
+let selectedFeedback = new Set();
+
+// Initialize bulk delete listeners
+function initBulkDeleteListeners() {
+    // Module checkboxes
+    document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('module-checkbox')) {
+            const moduleId = parseInt(e.target.dataset.moduleId);
+            if (e.target.checked) {
+                selectedModules.add(moduleId);
+            } else {
+                selectedModules.delete(moduleId);
+            }
+            updateDeleteButtonVisibility('modules');
+        }
+    });
+
+    // Event checkboxes
+    document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('event-checkbox')) {
+            const eventId = parseInt(e.target.dataset.eventId);
+            if (e.target.checked) {
+                selectedEvents.add(eventId);
+            } else {
+                selectedEvents.delete(eventId);
+            }
+            updateDeleteButtonVisibility('events');
+        }
+    });
+
+    // Feedback checkboxes
+    document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('feedback-checkbox')) {
+            const feedbackId = parseInt(e.target.dataset.feedbackId);
+            if (e.target.checked) {
+                selectedFeedback.add(feedbackId);
+            } else {
+                selectedFeedback.delete(feedbackId);
+            }
+            updateDeleteButtonVisibility('feedback');
+        }
+    });
+
+    // Select All checkboxes
+    document.getElementById('selectAllModules').addEventListener('change', (e) => {
+        const checkboxes = document.querySelectorAll('.module-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = e.target.checked;
+            const moduleId = parseInt(cb.dataset.moduleId);
+            if (e.target.checked) {
+                selectedModules.add(moduleId);
+            } else {
+                selectedModules.delete(moduleId);
+            }
+        });
+        updateDeleteButtonVisibility('modules');
+    });
+
+    document.getElementById('selectAllEvents').addEventListener('change', (e) => {
+        const checkboxes = document.querySelectorAll('.event-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = e.target.checked;
+            const eventId = parseInt(cb.dataset.eventId);
+            if (e.target.checked) {
+                selectedEvents.add(eventId);
+            } else {
+                selectedEvents.delete(eventId);
+            }
+        });
+        updateDeleteButtonVisibility('events');
+    });
+
+    document.getElementById('selectAllFeedback').addEventListener('change', (e) => {
+        const checkboxes = document.querySelectorAll('.feedback-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = e.target.checked;
+            const feedbackId = parseInt(cb.dataset.feedbackId);
+            if (e.target.checked) {
+                selectedFeedback.add(feedbackId);
+            } else {
+                selectedFeedback.delete(feedbackId);
+            }
+        });
+        updateDeleteButtonVisibility('feedback');
+    });
+
+    // Delete buttons
+    document.getElementById('deleteModulesBtn').addEventListener('click', () => confirmBulkDelete('modules'));
+    document.getElementById('deleteEventsBtn').addEventListener('click', () => confirmBulkDelete('events'));
+    document.getElementById('deleteFeedbackBtn').addEventListener('click', () => confirmBulkDelete('feedback'));
+}
+
+// Update delete button visibility
+function updateDeleteButtonVisibility(type) {
+    const counts = {
+        'modules': selectedModules.size,
+        'events': selectedEvents.size,
+        'feedback': selectedFeedback.size
+    };
+
+    const buttons = {
+        'modules': document.getElementById('deleteModulesBtn'),
+        'events': document.getElementById('deleteEventsBtn'),
+        'feedback': document.getElementById('deleteFeedbackBtn')
+    };
+
+    const button = buttons[type];
+    const count = counts[type];
+
+    if (count > 0) {
+        button.style.display = 'inline-block';
+        button.querySelector('span').textContent = `🗑️ Delete Selected (${count})`;
+    } else {
+        button.style.display = 'none';
+    }
+}
+
+// Confirm bulk delete with dialog
+async function confirmBulkDelete(type) {
+    const counts = {
+        'modules': selectedModules.size,
+        'events': selectedEvents.size,
+        'feedback': selectedFeedback.size
+    };
+
+    const count = counts[type];
+    if (count === 0) return;
+
+    const typeNames = {
+        'modules': 'module',
+        'events': 'event',
+        'feedback': 'feedback submission'
+    };
+
+    let message = `⚠️ DELETE ${count} ${typeNames[type].toUpperCase()}${count > 1 ? 'S' : ''}?\n\n`;
+    message += `You are about to permanently delete ${count} ${typeNames[type]}${count > 1 ? 's' : ''}.\n\n`;
+
+    if (type === 'events') {
+        message += `This will also delete ALL associated modules and feedback submissions.\n\n`;
+    } else if (type === 'modules') {
+        message += `Note: Modules used in active events cannot be deleted.\n\n`;
+    }
+
+    message += `This action CANNOT be undone!\n\nAre you sure you want to continue?`;
+
+    if (!confirm(message)) return;
+
+    // Perform bulk delete
+    await performBulkDelete(type);
+}
+
+// Perform bulk delete API call
+async function performBulkDelete(type) {
+    try {
+        const ids = {
+            'modules': Array.from(selectedModules),
+            'events': Array.from(selectedEvents),
+            'feedback': Array.from(selectedFeedback)
+        };
+
+        const endpoints = {
+            'modules': `${CONFIG.API_BASE_URL}/modules/bulk-delete`,
+            'events': `${CONFIG.API_BASE_URL}/events/bulk-delete`,
+            'feedback': `${CONFIG.API_BASE_URL}/feedback/bulk-delete`
+        };
+
+        const bodies = {
+            'modules': { moduleIds: ids.modules },
+            'events': { eventIds: ids.events },
+            'feedback': { feedbackIds: ids.feedback }
+        };
+
+        const response = await fetch(endpoints[type], {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bodies[type])
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification('Success', data.message, 'success');
+
+            // Clear selections
+            if (type === 'modules') selectedModules.clear();
+            if (type === 'events') selectedEvents.clear();
+            if (type === 'feedback') selectedFeedback.clear();
+
+            // Uncheck select-all
+            document.getElementById(`selectAll${type.charAt(0).toUpperCase() + type.slice(0, -1)}`).checked = false;
+
+            // Reload data
+            if (type === 'modules') await loadModules();
+            if (type === 'events') await loadEvents();
+            if (type === 'feedback') await loadFeedback();
+
+            // Hide delete button
+            updateDeleteButtonVisibility(type);
+        } else {
+            showNotification('Error', data.message || 'Failed to delete items', 'error');
+        }
+
+    } catch (error) {
+        console.error(`Error deleting ${type}:`, error);
+        showNotification('Error', `Failed to delete ${type}. Please try again.`, 'error');
+    }
+}
+
+// Initialize bulk delete on page load
+setTimeout(() => {
+    initBulkDeleteListeners();
+}, 1000);
 
 console.log('Admin Panel Loaded');
 console.log('Using Mock Data:', CONFIG.USE_MOCK_DATA);

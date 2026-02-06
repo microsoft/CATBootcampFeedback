@@ -67,12 +67,21 @@
             <div id="modulesTab" class="tab-content active">
                 <div class="tab-header">
                     <h2>Manage Modules</h2>
-                    <button class="btn btn-primary" id="createModuleBtn">
-                        <span>+ Create New Module</span>
-                    </button>
+                    <div>
+                        <button class="btn btn-danger" id="deleteModulesBtn" style="display: none; margin-right: 10px;">
+                            <span>🗑️ Delete Selected</span>
+                        </button>
+                        <button class="btn btn-primary" id="createModuleBtn">
+                            <span>+ Create New Module</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="search-bar">
+                    <label style="margin-right: 15px; display: inline-flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="selectAllModules" style="margin-right: 5px;">
+                        <span>Select All</span>
+                    </label>
                     <input type="text" id="moduleSearch" placeholder="Search modules by name or speaker...">
                 </div>
 
@@ -88,12 +97,21 @@
             <div id="eventsTab" class="tab-content">
                 <div class="tab-header">
                     <h2>Manage Events</h2>
-                    <button class="btn btn-primary" id="createEventBtn">
-                        <span>+ Create New Event</span>
-                    </button>
+                    <div>
+                        <button class="btn btn-danger" id="deleteEventsBtn" style="display: none; margin-right: 10px;">
+                            <span>🗑️ Delete Selected</span>
+                        </button>
+                        <button class="btn btn-primary" id="createEventBtn">
+                            <span>+ Create New Event</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="search-bar">
+                    <label style="margin-right: 15px; display: inline-flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="selectAllEvents" style="margin-right: 5px;">
+                        <span>Select All</span>
+                    </label>
                     <input type="text" id="eventSearch" placeholder="Search events by name, speaker, or code...">
                 </div>
 
@@ -109,12 +127,21 @@
             <div id="feedbackTab" class="tab-content">
                 <div class="tab-header">
                     <h2>View Feedback</h2>
-                    <button class="btn btn-secondary" id="exportFeedbackBtn">
-                        <span>📥 Export to CSV</span>
-                    </button>
+                    <div>
+                        <button class="btn btn-danger" id="deleteFeedbackBtn" style="display: none; margin-right: 10px;">
+                            <span>🗑️ Delete Selected</span>
+                        </button>
+                        <button class="btn btn-secondary" id="exportFeedbackBtn">
+                            <span>📥 Export to CSV</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="filters">
+                    <label style="margin-right: 15px; display: inline-flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="selectAllFeedback" style="margin-right: 5px;">
+                        <span>Select All</span>
+                    </label>
                     <select id="filterEvent" class="filter-select">
                         <option value="">All Events</option>
                     </select>

@@ -257,7 +257,9 @@ Each feedback submission should be associated with:
   - Customizable QR code colors (purple theme)
   - Each module in an event has its own downloadable QR code
 - **Error Handling**: Invalid event codes in feedback URLs display: "Not a valid event code"
-- **Event Deletion**: Delete modules/events with cascade deletion of all associated feedback (requires confirmation)
+- **Event Deletion**: Delete single events or bulk delete multiple events with cascade deletion of all associated feedback (requires confirmation)
+- **Module Deletion**: Delete single modules or bulk delete multiple modules (requires confirmation, checks for dependencies)
+- **Feedback Deletion**: Delete single feedback submissions or bulk delete multiple feedback entries (requires confirmation)
 - **Feedback Viewing**: View all submitted feedback for each module, filtered by event code
 - **Analytics Dashboard**: View summary statistics and trends per module
 - **Export Capabilities**: Export feedback data to CSV/Excel
@@ -624,6 +626,35 @@ GET    /api/feedback/all
        - Get all feedback submissions (admin view)
        - Query params: ?eventCode=XXX&limit=100&offset=0
        - Returns: { success: true, data: { feedback: [...], total: number } }
+
+DELETE /api/feedback/{feedbackId}
+       - Delete a single feedback submission
+       - Returns: { success: true, data: { message } }
+
+DELETE /api/feedback/bulk
+       - Delete multiple feedback submissions
+       - Body: { feedbackIds: [1, 2, 3, ...] }
+       - Returns: { success: true, data: { deletedCount: number, message } }
+
+DELETE /api/events/{eventId}
+       - Delete a single event and all associated feedback (cascade)
+       - Returns: { success: true, data: { message, feedbackDeleted: number } }
+
+DELETE /api/events/bulk
+       - Delete multiple events and all associated feedback (cascade)
+       - Body: { eventIds: [1, 2, 3, ...] }
+       - Returns: { success: true, data: { deletedCount: number, feedbackDeleted: number, message } }
+
+DELETE /api/modules/{moduleId}
+       - Delete a single module (checks for dependencies first)
+       - Returns: { success: true, data: { message } }
+       - Error if module is used in active events
+
+DELETE /api/modules/bulk
+       - Delete multiple modules (checks for dependencies first)
+       - Body: { moduleIds: [1, 2, 3, ...] }
+       - Returns: { success: true, data: { deletedCount: number, skipped: number, message } }
+       - Skips modules that are used in active events
 ```
 
 ##### Environment Detection
@@ -1045,6 +1076,23 @@ Where:
 - [x] Edit existing events
 - [x] Deactivate/activate events with confirmation
 - [x] Delete events with confirmation dialog and cascade deletion
+- [x] **Bulk Delete Events**: Select multiple events and delete them at once
+  - [x] Checkboxes for selecting individual events
+  - [x] "Select All" checkbox for selecting all visible events
+  - [x] "Delete Selected" button appears when events are selected
+  - [x] Confirmation dialog shows count and warns about cascade deletion
+  - [x] All associated feedback deleted automatically (cascade)
+- [x] **Bulk Delete Modules**: Select multiple modules and delete them at once
+  - [x] Checkboxes for selecting individual modules
+  - [x] "Select All" checkbox for selecting all visible modules
+  - [x] "Delete Selected" button appears when modules are selected
+  - [x] Confirmation dialog shows count and warns about dependencies
+  - [x] Prevents deletion of modules used in active events
+- [x] **Bulk Delete Feedback**: Select multiple feedback submissions and delete them at once
+  - [x] Checkboxes for selecting individual feedback entries
+  - [x] "Select All" checkbox for selecting all visible feedback
+  - [x] "Delete Selected" button appears when feedback is selected
+  - [x] Confirmation dialog shows count and warns about permanent deletion
 - [x] View feedback submissions for each event
 - [x] View aggregate statistics (averages, counts)
 - [x] Export feedback data to CSV
@@ -1249,26 +1297,80 @@ When users access pages without URL parameters (bookmarked base URL, direct navi
 - **Accessibility**: Ensure selection interfaces are keyboard navigable and screen reader friendly
 
 ### Delete Functionality
-The delete feature includes comprehensive safeguards:
-- **Confirmation Dialog**: Multi-line confirmation showing event details and warning about permanent deletion
-- **Cascade Delete**: Automatically removes all associated feedback when an event is deleted
-- **Feedback Count**: Shows user how many feedback entries will be deleted
-- **UI Feedback**: Button styled with danger color (red) and hover effects
+
+The application supports both single and bulk deletion for feedback, events, and modules with comprehensive safeguards:
+
+#### Bulk Delete Features
+- **Selection System**: Checkboxes next to each item allow individual selection
+- **Select All**: Master checkbox to select/deselect all visible items at once
+- **Delete Button**: "Delete Selected" button appears only when items are selected
+- **Count Indicator**: Shows how many items are currently selected (e.g., "3 selected")
+- **Confirmation Dialog**: Multi-line confirmation showing item count and warning about permanent deletion
+- **UI Feedback**: Buttons styled with danger color (red) and hover effects
 - **No Undo**: Clearly communicates that deletion is permanent and cannot be undone
+
+#### Delete Events (Single or Bulk)
+- **Cascade Delete**: Automatically removes all associated feedback when event(s) deleted
+- **Feedback Count**: Shows user how many feedback entries will be deleted
+- **Associated Data**: Shows count of affected modules and feedback submissions
 
 Example confirmation message:
 ```
-⚠️ DELETE EVENT?
+⚠️ DELETE 3 EVENTS?
 
-Event: Introduction to CAT Bootcamp
-Code: CSA1B2C3
+You are about to delete 3 events and ALL associated data:
+- Event modules: 12 total
+- Feedback submissions: 45 total
 
-This will permanently delete the event and ALL associated feedback.
+This will permanently delete these events and ALL associated feedback.
 
 This action CANNOT be undone!
 
 Are you sure you want to continue?
 ```
+
+#### Delete Modules (Single or Bulk)
+- **Dependency Check**: Prevents deletion of modules used in active events
+- **Warning Message**: Shows which events are using the module if deletion fails
+- **Safe Deletion**: Only allows deletion of unused modules or modules in inactive events
+
+Example confirmation message:
+```
+⚠️ DELETE 2 MODULES?
+
+You are about to delete 2 modules:
+- Introduction to Copilot Studio
+- Advanced Best Practices
+
+Note: Modules used in active events cannot be deleted.
+
+This action CANNOT be undone!
+
+Are you sure you want to continue?
+```
+
+#### Delete Feedback (Single or Bulk)
+- **No Cascade**: Only deletes feedback entries, does not affect events or modules
+- **Permanent Removal**: Removes feedback records from database
+- **Count Indicator**: Shows how many feedback entries will be deleted
+
+Example confirmation message:
+```
+⚠️ DELETE 15 FEEDBACK SUBMISSIONS?
+
+You are about to permanently delete 15 feedback submissions.
+
+This action CANNOT be undone!
+
+Are you sure you want to continue?
+```
+
+#### Implementation Details
+- **API Endpoints**: Separate endpoints for single and bulk delete operations
+- **Transaction Safety**: All bulk deletes wrapped in database transactions
+- **Error Handling**: If any deletion fails, entire operation rolls back
+- **Success Messages**: Toast notifications showing count of deleted items
+- **Immediate UI Update**: Deleted items removed from display without page reload
 
 ### Deployment Architecture (Implemented)
 The application is deployed using Azure Static Web Apps with integrated Azure Functions:
