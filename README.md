@@ -84,10 +84,18 @@ Azure Static Web Apps' managed functions have **limited support for custom route
 
 ### Live Count Display (count.html)
 
-- Real-time feedback count with auto-refresh
-- Display module name and event details
-- Fullscreen mode for projection
-- Status indicator for live updates
+- **Real-time feedback count** with auto-refresh every 30 seconds
+- **Live analytics dashboard** showing:
+  - Total feedback submissions
+  - Average module satisfaction (1-5 scale)
+  - Average speaker knowledge rating (1-5 scale)
+  - Content depth breakdown (Too Technical / Just Right / Too Low Level)
+- **Module or Event view modes:**
+  - Module-specific: Stats for a single module delivery
+  - Event-level: Aggregate stats across all modules in an event
+- **Fullscreen mode** for projection during presentations
+- **Visual indicators** for live update status
+- **QR code display** for easy attendee access
 
 ## Database Schema (V2 - Many-to-Many)
 
@@ -244,9 +252,13 @@ API_BASE_URL: 'http://localhost:7071/api'
    - Test feedback URLs
 
 2. **During Each Module**
-   - Display QR code or share link
-   - Open count display on second screen
-   - Monitor live submissions
+   - Display QR code or share link for attendees
+   - Open live counter on second screen (click "📊 Live Counter" in admin)
+   - Monitor real-time statistics:
+     - Live feedback count
+     - Average satisfaction and speaker knowledge ratings
+     - Content depth distribution
+   - Use fullscreen mode for better visibility during presentation
 
 3. **After Event**
    - Review all feedback
@@ -321,8 +333,8 @@ feedbackapp/
 ├── feedback.js                  # Feedback form logic
 ├── admin.html                   # Admin interface
 ├── admin.js                     # Admin functionality
-├── count.html                   # Live count display
-├── count.js                     # Count page logic
+├── count.html                   # Live analytics dashboard
+├── count.js                     # Real-time analytics and count logic
 ├── config.js                    # Centralized configuration
 ├── api.js                       # API client with retry logic
 ├── styles.css                   # Shared styling
@@ -372,11 +384,19 @@ feedbackapp/
 
 ## Version History
 
+**Version 3.1** (Feb 6, 2026)
+- Enhanced Live Counter with real-time analytics dashboard
+- Added live statistics: average satisfaction, speaker knowledge, content depth breakdown
+- Removed per-module breakdown in favor of comprehensive analytics view
+- Improved presentation mode with better visual indicators
+- 30-second auto-refresh for real-time metrics
+
 **Version 3.0** (Feb 6, 2026)
 - Migrated to separate Azure Functions app for full routing support
 - Resolved dynamic route issues with managed functions
 - Updated frontend to use external Functions app
 - Improved error handling and API client
+- Added Live Counter button in admin QR code modal
 
 **Version 2.0** (Feb 4, 2026)
 - Migrated to many-to-many Events ↔ Modules relationship
@@ -401,6 +421,6 @@ This is a demonstration project for the CAT Bootcamp.
 
 ---
 
-**Version:** 3.0
+**Version:** 3.1
 **Last Updated:** February 6, 2026
-**Status:** Production - Separate Azure Functions App Architecture
+**Status:** Production - Live Analytics Dashboard

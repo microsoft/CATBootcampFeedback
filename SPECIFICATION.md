@@ -268,37 +268,47 @@ Each feedback submission should be associated with:
 
 ### Count Display Page
 - **Access Patterns**:
-  - Event-level: `count.html?code={EVENT_CODE}` (shows total feedback for all modules)
-  - Module-level: `count.html?code={EVENT_CODE}&module={EVENT_MODULE_ID}` (shows feedback for specific module)
-- **Purpose**: Live display of feedback count during presentations
+  - Module-specific: `count.html?code={EVENT_CODE}&module={EVENT_MODULE_ID}` (shows stats for specific module delivery)
+  - Event-level: `count.html?code={EVENT_CODE}` (shows aggregate stats across all modules)
+- **Purpose**: Live analytics dashboard displayed during presentations to show real-time feedback metrics
 - **Transparent URL Parameter Flow** (Primary):
-  - When `code` parameter is provided: Display event-level or module-level count
+  - When `code` parameter is provided: Display event-level or module-specific analytics
   - Information automatically loaded from URL parameters
-  - QR code generated with parameters included
-  - Auto-refresh every 5 seconds
+  - QR code generated with parameters included for attendee access
+  - Auto-refresh every 30 seconds
 - **Manual Selection Fallback** (When URL Parameters Missing):
   - If `code` parameter is missing: Display user-friendly event selector
     - Show list of active events with names and dates
-    - User selects event to display counts for
-    - Option to further select specific module or view event-level counts
+    - User selects event to display stats for
+    - Option to further select specific module or view event-level stats
   - If `code` is present but `module` is missing:
-    - Default to event-level view (shows all modules)
-    - Provide option to select specific module for module-level view
+    - Default to event-level view (aggregate across all modules)
+    - Provide option to select specific module for module-specific view
   - After selection, URL is updated with parameters and display begins
-  - Selection interface can be hidden after initial setup for clean presentation view
-- **Features**:
-  - Real-time feedback count with auto-refresh (5 second intervals)
-  - Animated count transitions when numbers change
-  - QR code display for attendees to scan (includes module parameter if module-specific)
-  - Event and module information display
-    - Event-level: Shows event name and total module count
-    - Module-level: Shows specific module name and speaker
-  - Last updated timestamp
-  - Fullscreen mode toggle for presentations
-  - Error handling for invalid/missing event codes or module IDs
-- **Use Case**: Displayed on projector/screen during bootcamp sessions to encourage participation
-  - Module-level display shown during individual module presentations
-  - Event-level display shown for overall event feedback tracking
+- **Live Analytics Dashboard**:
+  - **Total Feedback Count**: Large, prominent display with animated transitions
+  - **Average Module Satisfaction**: 1-5 scale rating with visual indicator
+  - **Average Speaker Knowledge**: 1-5 scale rating with visual indicator
+  - **Content Depth Breakdown**: Visual chart showing distribution:
+    - Too Technical (percentage and count)
+    - Just Right (percentage and count)
+    - Too Low Level (percentage and count)
+  - **Auto-refresh**: Updates every 30 seconds with smooth animations
+  - **Last Updated**: Timestamp showing when data was last refreshed
+- **Display Features**:
+  - QR code for attendees to quickly access feedback form
+  - Event and module information header
+    - Module-specific: Shows module name, speaker, and event details
+    - Event-level: Shows event name and date range
+  - Fullscreen mode toggle for projection
+  - Visual status indicator showing live update status
+  - Responsive layout optimized for projection displays
+  - High-contrast design for visibility in presentation environments
+- **Use Case**: Displayed on projector/second screen during presentations
+  - Module-specific: Show real-time feedback metrics during individual module delivery
+  - Event-level: Show aggregate feedback metrics across entire event
+  - Encourages participation by showing live response counts
+  - Provides instant feedback quality indicators to presenters
 
 ## User Interface Design
 
@@ -1164,13 +1174,14 @@ Where:
 
 ### Future Enhancements
 - Multi-language support
-- Real-time feedback dashboard (live updates)
 - SMS notifications
 - Integration with Teams/Slack
 - Automated reports sent to speakers
 - Comparison reports across cohorts
 - Sentiment analysis on comments
 - Mobile app version
+- Historical trend analysis and time-series charts
+- Speaker performance comparison dashboards
 
 ## Implementation Notes
 
@@ -1187,7 +1198,7 @@ When users access feedback or count pages via QR codes or shared links, paramete
 - Users never see or interact with technical identifiers (event codes, module IDs)
 - Information is automatically loaded and displayed in user-friendly format
 - Module name, speaker, date, and event details are shown clearly
-- Users proceed directly to providing feedback or viewing counts
+- Users proceed directly to providing feedback or viewing live analytics
 - No selection screens or dropdowns required
 
 #### Fallback Flow: Manual Selection
