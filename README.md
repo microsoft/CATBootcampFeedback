@@ -163,49 +163,126 @@ GET    /api/feedback/all                      # Get all feedback (admin)
 - Azure CLI installed
 - Azure Functions Core Tools installed
 
+### Environments
+
+#### Development Environment
+- **Resource Group:** `cat-bootcamp-rg`
+- **Frontend:** `https://blue-moss-01913f80f.1.azurestaticapps.net`
+- **API:** `https://cat-bootcamp-api.azurewebsites.net`
+- **Database:** `cat-bootcamp-sql-89082.database.windows.net/CATBootcampFeedback`
+- **Deployment:** Auto-deploy from `main` branch push
+
+#### Production Environment
+- **Resource Group:** `cat-bootcamp-prod-rg`
+- **Frontend:** `https://cat-bootcamp-feedback.azurestaticapps.net`
+- **API:** `https://cat-bootcamp-api-prod.azurewebsites.net`
+- **Database:** `cat-bootcamp-sql-prod.database.windows.net/CATBootcampFeedback-Prod`
+- **Deployment:** Manual workflow dispatch with approval
+
 ### Frontend Deployment (Azure Static Web Apps)
 
-**Already Deployed:**
+#### Development
 - URL: `https://blue-moss-01913f80f.1.azurestaticapps.net`
 - Auto-deploys from GitHub `main` branch
 - Workflow: `.github/workflows/azure-static-web-apps-blue-moss-01913f80f.yml`
 
+#### Production
+- URL: `https://cat-bootcamp-feedback.azurestaticapps.net`
+- Manual deployment with approval gate
+- Workflow: `.github/workflows/deploy-production.yml`
+
+**To deploy to production:**
+1. Go to GitHub Actions tab
+2. Select "Deploy to Production" workflow
+3. Click "Run workflow"
+4. Select `main` branch
+5. Click "Run workflow"
+6. Wait for approval from designated approvers
+7. Once approved, deployment proceeds automatically
+
 ### Backend Deployment (Azure Functions App)
 
-**Already Deployed:**
+#### Development
 - Functions App: `cat-bootcamp-api`
 - URL: `https://cat-bootcamp-api.azurewebsites.net`
 - Runtime: Node.js 20, Linux Consumption Plan
 - Database: `cat-bootcamp-sql-89082.database.windows.net`
 
+#### Production
+- Functions App: `cat-bootcamp-api-prod`
+- URL: `https://cat-bootcamp-api-prod.azurewebsites.net`
+- Runtime: Node.js 20, Linux Consumption Plan
+- Database: `cat-bootcamp-sql-prod.database.windows.net`
+
 #### Deploy Functions Manually
 
+**Development:**
 ```bash
-# From the api/ directory
 cd api
 npm install
 func azure functionapp publish cat-bootcamp-api --javascript
 ```
 
+**Production:**
+```bash
+cd api
+npm install
+func azure functionapp publish cat-bootcamp-api-prod --javascript
+```
+
 #### Deploy via GitHub Actions
 
-A workflow exists at `.github/workflows/deploy-functions-app.yml` but requires valid publish profile credentials.
+Production deployment is automated through the "Deploy to Production" workflow:
+- Frontend and API deploy together
+- Requires manual approval before deployment
+- Uses environment-specific configurations
+- Validates health endpoints after deployment
 
 ### Configuration
 
-#### Frontend Config (`config.js`)
+#### Development Frontend Config (`config.js`)
 ```javascript
 API_BASE_URL: 'https://cat-bootcamp-api.azurewebsites.net/api'
 ```
 
-#### Backend Settings (Azure Portal)
+#### Production Frontend Config (`config.prod.js`)
+```javascript
+API_BASE_URL: 'https://cat-bootcamp-api-prod.azurewebsites.net/api'
+```
+
+#### Development Backend Settings (Azure Portal)
 ```
 SQL_SERVER=cat-bootcamp-sql-89082.database.windows.net
 SQL_DATABASE=CATBootcampFeedback
 SQL_USER=sqladmin
 SQL_PASSWORD=*** (configured in Azure)
+NODE_ENV=development
+```
+
+#### Production Backend Settings (Azure Portal)
+```
+SQL_SERVER=cat-bootcamp-sql-prod.database.windows.net
+SQL_DATABASE=CATBootcampFeedback-Prod
+SQL_USER=sqladmin
+SQL_PASSWORD=*** (configured in Azure)
 NODE_ENV=production
 ```
+
+### Database Initialization
+
+See [`docs/database-migration-strategy.md`](docs/database-migration-strategy.md) for complete database setup and migration procedures.
+
+**Initialize Production Database:**
+1. Navigate to Azure Portal → CATBootcampFeedback-Prod database
+2. Open Query editor (preview)
+3. Login with sqladmin credentials
+4. Run `database-init-PORTAL-ALL-IN-ONE.sql`
+
+**Restore Dev Sample Data:**
+1. Navigate to Azure Portal → CATBootcampFeedback database
+2. Open Query editor (preview)
+3. Login with sqladmin credentials
+4. Run `restore-dev-sample-data-v2.sql`
 
 ## Development Setup
 
@@ -461,6 +538,10 @@ This application is designed with privacy as a core principle:
 ## Support & Documentation
 
 - **Privacy Policy:** See [`PRIVACY.md`](PRIVACY.md) - Data collection and privacy details
+- **Database Migration:** See [`docs/database-migration-strategy.md`](docs/database-migration-strategy.md) - Schema management and data migration
+- **Production Architecture:** See [`docs/infrastructure/production-architecture.md`](docs/infrastructure/production-architecture.md) - Production environment design
+- **Environment Variables:** See [`docs/infrastructure/environment-variables.md`](docs/infrastructure/environment-variables.md) - Configuration reference
+- **GitHub Secrets:** See [`docs/infrastructure/github-secrets.md`](docs/infrastructure/github-secrets.md) - CI/CD configuration
 - **Complete Schema:** See `DATABASE-REFERENCE.md`
 - **Deployment Guide:** See `DEPLOYMENT_CONFIGURATION.md`
 - **Architecture:** See `DATABASE_ARCHITECTURE_V2.md`
