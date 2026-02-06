@@ -162,6 +162,12 @@ function setupEventListeners() {
     document.getElementById('filterSpeaker').addEventListener('change', filterAndSortFeedback);
     document.getElementById('filterRating').addEventListener('change', filterAndSortFeedback);
     document.getElementById('sortFeedback').addEventListener('change', filterAndSortFeedback);
+
+    // Analytics tab
+    document.getElementById('analyticsFilterEvent').addEventListener('change', updateAnalyticsWithFilters);
+    document.getElementById('analyticsFilterModule').addEventListener('change', updateAnalyticsWithFilters);
+    document.getElementById('analyticsFilterSpeaker').addEventListener('change', updateAnalyticsWithFilters);
+    document.getElementById('resetAnalyticsFilters').addEventListener('click', resetAnalyticsFilters);
 }
 
 // Handle login
@@ -274,6 +280,7 @@ async function showMainContent() {
         populateEventFilter(events);
         populateModuleFilter(feedback);
         populateSpeakerFilter(feedback);
+        populateAnalyticsFilters(events, feedback);
         renderFeedback(feedback);
         updateAnalyticsUI();
     } catch (error) {
@@ -1817,14 +1824,18 @@ function populateSpeakerFilter(feedback) {
 }
 
 // Update analytics UI (optimized - doesn't reload data)
-function updateAnalyticsUI() {
-    const totalEvents = allEvents.length;
-    const totalFeedback = allFeedback.length;
-    const avgSatisfaction = allFeedback.length > 0
-        ? (allFeedback.reduce((sum, fb) => sum + fb.moduleSatisfaction, 0) / allFeedback.length).toFixed(1)
+function updateAnalyticsUI(feedbackData = null, eventsData = null) {
+    // Use filtered data if provided, otherwise use all data
+    const feedback = feedbackData !== null ? feedbackData : allFeedback;
+    const events = eventsData !== null ? eventsData : allEvents;
+
+    const totalEvents = events.length;
+    const totalFeedback = feedback.length;
+    const avgSatisfaction = feedback.length > 0
+        ? (feedback.reduce((sum, fb) => sum + fb.moduleSatisfaction, 0) / feedback.length).toFixed(1)
         : 0;
-    const avgSpeakerKnowledge = allFeedback.length > 0
-        ? (allFeedback.reduce((sum, fb) => sum + fb.speakerKnowledge, 0) / allFeedback.length).toFixed(1)
+    const avgSpeakerKnowledge = feedback.length > 0
+        ? (feedback.reduce((sum, fb) => sum + fb.speakerKnowledge, 0) / feedback.length).toFixed(1)
         : 0;
 
     document.getElementById('totalEvents').textContent = totalEvents;
@@ -1839,13 +1850,13 @@ function updateAnalyticsUI() {
         'Too Low Level': 0
     };
 
-    allFeedback.forEach(fb => {
+    feedback.forEach(fb => {
         if (depthCounts.hasOwnProperty(fb.contentDepth)) {
             depthCounts[fb.contentDepth]++;
         }
     });
 
-    const total = allFeedback.length || 1;
+    const total = feedback.length || 1;
     const depthChart = document.getElementById('depthChart');
     depthChart.innerHTML = Object.entries(depthCounts).map(([label, count]) => {
         const percentage = ((count / total) * 100).toFixed(0);
@@ -1860,6 +1871,62 @@ function updateAnalyticsUI() {
             </div>
         `;
     }).join('');
+}
+
+// Populate analytics filters
+function populateAnalyticsFilters(events, feedback) {
+    // Populate event filter
+    const analyticsFilterEvent = document.getElementById('analyticsFilterEvent');
+    const uniqueEvents = [...new Set(events.map(e => JSON.stringify({ code: e.eventCode, name: e.eventName })))].map(e => JSON.parse(e));
+    analyticsFilterEvent.innerHTML = '<option value="">All Events</option>' +
+        uniqueEvents.map(e => `<option value="${escapeHtml(e.code)}">${escapeHtml(e.name)} (${escapeHtml(e.code)})</option>`).join('');
+
+    // Populate module filter
+    const analyticsFilterModule = document.getElementById('analyticsFilterModule');
+    const uniqueModules = [...new Set(feedback.map(fb => fb.moduleName))].filter(Boolean).sort();
+    analyticsFilterModule.innerHTML = '<option value="">All Modules</option>' +
+        uniqueModules.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+
+    // Populate speaker filter
+    const analyticsFilterSpeaker = document.getElementById('analyticsFilterSpeaker');
+    const uniqueSpeakers = [...new Set(feedback.map(fb => fb.speakerName))].filter(Boolean).sort();
+    analyticsFilterSpeaker.innerHTML = '<option value="">All Speakers</option>' +
+        uniqueSpeakers.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+}
+
+// Update analytics with filters applied
+function updateAnalyticsWithFilters() {
+    const eventFilter = document.getElementById('analyticsFilterEvent').value;
+    const moduleFilter = document.getElementById('analyticsFilterModule').value;
+    const speakerFilter = document.getElementById('analyticsFilterSpeaker').value;
+
+    let filteredFeedback = allFeedback;
+    let filteredEvents = allEvents;
+
+    // Apply feedback filters
+    if (eventFilter) {
+        filteredFeedback = filteredFeedback.filter(fb => fb.eventCode === eventFilter);
+        filteredEvents = filteredEvents.filter(e => e.eventCode === eventFilter);
+    }
+
+    if (moduleFilter) {
+        filteredFeedback = filteredFeedback.filter(fb => fb.moduleName === moduleFilter);
+    }
+
+    if (speakerFilter) {
+        filteredFeedback = filteredFeedback.filter(fb => fb.speakerName === speakerFilter);
+    }
+
+    // Update analytics with filtered data
+    updateAnalyticsUI(filteredFeedback, filteredEvents);
+}
+
+// Reset analytics filters
+function resetAnalyticsFilters() {
+    document.getElementById('analyticsFilterEvent').value = '';
+    document.getElementById('analyticsFilterModule').value = '';
+    document.getElementById('analyticsFilterSpeaker').value = '';
+    updateAnalyticsUI();
 }
 
 // Export feedback to CSV (with proper escaping)
