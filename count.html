@@ -248,6 +248,41 @@
             color: white;
         }
 
+        /* Refresh interval selector */
+        .refresh-controls {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .refresh-controls label {
+            font-weight: 500;
+        }
+
+        .refresh-controls select {
+            padding: 5px 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            color: #333;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-controls select:hover {
+            border-color: #667eea;
+        }
+
+        .refresh-controls select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
         /* Analytics Section */
         .analytics-section {
             margin: 30px 0;
@@ -414,6 +449,15 @@
                 <div class="status-indicator">
                     <div class="status-dot"></div>
                     <span>Live Updates Active</span>
+                </div>
+                <div class="refresh-controls">
+                    <label for="refreshInterval">Refresh every:</label>
+                    <select id="refreshInterval">
+                        <option value="5000">5 seconds</option>
+                        <option value="10000">10 seconds</option>
+                        <option value="15000" selected>15 seconds</option>
+                        <option value="30000">30 seconds</option>
+                    </select>
                 </div>
                 <div class="last-updated">Last updated: <span id="lastUpdated">-</span></div>
             </div>

@@ -18,6 +18,7 @@ let currentEvent = null;
 let currentModule = null;
 let refreshTimer = null;
 let isModuleMode = false;
+let currentRefreshInterval = CONFIG.COUNT_REFRESH_INTERVAL;
 
 // DOM elements
 const loadingState = document.getElementById('loadingState');
@@ -97,6 +98,10 @@ async function initialize() {
         console.log('Starting live count updates...');
         await updateCount();
         startLiveUpdates();
+
+        // Initialize refresh interval selector
+        initializeRefreshIntervalSelector();
+
         console.log('Count page fully initialized');
 
     } catch (error) {
@@ -622,7 +627,7 @@ function animateCount(element, from, to) {
 function startLiveUpdates() {
     refreshTimer = setInterval(() => {
         updateCount();
-    }, CONFIG.COUNT_REFRESH_INTERVAL);
+    }, currentRefreshInterval);
 }
 
 // Stop live updates
@@ -631,6 +636,46 @@ function stopLiveUpdates() {
         clearInterval(refreshTimer);
         refreshTimer = null;
     }
+}
+
+// Restart live updates with new interval
+function restartLiveUpdates() {
+    stopLiveUpdates();
+    startLiveUpdates();
+    console.log(`Refresh interval changed to ${currentRefreshInterval}ms`);
+}
+
+// Initialize refresh interval selector
+function initializeRefreshIntervalSelector() {
+    const refreshIntervalSelect = document.getElementById('refreshInterval');
+
+    if (!refreshIntervalSelect) {
+        console.warn('Refresh interval selector not found');
+        return;
+    }
+
+    // Load saved preference from sessionStorage
+    const savedInterval = sessionStorage.getItem('countRefreshInterval');
+    if (savedInterval) {
+        currentRefreshInterval = parseInt(savedInterval);
+        refreshIntervalSelect.value = savedInterval;
+        console.log(`Loaded saved refresh interval: ${currentRefreshInterval}ms`);
+    }
+
+    // Handle interval changes
+    refreshIntervalSelect.addEventListener('change', (e) => {
+        const newInterval = parseInt(e.target.value);
+        currentRefreshInterval = newInterval;
+
+        // Save preference
+        sessionStorage.setItem('countRefreshInterval', newInterval.toString());
+
+        // Restart timer with new interval
+        restartLiveUpdates();
+
+        // Update immediately to show responsiveness
+        updateCount();
+    });
 }
 
 // Generate QR code
@@ -714,4 +759,4 @@ window.addEventListener('beforeunload', () => {
 console.log('Feedback Count Display Loaded');
 console.log('Event Code:', eventCode);
 console.log('Using Mock Data:', CONFIG.USE_MOCK_DATA);
-console.log('Auto-refresh every', CONFIG.COUNT_REFRESH_INTERVAL / 1000, 'seconds');
+console.log('Default auto-refresh interval:', CONFIG.COUNT_REFRESH_INTERVAL / 1000, 'seconds (user-configurable)');
