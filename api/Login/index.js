@@ -2,22 +2,28 @@
  * Admin Login
  * POST /api/login
  *
- * Simple authentication for the admin panel
- * In production, you should use Azure AD, proper password hashing, etc.
+ * JWT-based authentication for the admin panel
+ * Generates a signed JWT token valid for 8 hours
+ *
+ * TODO: Migrate to Azure AD for enterprise authentication
  */
 
-// Hardcoded admin credentials (for demo purposes)
-// TODO: Move to Azure Key Vault or environment variables
+const bcrypt = require('bcryptjs');
+const { generateToken } = require('../shared/auth');
+
+// Admin credentials with bcrypt-hashed passwords
+// Password: CATBootcamp2026! (hashed with bcrypt rounds=10)
+// TODO: Move to Azure Key Vault or database with proper user management
 const ADMIN_USERS = [
     {
         username: 'admin',
-        password: 'CATBootcamp2026!', // Change this password!
+        passwordHash: '$2b$10$.QNiEI80R3baYb5/KxY.Z.O4Gsvp.FC1JXjcd0ycnqK9t10LdpgGG',
         fullName: 'CAT Admin',
         email: 'admin@microsoft.com'
     },
     {
         username: 'dewainr',
-        password: 'CATBootcamp2026!',
+        passwordHash: '$2b$10$.QNiEI80R3baYb5/KxY.Z.O4Gsvp.FC1JXjcd0ycnqK9t10LdpgGG',
         fullName: 'Dewain Robinson',
         email: 'dewainr@microsoft.com'
     }
@@ -74,14 +80,13 @@ module.exports = async function (context, req) {
             return;
         }
 
-        // Find user
+        // Find user by username
         const user = ADMIN_USERS.find(u =>
-            u.username.toLowerCase() === username.toLowerCase() &&
-            u.password === password
+            u.username.toLowerCase() === username.toLowerCase()
         );
 
         if (!user) {
-            context.log(`Login failed for username: ${username}`);
+            context.log(`Login failed - user not found: ${username}`);
             context.res = {
                 status: 401,
                 headers: {
@@ -96,8 +101,31 @@ module.exports = async function (context, req) {
             return;
         }
 
-        // Generate a simple token (in production, use proper JWT)
-        const token = Buffer.from(`${user.username}:${Date.now()}`).toString('base64');
+        // Verify password with bcrypt
+        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+
+        if (!isPasswordValid) {
+            context.log(`Login failed - invalid password for username: ${username}`);
+            context.res = {
+                status: 401,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                },
+                body: {
+                    success: false,
+                    message: 'Invalid username or password'
+                }
+            };
+            return;
+        }
+
+        // Generate JWT token
+        const token = generateToken({
+            username: user.username,
+            email: user.email,
+            fullName: user.fullName
+        });
 
         context.log(`Login successful for username: ${username}`);
 
@@ -114,7 +142,8 @@ module.exports = async function (context, req) {
                     username: user.username,
                     fullName: user.fullName,
                     email: user.email
-                }
+                },
+                expiresIn: '8h'
             }
         };
 

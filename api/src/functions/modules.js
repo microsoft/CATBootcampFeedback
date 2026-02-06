@@ -1,18 +1,29 @@
 /**
  * Modules API
- * GET /api/modules - Get all modules
- * POST /api/modules - Create new module
+ * GET /api/modules - Get all modules (REQUIRES AUTH)
+ * POST /api/modules - Create new module (REQUIRES AUTH)
  */
 
 const { app } = require('@azure/functions');
 const { query } = require('../shared/database');
 const { success, error } = require('../shared/utils');
+const { requireAuth } = require('../shared/auth');
 
 app.http('modules', {
     methods: ['GET', 'POST'],
     authLevel: 'anonymous',
     route: 'modules',
     handler: async (request, context) => {
+        // Verify authentication for all methods
+        const authError = requireAuth(request);
+        if (authError) {
+            return {
+                status: authError.status,
+                headers: authError.headers,
+                body: authError.body
+            };
+        }
+
         try {
             if (request.method === 'GET') {
                 // Get all modules
@@ -145,6 +156,16 @@ app.http('deleteModule', {
     authLevel: 'anonymous',
     route: 'modules/{moduleId}',
     handler: async (request, context) => {
+        // Verify authentication
+        const authError = requireAuth(request);
+        if (authError) {
+            return {
+                status: authError.status,
+                headers: authError.headers,
+                body: authError.body
+            };
+        }
+
         try {
             const moduleId = parseInt(request.params.moduleId);
 
@@ -200,6 +221,16 @@ app.http('deleteModulesBulk', {
     authLevel: 'anonymous',
     route: 'modules/bulk-delete',
     handler: async (request, context) => {
+        // Verify authentication
+        const authError = requireAuth(request);
+        if (authError) {
+            return {
+                status: authError.status,
+                headers: authError.headers,
+                body: authError.body
+            };
+        }
+
         try {
             const data = await request.json();
             const { moduleIds } = data;
