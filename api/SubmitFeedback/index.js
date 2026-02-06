@@ -60,11 +60,11 @@ module.exports = async function (context, req) {
         // Sanitize comments
         const sanitizedComments = data.additionalComments ? sanitize(data.additionalComments) : null;
 
-        // Insert feedback (PII-compliant: no IP address or user agent collected)
+        // Insert feedback
         const result = await query(
-            `INSERT INTO Feedback (EventId, EventCode, EventModuleId, SpeakerKnowledge, ContentDepth, ModuleSatisfaction, AdditionalComments, SubmittedAt)
+            `INSERT INTO Feedback (EventId, EventCode, EventModuleId, SpeakerKnowledge, ContentDepth, ModuleSatisfaction, AdditionalComments, IpAddress, UserAgent, SubmittedAt)
              OUTPUT INSERTED.FeedbackId
-             VALUES (@eventId, @eventCode, @eventModuleId, @speakerKnowledge, @contentDepth, @moduleSatisfaction, @additionalComments, GETDATE())`,
+             VALUES (@eventId, @eventCode, @eventModuleId, @speakerKnowledge, @contentDepth, @moduleSatisfaction, @additionalComments, @ipAddress, @userAgent, GETDATE())`,
             {
                 eventId,
                 eventCode: data.eventCode,
@@ -72,7 +72,9 @@ module.exports = async function (context, req) {
                 speakerKnowledge: data.speakerKnowledge,
                 contentDepth: data.contentDepth,
                 moduleSatisfaction: data.moduleSatisfaction,
-                additionalComments: sanitizedComments
+                additionalComments: sanitizedComments,
+                ipAddress: clientIP,
+                userAgent: req.headers['user-agent'] || 'unknown'
             }
         );
 
