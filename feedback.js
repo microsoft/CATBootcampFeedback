@@ -157,7 +157,39 @@ async function loadModuleDetails(code, moduleId) {
     }
 
     try {
-        const moduleData = await apiGet(`/events/${code}/modules/${moduleId}`);
+        // Fetch all events and filter for the specific event and module
+        const allEvents = await apiGet(`/events`);
+
+        // Find the event with matching code
+        const event = allEvents.find(e => e.eventCode === code);
+        if (!event) {
+            return null;
+        }
+
+        // Find the module within the event
+        const module = event.modules.find(m => m.eventModuleId === parseInt(moduleId));
+        if (!module) {
+            return null;
+        }
+
+        // Construct the module data in the expected format
+        const moduleData = {
+            eventId: event.eventId,
+            eventCode: event.eventCode,
+            eventName: event.eventName,
+            startDate: event.startDate,
+            endDate: event.endDate,
+            cohortId: event.cohortId,
+            isActive: event.isActive,
+            eventModuleId: module.eventModuleId,
+            moduleId: module.moduleId,
+            moduleName: module.moduleName,
+            moduleDescription: module.description,
+            speakerName: module.speakerName,
+            deliveryOrder: module.deliveryOrder,
+            deliveryDate: module.deliveryDate,
+            notes: module.notes
+        };
 
         // Cache the result
         if (moduleData) {

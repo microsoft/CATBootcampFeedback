@@ -89,7 +89,7 @@ if (typeof window !== 'undefined') {
 
     if (isProduction || isAzure) {
         CONFIG.USE_MOCK_DATA = false;
-        CONFIG.API_BASE_URL = '/api'; // Relative path for Azure Static Web Apps
+        CONFIG.API_BASE_URL = 'https://cat-bootcamp-api.azurewebsites.net/api'; // Separate Azure Functions app
     }
 
     console.log('Environment detected:', {
