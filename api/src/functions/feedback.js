@@ -76,3 +76,138 @@ app.http('feedback', {
         }
     }
 });
+
+// Submit feedback endpoint (POST)
+app.http('submitFeedback', {
+    methods: ['POST'],
+    authLevel: 'anonymous',
+    route: 'feedback',
+    handler: async (request, context) => {
+        try {
+            const data = await request.json();
+
+            // Import required utilities
+            const { sanitize, getClientIP, checkRateLimit } = require('../shared/utils');
+
+            // Rate limiting
+            const clientIP = getClientIP(request);
+            const rateLimitKey = `feedback_${clientIP}_${data.eventCode}`;
+            const rateLimit = checkRateLimit(rateLimitKey, 5, 3600000); // 5 per hour
+
+            if (!rateLimit.allowed) {
+                return {
+                    status: 429,
+                    jsonBody: {
+                        success: false,
+                        message: `Too many submissions. Please try again in ${Math.ceil(rateLimit.retryAfter / 60)} minutes.`,
+                        error: 'RATE_LIMIT_EXCEEDED'
+                    }
+                };
+            }
+
+            // Validate required fields
+            if (!data.eventCode || !data.eventModuleId || !data.speakerKnowledge || !data.contentDepth || !data.moduleSatisfaction) {
+                return {
+                    status: 400,
+                    jsonBody: {
+                        success: false,
+                        message: 'Missing required fields',
+                        error: 'INVALID_DATA'
+                    }
+                };
+            }
+
+            // Validate ranges
+            if (data.speakerKnowledge < 1 || data.speakerKnowledge > 5 || data.moduleSatisfaction < 1 || data.moduleSatisfaction > 5) {
+                return {
+                    status: 400,
+                    jsonBody: {
+                        success: false,
+                        message: 'Ratings must be between 1 and 5',
+                        error: 'INVALID_DATA'
+                    }
+                };
+            }
+
+            // Validate content depth
+            const validDepths = ['Too Technical', 'Just Right', 'Too Low Level'];
+            if (!validDepths.includes(data.contentDepth)) {
+                return {
+                    status: 400,
+                    jsonBody: {
+                        success: false,
+                        message: 'Invalid content depth value',
+                        error: 'INVALID_DATA'
+                    }
+                };
+            }
+
+            // Check if event exists and is active
+            const eventResult = await query(`SELECT EventId FROM Events WHERE EventCode = @eventCode AND IsActive = 1`, { eventCode: data.eventCode });
+
+            if (!eventResult || eventResult.length === 0) {
+                return {
+                    status: 404,
+                    jsonBody: {
+                        success: false,
+                        message: 'Event not found or inactive',
+                        error: 'EVENT_NOT_FOUND'
+                    }
+                };
+            }
+
+            const eventId = eventResult[0].EventId;
+
+            // Verify that eventModuleId belongs to this event
+            const eventModuleResult = await query(`SELECT EventModuleId FROM EventModules WHERE EventModuleId = @eventModuleId AND EventId = @eventId`, { eventModuleId: data.eventModuleId, eventId });
+
+            if (!eventModuleResult || eventModuleResult.length === 0) {
+                return {
+                    status: 404,
+                    jsonBody: {
+                        success: false,
+                        message: 'Event module not found or does not belong to this event',
+                        error: 'INVALID_EVENT_MODULE'
+                    }
+                };
+            }
+
+            // Sanitize comments
+            const sanitizedComments = data.additionalComments ? sanitize(data.additionalComments) : null;
+
+            // Insert feedback
+            const result = await query(`INSERT INTO Feedback (EventId, EventCode, EventModuleId, SpeakerKnowledge, ContentDepth, ModuleSatisfaction, AdditionalComments, IpAddress, UserAgent, SubmittedAt) OUTPUT INSERTED.FeedbackId VALUES (@eventId, @eventCode, @eventModuleId, @speakerKnowledge, @contentDepth, @moduleSatisfaction, @additionalComments, @ipAddress, @userAgent, GETDATE())`, {
+                eventId,
+                eventCode: data.eventCode,
+                eventModuleId: data.eventModuleId,
+                speakerKnowledge: data.speakerKnowledge,
+                contentDepth: data.contentDepth,
+                moduleSatisfaction: data.moduleSatisfaction,
+                additionalComments: sanitizedComments,
+                ipAddress: clientIP,
+                userAgent: request.headers.get('user-agent') || 'unknown'
+            });
+
+            const feedbackId = result[0].FeedbackId;
+
+            return {
+                status: 200,
+                jsonBody: {
+                    success: true,
+                    message: 'Feedback submitted successfully',
+                    data: { feedbackId }
+                }
+            };
+        } catch (err) {
+            context.error('Error in submitFeedback:', err);
+            return {
+                status: 500,
+                jsonBody: {
+                    success: false,
+                    message: 'Internal server error',
+                    error: 'SERVER_ERROR'
+                }
+            };
+        }
+    }
+});
