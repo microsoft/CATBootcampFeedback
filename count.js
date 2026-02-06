@@ -718,7 +718,7 @@ function showCountDisplay() {
         const eventName = currentModule.eventName || currentModule.eventCode || eventCode;
         eventCodeDisplay.textContent = `${escapeHtml(moduleName)} - ${escapeHtml(speakerName)}`;
         eventCodeDisplay.insertAdjacentHTML('afterend',
-            `<div style="font-size: 1.2rem; color: #666; margin-top: 5px;">Event: ${escapeHtml(eventName)}</div>`
+            `<div style="font-size: 1.1rem; color: white; margin-top: 5px; font-weight: 500;">Event: ${escapeHtml(eventName)}</div>`
         );
         totalCount.textContent = currentModule.count || 0;
     } else {
