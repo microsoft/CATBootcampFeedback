@@ -79,8 +79,10 @@ Azure Static Web Apps' managed functions have **limited support for custom route
 - Quick access to live counter for tracking submissions in real-time
 
 #### Feedback Viewing & Analytics
-- View all submissions with filtering
-- Export to CSV
+- **Advanced filtering** by Event, Module, Speaker, and Rating
+- **Flexible sorting** by Date, Rating, Module, Speaker, or Event
+- View all submissions with multi-criteria filtering
+- Export filtered results to CSV
 - **Delete feedback** - Single or bulk deletion with confirmation
 - Analytics dashboard with statistics
 - Real-time feedback counts
@@ -388,6 +390,13 @@ feedbackapp/
 
 ## Version History
 
+**Version 3.2** (Feb 6, 2026)
+- Enhanced Feedback Viewing with advanced filtering
+- Added Module and Speaker filter dropdowns
+- Implemented flexible sorting (by Date, Rating, Module, Speaker, Event)
+- Improved feedback management with multi-criteria filtering
+- Consistent UI layout across all admin tabs
+
 **Version 3.1** (Feb 6, 2026)
 - Enhanced Live Counter with real-time analytics dashboard
 - Added live statistics: average satisfaction, speaker knowledge, content depth breakdown
@@ -426,6 +435,6 @@ This is a demonstration project for the CAT Bootcamp.
 
 ---
 
-**Version:** 3.1
+**Version:** 3.2
 **Last Updated:** February 6, 2026
-**Status:** Production - Live Analytics Dashboard
+**Status:** Production - Enhanced Feedback Management

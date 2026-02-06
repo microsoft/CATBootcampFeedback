@@ -157,8 +157,11 @@ function setupEventListeners() {
 
     // Feedback tab
     document.getElementById('exportFeedbackBtn').addEventListener('click', exportFeedbackToCSV);
-    document.getElementById('filterEvent').addEventListener('change', filterFeedback);
-    document.getElementById('filterRating').addEventListener('change', filterFeedback);
+    document.getElementById('filterEvent').addEventListener('change', filterAndSortFeedback);
+    document.getElementById('filterModule').addEventListener('change', filterAndSortFeedback);
+    document.getElementById('filterSpeaker').addEventListener('change', filterAndSortFeedback);
+    document.getElementById('filterRating').addEventListener('change', filterAndSortFeedback);
+    document.getElementById('sortFeedback').addEventListener('change', filterAndSortFeedback);
 }
 
 // Handle login
@@ -269,6 +272,8 @@ async function showMainContent() {
         renderModules(modules);
         renderEvents(events);
         populateEventFilter(events);
+        populateModuleFilter(feedback);
+        populateSpeakerFilter(feedback);
         renderFeedback(feedback);
         updateAnalyticsUI();
     } catch (error) {
@@ -1620,6 +1625,8 @@ async function loadFeedback() {
     try {
         const feedback = await fetchFeedback();
         allFeedback = feedback;
+        populateModuleFilter(feedback);
+        populateSpeakerFilter(feedback);
         renderFeedback(feedback);
     } catch (error) {
         console.error('Error loading feedback:', error);
@@ -1689,7 +1696,12 @@ function renderFeedback(feedback) {
             <div class="feedback-header">
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <input type="checkbox" class="feedback-checkbox" data-feedback-id="${fb.feedbackId}" style="cursor: pointer; width: 18px; height: 18px;">
-                    <div class="feedback-event">${escapeHtml(fb.moduleName || 'Unknown Module')}</div>
+                    <div>
+                        <div class="feedback-event">${escapeHtml(fb.moduleName || 'Unknown Module')}</div>
+                        <div style="font-size: 0.85rem; color: #666; margin-top: 2px;">
+                            Speaker: ${escapeHtml(fb.speakerName || 'Unknown')} • Event: ${escapeHtml(fb.eventCode || 'N/A')}
+                        </div>
+                    </div>
                 </div>
                 <div class="feedback-date">${formatDateTime(fb.submittedAt)}</div>
             </div>
@@ -1717,29 +1729,91 @@ function renderFeedback(feedback) {
     `).join('');
 }
 
-// Filter feedback
-function filterFeedback() {
+// Filter and sort feedback
+function filterAndSortFeedback() {
     const eventFilter = document.getElementById('filterEvent').value;
+    const moduleFilter = document.getElementById('filterModule').value;
+    const speakerFilter = document.getElementById('filterSpeaker').value;
     const ratingFilter = document.getElementById('filterRating').value;
+    const sortOption = document.getElementById('sortFeedback').value;
 
     let filtered = allFeedback;
 
+    // Apply filters
     if (eventFilter) {
         filtered = filtered.filter(fb => fb.eventCode === eventFilter);
+    }
+
+    if (moduleFilter) {
+        filtered = filtered.filter(fb => fb.moduleName === moduleFilter);
+    }
+
+    if (speakerFilter) {
+        filtered = filtered.filter(fb => fb.speakerName === speakerFilter);
     }
 
     if (ratingFilter) {
         filtered = filtered.filter(fb => fb.moduleSatisfaction == ratingFilter);
     }
 
-    renderFeedback(filtered);
+    // Apply sorting
+    const sorted = sortFeedback(filtered, sortOption);
+
+    renderFeedback(sorted);
+}
+
+// Sort feedback based on selected option
+function sortFeedback(feedback, sortOption) {
+    const sorted = [...feedback]; // Create a copy to avoid mutating original
+
+    switch(sortOption) {
+        case 'date-desc':
+            return sorted.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+        case 'date-asc':
+            return sorted.sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt));
+        case 'rating-desc':
+            return sorted.sort((a, b) => b.moduleSatisfaction - a.moduleSatisfaction);
+        case 'rating-asc':
+            return sorted.sort((a, b) => a.moduleSatisfaction - b.moduleSatisfaction);
+        case 'module-asc':
+            return sorted.sort((a, b) => (a.moduleName || '').localeCompare(b.moduleName || ''));
+        case 'module-desc':
+            return sorted.sort((a, b) => (b.moduleName || '').localeCompare(a.moduleName || ''));
+        case 'speaker-asc':
+            return sorted.sort((a, b) => (a.speakerName || '').localeCompare(b.speakerName || ''));
+        case 'speaker-desc':
+            return sorted.sort((a, b) => (b.speakerName || '').localeCompare(a.speakerName || ''));
+        case 'event-asc':
+            return sorted.sort((a, b) => (a.eventCode || '').localeCompare(b.eventCode || ''));
+        case 'event-desc':
+            return sorted.sort((a, b) => (b.eventCode || '').localeCompare(a.eventCode || ''));
+        default:
+            return sorted;
+    }
 }
 
 // Populate event filter
 function populateEventFilter(events) {
     const filterEvent = document.getElementById('filterEvent');
+    const uniqueEvents = [...new Set(events.map(e => JSON.stringify({ code: e.eventCode, name: e.eventName })))].map(e => JSON.parse(e));
     filterEvent.innerHTML = '<option value="">All Events</option>' +
-        events.map(e => `<option value="${escapeHtml(e.eventCode)}">${escapeHtml(e.moduleName)}</option>`).join('');
+        uniqueEvents.map(e => `<option value="${escapeHtml(e.code)}">${escapeHtml(e.name)} (${escapeHtml(e.code)})</option>`).join('');
+}
+
+// Populate module filter
+function populateModuleFilter(feedback) {
+    const filterModule = document.getElementById('filterModule');
+    const uniqueModules = [...new Set(feedback.map(fb => fb.moduleName))].filter(Boolean).sort();
+    filterModule.innerHTML = '<option value="">All Modules</option>' +
+        uniqueModules.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+}
+
+// Populate speaker filter
+function populateSpeakerFilter(feedback) {
+    const filterSpeaker = document.getElementById('filterSpeaker');
+    const uniqueSpeakers = [...new Set(feedback.map(fb => fb.speakerName))].filter(Boolean).sort();
+    filterSpeaker.innerHTML = '<option value="">All Speakers</option>' +
+        uniqueSpeakers.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
 }
 
 // Update analytics UI (optimized - doesn't reload data)
