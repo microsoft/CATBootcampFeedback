@@ -84,7 +84,7 @@ Azure Static Web Apps' managed functions have **limited support for custom route
 
 ### Live Count Display (count.html)
 
-- **Real-time feedback count** with auto-refresh every 30 seconds
+- **Real-time feedback count** with configurable auto-refresh (5, 10, 15, or 30 seconds)
 - **Live analytics dashboard** showing:
   - Total feedback submissions
   - Average module satisfaction (1-5 scale)
@@ -93,6 +93,7 @@ Azure Static Web Apps' managed functions have **limited support for custom route
 - **Module or Event view modes:**
   - Module-specific: Stats for a single module delivery
   - Event-level: Aggregate stats across all modules in an event
+- **Configurable refresh interval** - Select update frequency from dropdown (default: 15 seconds)
 - **Fullscreen mode** for projection during presentations
 - **Visual indicators** for live update status
 - **QR code display** for easy attendee access
@@ -389,7 +390,8 @@ feedbackapp/
 - Added live statistics: average satisfaction, speaker knowledge, content depth breakdown
 - Removed per-module breakdown in favor of comprehensive analytics view
 - Improved presentation mode with better visual indicators
-- 30-second auto-refresh for real-time metrics
+- Configurable auto-refresh (5, 10, 15, or 30 seconds; default: 15 seconds)
+- User-selectable refresh interval dropdown for flexibility
 
 **Version 3.0** (Feb 6, 2026)
 - Migrated to separate Azure Functions app for full routing support

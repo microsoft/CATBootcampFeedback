@@ -148,11 +148,16 @@ To support live analytics, we need actual feedback data, not just counts:
 **Recommendation:** Option A for now (simpler), migrate to Option B if performance becomes an issue
 
 ### Auto-Refresh Strategy
-- **Interval:** 30 seconds (configurable in `config.js`)
-- **Method:** `setInterval()` calling fetch function
+- **Interval:** User-selectable from dropdown (5, 10, 15, or 30 seconds)
+- **Default:** 15 seconds (configurable in `config.js`)
+- **Method:** `setInterval()` calling fetch function, recreated when interval changes
 - **Animation:** Smooth transitions when numbers change
 - **Error handling:** Continue refreshing even if one request fails
 - **Optimization:** Only update DOM elements that changed
+- **User Control:** Dropdown selector allows presenters to adjust refresh frequency based on:
+  - Network conditions (slower networks may prefer 30s)
+  - Audience size (larger audiences generating more feedback may prefer 5-10s)
+  - Presentation style (high-energy sessions may prefer faster updates)
 
 ### Fullscreen Mode
 - **Trigger:** Button in top-right corner
@@ -235,13 +240,20 @@ To support live analytics, we need actual feedback data, not just counts:
 All configurable via `config.js`:
 
 ```javascript
-COUNT_REFRESH_INTERVAL: 30000,        // 30 seconds
+COUNT_REFRESH_INTERVAL: 15000,        // 15 seconds (default)
 COUNT_ANIMATION_DURATION: 1000,       // 1 second
 SATISFACTION_THRESHOLD_HIGH: 4.0,     // Green zone
 SATISFACTION_THRESHOLD_LOW: 3.0,      // Red zone
 SHOW_QR_CODE: true,                   // Toggle QR display
 FULLSCREEN_BY_DEFAULT: false,         // Auto-enter fullscreen
 ```
+
+**Runtime Configuration (User-Selectable):**
+- Refresh interval can be changed on-the-fly via dropdown selector
+- Options: 5, 10, 15, or 30 seconds
+- Default: 15 seconds (defined in config.js)
+- Preference persisted in browser session
+- No page reload required when changing interval
 
 ## Testing Scenarios
 

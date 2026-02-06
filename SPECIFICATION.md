@@ -275,7 +275,7 @@ Each feedback submission should be associated with:
   - When `code` parameter is provided: Display event-level or module-specific analytics
   - Information automatically loaded from URL parameters
   - QR code generated with parameters included for attendee access
-  - Auto-refresh every 30 seconds
+  - Auto-refresh with configurable interval (5, 10, 15, or 30 seconds; default: 15 seconds)
 - **Manual Selection Fallback** (When URL Parameters Missing):
   - If `code` parameter is missing: Display user-friendly event selector
     - Show list of active events with names and dates
@@ -300,6 +300,11 @@ Each feedback submission should be associated with:
   - Event and module information header
     - Module-specific: Shows module name, speaker, and event details
     - Event-level: Shows event name and date range
+  - **Refresh interval selector** - Dropdown to choose update frequency:
+    - 5 seconds (fast updates)
+    - 10 seconds (moderate)
+    - 15 seconds (default, balanced)
+    - 30 seconds (conserves bandwidth)
   - Fullscreen mode toggle for projection
   - Visual status indicator showing live update status
   - Responsive layout optimized for projection displays
