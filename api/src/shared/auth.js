@@ -48,7 +48,8 @@ function verifyToken(token) {
  */
 function requireAuth(req) {
     // Get token from Authorization header
-    const authHeader = req.headers.authorization || req.headers.Authorization;
+    // Azure Functions V4 uses headers.get() method
+    const authHeader = req.headers.get ? req.headers.get('authorization') : (req.headers.authorization || req.headers.Authorization);
 
     if (!authHeader) {
         return {
@@ -96,7 +97,8 @@ function requireAuth(req) {
  * Get authenticated user from token
  */
 function getAuthenticatedUser(req) {
-    const authHeader = req.headers.authorization || req.headers.Authorization;
+    // Azure Functions V4 uses headers.get() method
+    const authHeader = req.headers.get ? req.headers.get('authorization') : (req.headers.authorization || req.headers.Authorization);
 
     if (!authHeader) {
         return null;
