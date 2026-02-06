@@ -11,7 +11,7 @@ const { success, error } = require('../shared/utils');
 
 module.exports = async function (context, req) {
     try {
-        // Get all events
+        // Get all active events
         const events = await query(`
             SELECT
                 e.EventId,
@@ -26,6 +26,7 @@ module.exports = async function (context, req) {
                 COUNT(DISTINCT f.FeedbackId) AS FeedbackCount
             FROM Events e
             LEFT JOIN Feedback f ON e.EventId = f.EventId
+            WHERE e.IsActive = 1
             GROUP BY
                 e.EventId, e.EventName, e.EventCode, e.StartDate, e.EndDate, e.CohortId,
                 e.IsActive, e.CreatedAt, e.CreatedBy
@@ -48,6 +49,7 @@ module.exports = async function (context, req) {
                     FROM EventModules em
                     INNER JOIN Modules m ON em.ModuleId = m.ModuleId
                     WHERE em.EventId = @eventId
+                      AND m.IsActive = 1
                     ORDER BY em.DeliveryOrder ASC
                 `, { eventId: event.EventId });
 
