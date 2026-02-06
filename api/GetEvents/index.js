@@ -65,6 +65,40 @@ module.exports = async function (context, req) {
                     ORDER BY em.DeliveryOrder ASC
                 `, { eventId: event.EventId });
 
+                // DEFENSIVE: Verify each module can be found by GetEventModule query
+                // This ensures we NEVER return a module that will 404
+                const validatedModules = await Promise.all(
+                    modules.map(async (m) => {
+                        try {
+                            // Test if GetEventModule would find this module
+                            const testResult = await query(`
+                                SELECT 1 AS Found
+                                FROM Events e
+                                INNER JOIN EventModules em ON e.EventId = em.EventId
+                                INNER JOIN Modules mod ON em.ModuleId = mod.ModuleId
+                                WHERE e.EventCode = @eventCode
+                                  AND em.EventModuleId = @eventModuleId
+                                  AND e.IsActive = 1
+                                  AND mod.IsActive = 1
+                            `, { eventCode: event.EventCode, eventModuleId: m.EventModuleId });
+
+                            // Only include if GetEventModule query would find it
+                            if (testResult && testResult.length > 0) {
+                                return m;
+                            } else {
+                                context.log(`WARNING: Module ${m.EventModuleId} for event ${event.EventCode} would return 404 - excluding from results`);
+                                return null;
+                            }
+                        } catch (err) {
+                            context.log.error(`Error validating module ${m.EventModuleId}:`, err);
+                            return null;
+                        }
+                    })
+                );
+
+                // Filter out null modules
+                const workingModules = validatedModules.filter(m => m !== null);
+
                 return {
                     eventId: event.EventId,
                     eventName: event.EventName,
@@ -76,7 +110,7 @@ module.exports = async function (context, req) {
                     createdAt: event.CreatedAt,
                     createdBy: event.CreatedBy,
                     feedbackCount: event.FeedbackCount || 0,
-                    modules: modules.map(m => ({
+                    modules: workingModules.map(m => ({
                         eventModuleId: m.EventModuleId,
                         moduleId: m.ModuleId,
                         moduleName: m.ModuleName,
