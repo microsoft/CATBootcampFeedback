@@ -113,8 +113,8 @@ function setupEventListeners() {
         // Handle module buttons
         const moduleId = parseInt(target.dataset.moduleId);
         if (moduleId) {
-            if (target.classList.contains('btn-create-event-for-module')) {
-                createEventForModule(moduleId);
+            if (target.classList.contains('btn-add-module-to-event')) {
+                addModuleToEvent(moduleId);
             } else if (target.classList.contains('btn-edit-module')) {
                 editModule(moduleId);
             } else if (target.classList.contains('btn-toggle-module-status')) {
@@ -427,8 +427,8 @@ function renderModules(modules) {
                 </div>
             </div>
             <div class="event-actions">
-                <button class="btn btn-primary btn-icon btn-create-event-for-module" data-module-id="${module.moduleId}">
-                    ➕ Create Event
+                <button class="btn btn-primary btn-icon btn-add-module-to-event" data-module-id="${module.moduleId}">
+                    ➕ Add to Event
                 </button>
                 <button class="btn btn-secondary btn-icon btn-edit-module" data-module-id="${module.moduleId}">
                     ✏️ Edit
@@ -588,10 +588,94 @@ window.toggleModuleStatus = async function(moduleId) {
     }
 };
 
-// Create event for module (quick create from modules tab)
-window.createEventForModule = function(moduleId) {
-    // Just open the create event modal - user will add modules after creating the event
-    openEventModal(null);
+// Add module to existing event (from modules tab)
+window.addModuleToEvent = async function(moduleId) {
+    const module = allModules.find(m => m.moduleId === moduleId);
+    if (!module) {
+        showNotification('Error', 'Module not found', 'error');
+        return;
+    }
+
+    // Get active events
+    const activeEvents = allEvents.filter(e => e.isActive);
+    if (activeEvents.length === 0) {
+        showNotification('Info', 'No active events available. Please create an event first.', 'info');
+        return;
+    }
+
+    // Create a simple event selection modal
+    const eventOptions = activeEvents.map(e =>
+        `<option value="${e.eventId}">${e.eventName} (${e.eventCode}) - ${new Date(e.startDate).toLocaleDateString()}</option>`
+    ).join('');
+
+    const modalHtml = `
+        <div id="quickAddModuleModal" class="modal" style="display: block;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Add "${module.moduleName}" to Event</h3>
+                    <button class="modal-close" onclick="document.getElementById('quickAddModuleModal').remove()">&times;</button>
+                </div>
+                <form id="quickAddModuleForm">
+                    <div class="form-group">
+                        <label for="quickEventSelect">Select Event <span class="required">*</span></label>
+                        <select id="quickEventSelect" required>
+                            <option value="">-- Choose an event --</option>
+                            ${eventOptions}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="quickSpeakerName">Speaker Name <span class="required">*</span></label>
+                        <input type="text" id="quickSpeakerName" required placeholder="e.g., John Doe">
+                    </div>
+                    <div class="form-group">
+                        <label for="quickDeliveryOrder">Delivery Order</label>
+                        <input type="number" id="quickDeliveryOrder" value="1" min="1">
+                        <small class="form-help">Order in which this module is delivered</small>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('quickAddModuleModal').remove()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Add Module</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Handle form submission
+    document.getElementById('quickAddModuleForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const eventId = document.getElementById('quickEventSelect').value;
+        const speakerName = document.getElementById('quickSpeakerName').value;
+        const deliveryOrder = document.getElementById('quickDeliveryOrder').value;
+
+        try {
+            const result = await apiPost('/event-modules', {
+                eventId: parseInt(eventId),
+                moduleId: moduleId,
+                speakerName: speakerName,
+                deliveryOrder: parseInt(deliveryOrder) || 1,
+                deliveryDate: null,
+                notes: null
+            });
+
+            if (result.success) {
+                document.getElementById('quickAddModuleModal').remove();
+                showNotification('Success', `Module added to event successfully!`, 'success');
+                await loadModules(); // Refresh to update event count
+                await loadEvents(); // Refresh events list
+            } else {
+                showNotification('Error', 'Error adding module to event', 'error');
+            }
+        } catch (error) {
+            console.error('Error adding module to event:', error);
+            const friendlyError = getUserFriendlyErrorMessage(error);
+            showNotification('Error', friendlyError.message, 'error');
+        }
+    });
 };
 
 // ====================================

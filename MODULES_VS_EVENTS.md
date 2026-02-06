@@ -65,7 +65,7 @@ The CAT Bootcamp Feedback system now has a **truly separated** Modules and Event
 **Actions**:
 - ➕ **Create New Module** - Add new training content
 - ✏️ **Edit Module** - Update module details
-- ➕ **Create Event** button - Quick create event for this module
+- ➕ **Add to Event** button - Quickly add this module to an existing event
 - 🚫 **Deactivate** - Hide module from selection
 
 ### **Events Tab** (Second Tab)
@@ -156,7 +156,7 @@ Feedback
 - No dates visible
 - No event codes
 - Event count per module
-- "Create Event" button for each module
+- "Add to Event" button for each module
 
 **Events Tab Should Show**:
 - Module selection dropdown (not text fields)
