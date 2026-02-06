@@ -804,8 +804,15 @@ async function viewEventDetails(eventId) {
     modal.dataset.eventId = eventId;
 
     const modules = event.modules || [];
+    // DEFENSIVE: Filter out modules that are inactive or missing required fields
+    // This ensures we NEVER display QR codes for modules that won't work
+    const validModules = modules.filter(m =>
+        m.eventModuleId &&
+        m.moduleName &&
+        m.isActive === true
+    );
     // Sort modules by delivery order
-    const sortedModules = [...modules].sort((a, b) => (a.deliveryOrder || 0) - (b.deliveryOrder || 0));
+    const sortedModules = [...validModules].sort((a, b) => (a.deliveryOrder || 0) - (b.deliveryOrder || 0));
 
     const modulesHTML = sortedModules.length > 0
         ? sortedModules.map((m, index) => {

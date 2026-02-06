@@ -22,8 +22,9 @@ module.exports = async function (context, req) {
               AND DATEDIFF(DAY, EndDate, GETDATE()) > 14
         `);
 
-        // Get all active events
-        const events = await query(`
+        // Get all active events with their modules in a single query
+        // Using the same join pattern as GetEventModule to ensure consistency
+        const eventsWithModules = await query(`
             SELECT
                 e.EventId,
                 e.EventName,
@@ -34,62 +35,61 @@ module.exports = async function (context, req) {
                 e.IsActive,
                 e.CreatedAt,
                 e.CreatedBy,
-                COUNT(DISTINCT f.FeedbackId) AS FeedbackCount
+                em.EventModuleId,
+                em.ModuleId,
+                m.ModuleName,
+                em.SpeakerName,
+                m.Description AS ModuleDescription,
+                em.DeliveryOrder,
+                em.DeliveryDate,
+                m.IsActive AS ModuleIsActive,
+                (SELECT COUNT(*) FROM Feedback f WHERE f.EventId = e.EventId) AS FeedbackCount
             FROM Events e
-            LEFT JOIN Feedback f ON e.EventId = f.EventId
+            LEFT JOIN EventModules em ON e.EventId = em.EventId AND e.IsActive = 1
+            LEFT JOIN Modules m ON em.ModuleId = m.ModuleId AND m.IsActive = 1
             WHERE e.IsActive = 1
-            GROUP BY
-                e.EventId, e.EventName, e.EventCode, e.StartDate, e.EndDate, e.CohortId,
-                e.IsActive, e.CreatedAt, e.CreatedBy
-            ORDER BY e.CreatedAt DESC
+            ORDER BY e.CreatedAt DESC, em.DeliveryOrder ASC
         `);
 
-        // For each event, get its modules
-        const eventsWithModules = await Promise.all(
-            events.map(async (event) => {
-                const modules = await query(`
-                    SELECT
-                        em.EventModuleId,
-                        em.ModuleId,
-                        m.ModuleName,
-                        em.SpeakerName,
-                        m.Description,
-                        em.DeliveryOrder,
-                        em.DeliveryDate,
-                        m.IsActive
-                    FROM EventModules em
-                    INNER JOIN Modules m ON em.ModuleId = m.ModuleId
-                    WHERE em.EventId = @eventId
-                      AND m.IsActive = 1
-                    ORDER BY em.DeliveryOrder ASC
-                `, { eventId: event.EventId });
+        // Group results by event
+        const eventMap = new Map();
+        for (const row of eventsWithModules) {
+            if (!eventMap.has(row.EventId)) {
+                eventMap.set(row.EventId, {
+                    eventId: row.EventId,
+                    eventName: row.EventName,
+                    eventCode: row.EventCode,
+                    startDate: row.StartDate,
+                    endDate: row.EndDate,
+                    cohortId: row.CohortId,
+                    isActive: row.IsActive,
+                    createdAt: row.CreatedAt,
+                    createdBy: row.CreatedBy,
+                    feedbackCount: row.FeedbackCount || 0,
+                    modules: []
+                });
+            }
 
-                return {
-                    eventId: event.EventId,
-                    eventName: event.EventName,
-                    eventCode: event.EventCode,
-                    startDate: event.StartDate,
-                    endDate: event.EndDate,
-                    cohortId: event.CohortId,
-                    isActive: event.IsActive,
-                    createdAt: event.CreatedAt,
-                    createdBy: event.CreatedBy,
-                    feedbackCount: event.FeedbackCount || 0,
-                    modules: modules.map(m => ({
-                        eventModuleId: m.EventModuleId,
-                        moduleId: m.ModuleId,
-                        moduleName: m.ModuleName,
-                        speakerName: m.SpeakerName,
-                        description: m.Description,
-                        deliveryOrder: m.DeliveryOrder,
-                        deliveryDate: m.DeliveryDate,
-                        isActive: m.IsActive
-                    }))
-                };
-            })
-        );
+            // Only add module if EventModuleId exists (handles events with no modules)
+            // CRITICAL: Only include modules where BOTH event AND module are active
+            // This ensures GetEventModule will also find these modules
+            if (row.EventModuleId && row.ModuleIsActive === true) {
+                eventMap.get(row.EventId).modules.push({
+                    eventModuleId: row.EventModuleId,
+                    moduleId: row.ModuleId,
+                    moduleName: row.ModuleName,
+                    speakerName: row.SpeakerName,
+                    description: row.ModuleDescription,
+                    deliveryOrder: row.DeliveryOrder,
+                    deliveryDate: row.DeliveryDate,
+                    isActive: row.ModuleIsActive
+                });
+            }
+        }
 
-        context.res = success(eventsWithModules);
+        const result = Array.from(eventMap.values());
+
+        context.res = success(result);
     } catch (err) {
         context.log.error('Error in GetEvents:', err);
         context.log.error('Error details:', err.message, err.stack);
