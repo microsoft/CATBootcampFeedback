@@ -12,7 +12,7 @@ export const CONFIG = {
     // Timeouts & Intervals
     API_TIMEOUT: 30000,                 // 30 seconds
     MOCK_API_DELAY: 1000,               // 1 second
-    COUNT_REFRESH_INTERVAL: 5000,       // 5 seconds
+    COUNT_REFRESH_INTERVAL: 30000,      // 30 seconds
     AUTO_LOGOUT_TIMEOUT: 28800000,      // 8 hours
     LOADING_MIN_DISPLAY_TIME: 500,      // 0.5 seconds
 

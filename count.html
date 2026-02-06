@@ -248,6 +248,112 @@
             color: white;
         }
 
+        /* Analytics Section */
+        .analytics-section {
+            margin: 30px 0;
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .metric-card {
+            background: #f8f9ff;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-label {
+            font-size: 0.95rem;
+            color: #666;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .metric-value {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .metric-value.excellent {
+            color: #4CAF50;
+        }
+
+        .metric-value.good {
+            color: #FFC107;
+        }
+
+        .metric-value.poor {
+            color: #f44336;
+        }
+
+        .metric-stars {
+            font-size: 1.5rem;
+            color: #FFC107;
+            letter-spacing: 2px;
+        }
+
+        .depth-section {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .depth-chart {
+            background: #f8f9ff;
+            border-radius: 12px;
+            padding: 25px;
+        }
+
+        .depth-bar {
+            margin-bottom: 20px;
+        }
+
+        .depth-bar:last-child {
+            margin-bottom: 0;
+        }
+
+        .depth-label {
+            font-size: 1rem;
+            color: #333;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .depth-bar-container {
+            background: #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            height: 40px;
+            position: relative;
+        }
+
+        .depth-bar-fill {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: width 0.8s ease;
+            min-width: 60px;
+        }
+
         @media (max-width: 768px) {
             .count-container {
                 padding: 40px 30px;
@@ -312,10 +418,25 @@
                 <div class="last-updated">Last updated: <span id="lastUpdated">-</span></div>
             </div>
 
-            <div class="modules-section">
-                <div class="count-label" style="margin-bottom: 20px;">Per-Module Breakdown</div>
-                <div id="modulesContainer">
-                    <!-- Module cards will be inserted here -->
+            <div class="analytics-section">
+                <div class="analytics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Average Satisfaction</div>
+                        <div class="metric-value" id="avgSatisfaction">-</div>
+                        <div class="metric-stars" id="satisfactionStars"></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Average Speaker Knowledge</div>
+                        <div class="metric-value" id="avgSpeakerKnowledge">-</div>
+                        <div class="metric-stars" id="knowledgeStars"></div>
+                    </div>
+                </div>
+
+                <div class="depth-section">
+                    <div class="count-label" style="margin-bottom: 20px;">Content Depth Distribution</div>
+                    <div id="depthChart" class="depth-chart">
+                        <!-- Content depth bars will be inserted here -->
+                    </div>
                 </div>
             </div>
 
@@ -324,7 +445,7 @@
                 <canvas id="qrCode"></canvas>
                 <div class="instructions">
                     Attendees can scan this QR code or visit the feedback link to submit their responses.
-                    The count above updates automatically every 5 seconds.
+                    Analytics update automatically every 30 seconds.
                 </div>
             </div>
         </div>

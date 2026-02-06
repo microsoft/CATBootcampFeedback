@@ -115,25 +115,8 @@ async function loadEventDetails(code) {
     }
 
     try {
-        // Fetch all events and filter client-side (same pattern as feedback.js)
-        const response = await apiGet(`/events`);
-        const allEvents = response.data || response;
-
-        const event = allEvents.find(e => e.eventCode === code);
-        if (!event) {
-            return null;
-        }
-
-        // Calculate total count from modules
-        let totalCount = 0;
-        if (event.modules && Array.isArray(event.modules)) {
-            totalCount = event.modules.reduce((sum, m) => sum + (m.feedbackCount || 0), 0);
-        }
-
-        return {
-            ...event,
-            totalCount: totalCount
-        };
+        const response = await apiGet(`/events/${code}/count`);
+        return response.data || response;
     } catch (error) {
         console.error('Error loading event:', error);
         throw error;
@@ -148,34 +131,8 @@ async function loadModuleDetails(code, modId) {
     }
 
     try {
-        // Fetch all events and filter client-side (same pattern as feedback.js)
-        const response = await apiGet(`/events`);
-        const allEvents = response.data || response;
-
-        const event = allEvents.find(e => e.eventCode === code);
-        if (!event) {
-            return null;
-        }
-
-        const module = event.modules.find(m => m.eventModuleId === parseInt(modId));
-        if (!module) {
-            return null;
-        }
-
-        // Construct module data with event context
-        return {
-            eventId: event.eventId,
-            eventCode: event.eventCode,
-            eventName: event.eventName,
-            cohortId: event.cohortId,
-            eventModuleId: module.eventModuleId,
-            moduleId: module.moduleId,
-            moduleName: module.moduleName,
-            speakerName: module.speakerName,
-            deliveryOrder: module.deliveryOrder,
-            deliveryDate: module.deliveryDate,
-            count: module.feedbackCount || 0
-        };
+        const response = await apiGet(`/events/${code}/modules/${modId}/count`);
+        return response.data || response;
     } catch (error) {
         console.error('Error loading module:', error);
         throw error;
@@ -198,7 +155,16 @@ function mockLoadModuleDetails(code, modId) {
                     speakerName: 'John Doe',
                     deliveryOrder: 1,
                     deliveryDate: '2026-02-15T09:00:00',
-                    count: Math.floor(Math.random() * 10)
+                    count: Math.floor(Math.random() * 10) + 5,
+                    averages: {
+                        speakerKnowledge: 4.2,
+                        moduleSatisfaction: 4.5
+                    },
+                    contentDepth: {
+                        'Too Technical': 2,
+                        'Just Right': 8,
+                        'Too Low Level': 1
+                    }
                 },
                 'TEST123_2': {
                     eventId: 2,
@@ -211,7 +177,16 @@ function mockLoadModuleDetails(code, modId) {
                     speakerName: 'Jane Smith',
                     deliveryOrder: 1,
                     deliveryDate: '2026-02-16T09:00:00',
-                    count: Math.floor(Math.random() * 8)
+                    count: Math.floor(Math.random() * 8) + 3,
+                    averages: {
+                        speakerKnowledge: 3.8,
+                        moduleSatisfaction: 4.0
+                    },
+                    contentDepth: {
+                        'Too Technical': 3,
+                        'Just Right': 5,
+                        'Too Low Level': 2
+                    }
                 }
             };
 
@@ -229,9 +204,19 @@ function mockLoadEventDetails(code) {
                 'CSA1B2C3': {
                     eventId: 1,
                     eventCode: 'CSA1B2C3',
+                    eventName: 'CAT Bootcamp Q1-2026',
                     startDate: '2026-02-15',
                     cohortId: 'Q1-2026',
-                    totalCount: 5,
+                    totalCount: 12,
+                    averages: {
+                        speakerKnowledge: 4.3,
+                        moduleSatisfaction: 4.1
+                    },
+                    contentDepth: {
+                        'Too Technical': 3,
+                        'Just Right': 8,
+                        'Too Low Level': 1
+                    },
                     modules: [
                         {
                             eventModuleId: 1,
@@ -239,16 +224,26 @@ function mockLoadEventDetails(code) {
                             moduleName: 'Introduction to CAT Bootcamp',
                             speakerName: 'John Doe',
                             deliveryOrder: 1,
-                            feedbackCount: 5
+                            feedbackCount: 12
                         }
                     ]
                 },
                 'TEST123': {
                     eventId: 2,
                     eventCode: 'TEST123',
+                    eventName: 'Test Event',
                     startDate: '2026-02-16',
                     cohortId: 'Q1-2026',
-                    totalCount: 8,
+                    totalCount: 18,
+                    averages: {
+                        speakerKnowledge: 3.9,
+                        moduleSatisfaction: 4.2
+                    },
+                    contentDepth: {
+                        'Too Technical': 5,
+                        'Just Right': 10,
+                        'Too Low Level': 3
+                    },
                     modules: [
                         {
                             eventModuleId: 2,
@@ -256,7 +251,7 @@ function mockLoadEventDetails(code) {
                             moduleName: 'Building Your First Copilot',
                             speakerName: 'Jane Smith',
                             deliveryOrder: 1,
-                            feedbackCount: 5
+                            feedbackCount: 10
                         },
                         {
                             eventModuleId: 3,
@@ -264,7 +259,7 @@ function mockLoadEventDetails(code) {
                             moduleName: 'Advanced Copilot Features',
                             speakerName: 'Bob Johnson',
                             deliveryOrder: 2,
-                            feedbackCount: 3
+                            feedbackCount: 8
                         }
                     ]
                 }
@@ -361,36 +356,27 @@ async function showEventSelector() {
 // Update feedback count
 async function updateCount() {
     try {
+        let data;
+        let count;
+
         if (isModuleMode) {
-            // Module-specific mode: update single module count
-            const data = await getModuleFeedbackCount(eventCode, moduleId);
-            const currentTotal = parseInt(totalCount.textContent);
-            if (data.count !== currentTotal) {
-                animateCount(totalCount, currentTotal, data.count);
-            }
+            // Module-specific mode: update single module analytics
+            data = await getModuleFeedbackCount(eventCode, moduleId);
+            count = data.count || 0;
         } else {
-            // Event-level mode: update total and per-module counts
-            const data = await getFeedbackCount(eventCode);
-
-            // Update total count with animation
-            const currentTotal = parseInt(totalCount.textContent);
-            if (data.totalCount !== currentTotal) {
-                animateCount(totalCount, currentTotal, data.totalCount);
-            }
-
-            // Update module counts
-            if (data.modules && data.modules.length > 0) {
-                data.modules.forEach(module => {
-                    const moduleCountEl = document.getElementById(`module-count-${module.eventModuleId}`);
-                    if (moduleCountEl) {
-                        const currentModuleCount = parseInt(moduleCountEl.textContent);
-                        if (module.feedbackCount !== currentModuleCount) {
-                            animateCount(moduleCountEl, currentModuleCount, module.feedbackCount);
-                        }
-                    }
-                });
-            }
+            // Event-level mode: update aggregate analytics
+            data = await getFeedbackCount(eventCode);
+            count = data.totalCount || 0;
         }
+
+        // Update total count with animation
+        const currentTotal = parseInt(totalCount.textContent);
+        if (count !== currentTotal) {
+            animateCount(totalCount, currentTotal, count);
+        }
+
+        // Update analytics
+        updateAnalytics(data);
 
         // Update last updated time
         const now = new Date();
@@ -405,6 +391,101 @@ async function updateCount() {
     }
 }
 
+// Update analytics display
+function updateAnalytics(data) {
+    const avgSatisfactionEl = document.getElementById('avgSatisfaction');
+    const avgSpeakerKnowledgeEl = document.getElementById('avgSpeakerKnowledge');
+    const satisfactionStarsEl = document.getElementById('satisfactionStars');
+    const knowledgeStarsEl = document.getElementById('knowledgeStars');
+    const depthChartEl = document.getElementById('depthChart');
+
+    // Update satisfaction
+    if (data.averages && data.averages.moduleSatisfaction !== null) {
+        const satisfaction = data.averages.moduleSatisfaction;
+        avgSatisfactionEl.textContent = satisfaction.toFixed(1);
+        avgSatisfactionEl.className = 'metric-value ' + getRatingClass(satisfaction);
+        satisfactionStarsEl.innerHTML = renderStars(satisfaction);
+    } else {
+        avgSatisfactionEl.textContent = '-';
+        avgSatisfactionEl.className = 'metric-value';
+        satisfactionStarsEl.innerHTML = '';
+    }
+
+    // Update speaker knowledge
+    if (data.averages && data.averages.speakerKnowledge !== null) {
+        const knowledge = data.averages.speakerKnowledge;
+        avgSpeakerKnowledgeEl.textContent = knowledge.toFixed(1);
+        avgSpeakerKnowledgeEl.className = 'metric-value ' + getRatingClass(knowledge);
+        knowledgeStarsEl.innerHTML = renderStars(knowledge);
+    } else {
+        avgSpeakerKnowledgeEl.textContent = '-';
+        avgSpeakerKnowledgeEl.className = 'metric-value';
+        knowledgeStarsEl.innerHTML = '';
+    }
+
+    // Update content depth chart
+    if (data.contentDepth) {
+        renderContentDepthChart(data.contentDepth, depthChartEl);
+    }
+}
+
+// Render star rating
+function renderStars(rating) {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+
+    let stars = '';
+    for (let i = 0; i < fullStars; i++) {
+        stars += '★';
+    }
+    if (hasHalfStar) {
+        stars += '⯪';
+    }
+    for (let i = 0; i < emptyStars; i++) {
+        stars += '☆';
+    }
+
+    return stars;
+}
+
+// Get rating class for color coding
+function getRatingClass(rating) {
+    if (rating >= 4.0) return 'excellent';
+    if (rating >= 3.0) return 'good';
+    return 'poor';
+}
+
+// Render content depth chart
+function renderContentDepthChart(depthData, container) {
+    const total = depthData['Too Technical'] + depthData['Just Right'] + depthData['Too Low Level'];
+
+    if (total === 0) {
+        container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No feedback data yet</p>';
+        return;
+    }
+
+    const items = [
+        { label: 'Too Technical', count: depthData['Too Technical'] },
+        { label: 'Just Right', count: depthData['Just Right'] },
+        { label: 'Too Low Level', count: depthData['Too Low Level'] }
+    ];
+
+    container.innerHTML = items.map(item => {
+        const percentage = ((item.count / total) * 100).toFixed(0);
+        return `
+            <div class="depth-bar">
+                <div class="depth-label">${escapeHtml(item.label)}</div>
+                <div class="depth-bar-container">
+                    <div class="depth-bar-fill" style="width: ${percentage}%">
+                        ${item.count} (${percentage}%)
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
 // Get feedback count from API (event-level)
 async function getFeedbackCount(code) {
     if (CONFIG.USE_MOCK_DATA) {
@@ -412,28 +493,15 @@ async function getFeedbackCount(code) {
     }
 
     try {
-        // Fetch all events and filter client-side
-        const response = await apiGet(`/events`);
-        const allEvents = response.data || response;
-
-        const event = allEvents.find(e => e.eventCode === code);
-        if (!event) {
-            return { totalCount: 0, modules: [] };
-        }
-
-        // Calculate total count from modules
-        let totalCount = 0;
-        if (event.modules && Array.isArray(event.modules)) {
-            totalCount = event.modules.reduce((sum, m) => sum + (m.feedbackCount || 0), 0);
-        }
-
-        return {
-            totalCount: totalCount,
-            modules: event.modules || []
-        };
+        const response = await apiGet(`/events/${code}/count`);
+        return response.data || response;
     } catch (error) {
         console.error('Error fetching count:', error);
-        return { totalCount: 0, modules: [] };
+        return {
+            totalCount: 0,
+            averages: { speakerKnowledge: null, moduleSatisfaction: null },
+            contentDepth: { 'Too Technical': 0, 'Just Right': 0, 'Too Low Level': 0 }
+        };
     }
 }
 
@@ -444,24 +512,15 @@ async function getModuleFeedbackCount(code, modId) {
     }
 
     try {
-        // Fetch all events and filter client-side
-        const response = await apiGet(`/events`);
-        const allEvents = response.data || response;
-
-        const event = allEvents.find(e => e.eventCode === code);
-        if (!event) {
-            return { count: 0 };
-        }
-
-        const module = event.modules.find(m => m.eventModuleId === parseInt(modId));
-        if (!module) {
-            return { count: 0 };
-        }
-
-        return { count: module.feedbackCount || 0 };
+        const response = await apiGet(`/events/${code}/modules/${modId}/count`);
+        return response.data || response;
     } catch (error) {
         console.error('Error fetching module count:', error);
-        return { count: 0 };
+        return {
+            count: 0,
+            averages: { speakerKnowledge: null, moduleSatisfaction: null },
+            contentDepth: { 'Too Technical': 0, 'Just Right': 0, 'Too Low Level': 0 }
+        };
     }
 }
 
@@ -473,7 +532,31 @@ function mockGetModuleFeedbackCount(code, modId) {
             const moduleFeedback = allFeedback.filter(
                 fb => fb.eventCode === code && fb.eventModuleId === parseInt(modId)
             );
-            resolve({ count: moduleFeedback.length });
+
+            const count = moduleFeedback.length;
+            let avgSpeakerKnowledge = null;
+            let avgModuleSatisfaction = null;
+            const contentDepth = { 'Too Technical': 0, 'Just Right': 0, 'Too Low Level': 0 };
+
+            if (count > 0) {
+                avgSpeakerKnowledge = moduleFeedback.reduce((sum, fb) => sum + fb.speakerKnowledge, 0) / count;
+                avgModuleSatisfaction = moduleFeedback.reduce((sum, fb) => sum + fb.moduleSatisfaction, 0) / count;
+
+                moduleFeedback.forEach(fb => {
+                    if (contentDepth.hasOwnProperty(fb.contentDepth)) {
+                        contentDepth[fb.contentDepth]++;
+                    }
+                });
+            }
+
+            resolve({
+                count: count,
+                averages: {
+                    speakerKnowledge: avgSpeakerKnowledge,
+                    moduleSatisfaction: avgModuleSatisfaction
+                },
+                contentDepth: contentDepth
+            });
         }, CONFIG.MOCK_API_DELAY);
     });
 }
@@ -485,39 +568,30 @@ function mockGetFeedbackCount(code) {
         const allFeedback = JSON.parse(localStorage.getItem('bootcampFeedback')) || [];
         const eventFeedback = allFeedback.filter(fb => fb.eventCode === code);
 
-        // Use the mock event data structure
-        const mockEvents = {
-            'CSA1B2C3': {
-                totalCount: eventFeedback.length,
-                modules: [
-                    {
-                        eventModuleId: 1,
-                        moduleName: 'Introduction to CAT Bootcamp',
-                        speakerName: 'John Doe',
-                        feedbackCount: eventFeedback.length
-                    }
-                ]
-            },
-            'TEST123': {
-                totalCount: eventFeedback.length,
-                modules: [
-                    {
-                        eventModuleId: 2,
-                        moduleName: 'Building Your First Copilot',
-                        speakerName: 'Jane Smith',
-                        feedbackCount: Math.floor(eventFeedback.length * 0.6)
-                    },
-                    {
-                        eventModuleId: 3,
-                        moduleName: 'Advanced Copilot Features',
-                        speakerName: 'Bob Johnson',
-                        feedbackCount: Math.ceil(eventFeedback.length * 0.4)
-                    }
-                ]
-            }
-        };
+        const count = eventFeedback.length;
+        let avgSpeakerKnowledge = null;
+        let avgModuleSatisfaction = null;
+        const contentDepth = { 'Too Technical': 0, 'Just Right': 0, 'Too Low Level': 0 };
 
-        resolve(mockEvents[code] || { totalCount: 0, modules: [] });
+        if (count > 0) {
+            avgSpeakerKnowledge = eventFeedback.reduce((sum, fb) => sum + fb.speakerKnowledge, 0) / count;
+            avgModuleSatisfaction = eventFeedback.reduce((sum, fb) => sum + fb.moduleSatisfaction, 0) / count;
+
+            eventFeedback.forEach(fb => {
+                if (contentDepth.hasOwnProperty(fb.contentDepth)) {
+                    contentDepth[fb.contentDepth]++;
+                }
+            });
+        }
+
+        resolve({
+            totalCount: count,
+            averages: {
+                speakerKnowledge: avgSpeakerKnowledge,
+                moduleSatisfaction: avgModuleSatisfaction
+            },
+            contentDepth: contentDepth
+        });
     });
 }
 
@@ -588,31 +662,23 @@ function showCountDisplay() {
     errorState.style.display = 'none';
     countDisplay.style.display = 'block';
 
-    // Display event code
-    const eventCodeText = currentEvent.EventCode || currentEvent.eventCode || eventCode;
-    eventCodeDisplay.textContent = `Event: ${escapeHtml(eventCodeText)}`;
-
-    // Display initial counts
-    totalCount.textContent = currentEvent.totalCount || 0;
-
-    // Render module cards
-    const modules = currentEvent.modules || [];
-    // DEFENSIVE: Filter out inactive modules before displaying
-    const activeModules = modules.filter(m =>
-        m.eventModuleId && m.moduleName && m.isActive !== false
-    );
-    if (activeModules.length > 0) {
-        modulesContainer.innerHTML = activeModules.map(module => `
-            <div class="module-card">
-                <div class="module-info">
-                    <div class="module-name">${escapeHtml(module.moduleName)}</div>
-                    <div class="module-speaker">👤 ${escapeHtml(module.speakerName)}</div>
-                </div>
-                <div class="module-count" id="module-count-${module.eventModuleId}">${module.feedbackCount || 0}</div>
-            </div>
-        `).join('');
+    // Display event and module information
+    if (isModuleMode) {
+        // Module-specific mode
+        const moduleName = currentModule.moduleName || 'Module';
+        const speakerName = currentModule.speakerName || 'Unknown Speaker';
+        const eventName = currentModule.eventName || currentModule.eventCode || eventCode;
+        eventCodeDisplay.textContent = `${escapeHtml(moduleName)} - ${escapeHtml(speakerName)}`;
+        eventCodeDisplay.insertAdjacentHTML('afterend',
+            `<div style="font-size: 1.2rem; color: #666; margin-top: 5px;">Event: ${escapeHtml(eventName)}</div>`
+        );
+        totalCount.textContent = currentModule.count || 0;
     } else {
-        modulesContainer.innerHTML = '<p style="color: #666;">No modules for this event yet.</p>';
+        // Event-level mode
+        const eventCodeText = currentEvent.eventCode || eventCode;
+        const eventName = currentEvent.eventName || eventCodeText;
+        eventCodeDisplay.textContent = `Event: ${escapeHtml(eventName)}`;
+        totalCount.textContent = currentEvent.totalCount || 0;
     }
 }
 

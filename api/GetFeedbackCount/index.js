@@ -63,6 +63,29 @@ module.exports = async function (context, req) {
         // Calculate total feedback count
         const totalCount = modulesResult.reduce((sum, m) => sum + (m.FeedbackCount || 0), 0);
 
+        // Get content depth distribution for the event
+        const depthResult = await query(`
+            SELECT
+                f.ContentDepth,
+                COUNT(*) AS Count
+            FROM Feedback f
+            INNER JOIN EventModules em ON f.EventModuleId = em.EventModuleId
+            WHERE em.EventId = @eventId
+            GROUP BY f.ContentDepth
+        `, { eventId: event.EventId });
+
+        const contentDepth = {
+            'Too Technical': 0,
+            'Just Right': 0,
+            'Too Low Level': 0
+        };
+
+        depthResult.forEach(d => {
+            if (contentDepth.hasOwnProperty(d.ContentDepth)) {
+                contentDepth[d.ContentDepth] = d.Count;
+            }
+        });
+
         // Format module data
         const modules = modulesResult.map(m => ({
             eventModuleId: m.EventModuleId,
@@ -79,6 +102,24 @@ module.exports = async function (context, req) {
             lastSubmittedAt: m.LastSubmittedAt
         }));
 
+        // Calculate event-level averages
+        const validModules = modules.filter(m => m.feedbackCount > 0);
+        const totalFeedback = validModules.reduce((sum, m) => sum + m.feedbackCount, 0);
+
+        let avgSpeakerKnowledge = null;
+        let avgModuleSatisfaction = null;
+
+        if (totalFeedback > 0) {
+            // Weighted average based on feedback count
+            const sumSpeakerKnowledge = validModules.reduce((sum, m) =>
+                sum + (m.averages.speakerKnowledge || 0) * m.feedbackCount, 0);
+            const sumModuleSatisfaction = validModules.reduce((sum, m) =>
+                sum + (m.averages.moduleSatisfaction || 0) * m.feedbackCount, 0);
+
+            avgSpeakerKnowledge = parseFloat((sumSpeakerKnowledge / totalFeedback).toFixed(2));
+            avgModuleSatisfaction = parseFloat((sumModuleSatisfaction / totalFeedback).toFixed(2));
+        }
+
         // Format response for live counter
         context.res = success({
             eventCode: event.EventCode,
@@ -87,6 +128,11 @@ module.exports = async function (context, req) {
             endDate: event.EndDate,
             cohortId: event.CohortId,
             totalCount: totalCount,
+            averages: {
+                speakerKnowledge: avgSpeakerKnowledge,
+                moduleSatisfaction: avgModuleSatisfaction
+            },
+            contentDepth: contentDepth,
             modules: modules
         });
     } catch (err) {

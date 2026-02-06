@@ -63,6 +63,28 @@ module.exports = async function (context, req) {
 
         const data = result[0];
 
+        // Get content depth distribution for this specific module
+        const depthResult = await query(`
+            SELECT
+                ContentDepth,
+                COUNT(*) AS Count
+            FROM Feedback
+            WHERE EventModuleId = @eventModuleId
+            GROUP BY ContentDepth
+        `, { eventModuleId });
+
+        const contentDepth = {
+            'Too Technical': 0,
+            'Just Right': 0,
+            'Too Low Level': 0
+        };
+
+        depthResult.forEach(d => {
+            if (contentDepth.hasOwnProperty(d.ContentDepth)) {
+                contentDepth[d.ContentDepth] = d.Count;
+            }
+        });
+
         // Format response for live counter
         context.res = success({
             eventCode: data.EventCode,
@@ -80,6 +102,7 @@ module.exports = async function (context, req) {
                 speakerKnowledge: data.AvgSpeakerKnowledge ? parseFloat(data.AvgSpeakerKnowledge.toFixed(2)) : null,
                 moduleSatisfaction: data.AvgModuleSatisfaction ? parseFloat(data.AvgModuleSatisfaction.toFixed(2)) : null
             },
+            contentDepth: contentDepth,
             lastSubmittedAt: data.LastSubmittedAt
         });
     } catch (err) {
