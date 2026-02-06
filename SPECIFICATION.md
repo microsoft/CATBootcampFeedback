@@ -98,10 +98,11 @@ Events (1) ←→ (many) EventModules (many) ←→ (1) Modules
   - See all modules included in an event
   - View speaker assignments and delivery dates
   - Check feedback count per event
-- Generate and manage QR codes for events:
+- Generate and manage QR codes for each module:
   - View QR code in modal dialog
   - Download QR code as PNG image
   - Copy feedback URL to clipboard
+  - Open live counter page to track submissions in real-time
 - Edit existing events:
   - Modify event details (dates, cohort)
   - Update module assignments

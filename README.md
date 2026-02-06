@@ -74,6 +74,7 @@ Azure Static Web Apps' managed functions have **limited support for custom route
 - Downloadable as PNG
 - Includes full feedback URL with event code and module ID
 - Optimized for mobile scanning
+- Quick access to live counter for tracking submissions in real-time
 
 #### Feedback Viewing & Analytics
 - View all submissions with filtering
