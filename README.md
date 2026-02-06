@@ -357,14 +357,28 @@ feedbackapp/
 - **`api/host.json`** - Azure Functions runtime settings
 - **`api/src/shared/database.js`** - SQL connection and query helper
 - **`api/src/shared/utils.js`** - Response formatters and validation
+- **`PRIVACY.md`** - Privacy policy and data collection details
 
-## Security
+## Privacy & Security
+
+### 🔒 Privacy-First Design
+
+**No Personally Identifiable Information (PII) Collected**
+
+This application is designed with privacy as a core principle:
+- ❌ **No names, emails, or contact information** collected
+- ❌ **No IP addresses or device identifiers** stored
+- ❌ **No user tracking or analytics cookies** used
+- ✅ **100% anonymous feedback** - responses cannot be traced to individuals
+- ✅ **Privacy notice** displayed on feedback form
+
+**For complete privacy details, see:** [`PRIVACY.md`](PRIVACY.md)
 
 ### Public Endpoints
 - Event code validation prevents unauthorized access
 - Input sanitization on all fields
 - Rate limiting recommended
-- No PII collected
+- Anonymous feedback only
 
 ### Admin Endpoints
 - Authentication required
@@ -376,8 +390,10 @@ feedbackapp/
 ### Database
 - Parameterized queries (SQL injection prevention)
 - Azure SQL firewall rules
-- Encrypted connections
+- Encrypted connections (TLS)
+- Encryption at rest enabled
 - Regular automated backups
+- No PII stored in any table
 
 ## Browser Compatibility
 
@@ -389,6 +405,15 @@ feedbackapp/
 - ❌ IE11 (not supported)
 
 ## Version History
+
+**Version 3.3** (Feb 6, 2026)
+- **Privacy Compliance Enhancements**
+- Removed all PII collection (IP addresses, user agents)
+- Added PRIVACY.md comprehensive privacy policy document
+- Added privacy notice to feedback form
+- Updated backend to stop collecting identifying information
+- Enhanced security documentation
+- 100% anonymous feedback collection
 
 **Version 3.2** (Feb 6, 2026)
 - Enhanced Feedback Viewing with advanced filtering
@@ -427,6 +452,7 @@ feedbackapp/
 
 ## Support & Documentation
 
+- **Privacy Policy:** See [`PRIVACY.md`](PRIVACY.md) - Data collection and privacy details
 - **Complete Schema:** See `DATABASE-REFERENCE.md`
 - **Deployment Guide:** See `DEPLOYMENT_CONFIGURATION.md`
 - **Architecture:** See `DATABASE_ARCHITECTURE_V2.md`
@@ -437,6 +463,6 @@ This is a demonstration project for the CAT Bootcamp.
 
 ---
 
-**Version:** 3.2
+**Version:** 3.3
 **Last Updated:** February 6, 2026
-**Status:** Production - Enhanced Feedback Management
+**Status:** Production - Privacy-Compliant Anonymous Feedback

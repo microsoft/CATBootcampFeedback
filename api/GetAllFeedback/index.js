@@ -29,8 +29,7 @@ module.exports = async function (context, req) {
                 ContentDepth,
                 ModuleSatisfaction,
                 AdditionalComments,
-                SubmittedAt,
-                IpAddress
+                SubmittedAt
             FROM vw_FeedbackWithDetails
             ORDER BY SubmittedAt DESC
         `);
