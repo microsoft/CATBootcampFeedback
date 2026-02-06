@@ -850,7 +850,7 @@ async function viewEventDetails(eventId) {
                     <div style="font-family: monospace; font-size: 0.75em; word-break: break-all; background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
                         ${moduleUrl}
                     </div>
-                    <div style="display: flex; gap: 8px; justify-content: center;">
+                    <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
                         <button class="btn btn-sm btn-primary btn-download-module-qr"
                                 data-event-code="${event.eventCode}"
                                 data-module-id="${m.eventModuleId}"
@@ -862,6 +862,12 @@ async function viewEventDetails(eventId) {
                                 data-feedback-url="${escapeHtml(moduleUrl)}"
                                 style="font-size: 0.85em; padding: 6px 12px;">
                             📋 Copy URL
+                        </button>
+                        <button class="btn btn-sm btn-success btn-open-live-counter"
+                                data-event-code="${event.eventCode}"
+                                data-module-id="${m.eventModuleId}"
+                                style="font-size: 0.85em; padding: 6px 12px;">
+                            📊 Live Counter
                         </button>
                     </div>
                 </div>
@@ -933,6 +939,16 @@ async function viewEventDetails(eventId) {
         btn.addEventListener('click', (e) => {
             const url = e.target.dataset.feedbackUrl;
             copyFeedbackUrl(url);
+        });
+    });
+
+    // Open live counter for module
+    document.querySelectorAll('.btn-open-live-counter').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const eventCode = e.target.dataset.eventCode;
+            const moduleId = e.target.dataset.moduleId;
+            const counterUrl = `${window.location.origin}/count.html?code=${eventCode}&module=${moduleId}`;
+            window.open(counterUrl, '_blank');
         });
     });
 
