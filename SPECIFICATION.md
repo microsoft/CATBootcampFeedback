@@ -1,7 +1,18 @@
 # CAT Bootcamp Feedback Application - Specification
 
+**Version:** 3.0
+**Last Updated:** February 6, 2026
+**Status:** Production (Deployed)
+
+## Production Deployment
+
+**Frontend:** https://blue-moss-01913f80f.1.azurestaticapps.net
+**Backend API:** https://cat-bootcamp-api.azurewebsites.net/api
+**Architecture:** Azure Static Web App + Separate Azure Functions App
+**Database:** Azure SQL (V2 Schema - Many-to-Many)
+
 ## Project Overview
-A web application to collect structured feedback on modules delivered during the CAT Bootcamp. The application will gather quantitative ratings and qualitative feedback to assess module effectiveness and instructor performance.
+A web application to collect structured feedback on modules delivered during the CAT Bootcamp. The application gathers quantitative ratings and qualitative feedback to assess module effectiveness and instructor performance.
 
 The system consists of two main components:
 1. **Public Feedback Form** - Unauthenticated forms accessed via unique URLs with embedded event codes AND module IDs
@@ -498,100 +509,105 @@ Events (1) ←→ (many) EventModules (many) ←→ (1) Modules
 ### Backend API
 
 #### Technology Stack
-- **Platform**: Azure App Service / Azure Functions
-- **Language**: Node.js (Express), Python (Flask/FastAPI), or .NET (ASP.NET Core)
-- **Database**: Azure SQL Database
-- **Authentication**: Azure AD, JWT tokens for admin endpoints
+- **Platform**: **Separate Azure Functions App** (cat-bootcamp-api)
+  - **Why Separate?** Azure Static Web Apps' managed functions have limited support for custom routes with path parameters. A separate Functions app provides full RESTful routing capabilities.
+- **Runtime**: Node.js 20 (Linux Consumption Plan)
+- **URL**: https://cat-bootcamp-api.azurewebsites.net/api
+- **Database**: Azure SQL Database (cat-bootcamp-sql-89082)
+- **Authentication**: Simple token-based for admin endpoints
 
 #### API Endpoints
 
+**Base URL:** https://cat-bootcamp-api.azurewebsites.net/api
+
+**Note:** The frontend calls `/api/events` and filters client-side to get specific event/module data. This approach works around the limitation that some custom route parameters didn't deploy properly with the separate Functions app.
+
 ##### Public Endpoints (No Authentication)
 ```
-GET  /api/events/{eventCode}/modules/{eventModuleId}
-     - Get specific module delivery details for feedback form
-     - Parameters:
-       - eventCode: Event code (e.g., CSA1B2C3)
-       - eventModuleId: EventModuleId from URL parameter
-     - Returns: { success: true, data: { EventId, EventCode, EventModuleId, ModuleName, SpeakerName, DeliveryDate, DeliveryOrder, EventName, CohortId, IsActive } }
-     - Returns 404 if event or module not found or inactive
-     - Used by feedback form to load event and module details
-     - Note: Returns PascalCase field names from database
-
-GET  /api/events/{eventCode}
-     - Get event details with all modules (legacy support)
-     - Returns: { success: true, data: { EventId, EventCode, EventName, StartDate, EndDate, CohortId, IsActive, Modules: [...] } }
-     - Returns 404 if not found or inactive
-     - Note: Returns PascalCase field names from database
-
-GET  /api/events/{eventCode}/modules/{eventModuleId}/count
-     - Get feedback count for a specific module delivery
-     - Returns: { success: true, data: { count: number } }
-     - Used by count display page for live updates per module
-
-GET  /api/events/{eventCode}/count
-     - Get total feedback count for an event (all modules)
-     - Returns: { success: true, data: { count: number } }
-     - Used by count display page for event-level updates
-
 GET  /api/events
-     - List all events (supports admin interface)
-     - Query params: ?isActive=true&sortBy=ModuleDate&sortOrder=DESC
-     - Returns: { success: true, data: { events: [...], count: number } }
-     - Note: Returns PascalCase field names
+     - List all active events with their modules
+     - Returns: { success: true, message: "Success", data: [ array of events ] }
+     - Each event includes nested modules array
+     - Frontend filters this data client-side for specific events/modules
+     - Example response:
+       {
+         "success": true,
+         "data": [{
+           "eventId": 4,
+           "eventCode": "CSADEW12",
+           "eventName": "Test Event 1",
+           "modules": [
+             { "eventModuleId": 7, "moduleId": 2, "moduleName": "CAT Best Practices", ... }
+           ]
+         }]
+       }
 
-GET  /api/feedback
-     - Get all feedback submissions
-     - Query params: ?eventCode=XXX&limit=100&offset=0
-     - Returns: { success: true, data: { feedback: [...], total: number, limit: number, offset: number } }
-     - Includes event details (ModuleName, SpeakerName, ModuleDate) via JOIN
+GET  /api/modules
+     - List all active modules in the library
+     - Returns: { success: true, data: [ array of modules ] }
+     - Used by admin to select modules when creating events
 
 POST /api/feedback
      - Submit feedback for a specific module delivery
-     - Body: { eventCode, eventModuleId, speakerKnowledge, contentDepth, moduleSatisfaction, additionalComments }
-     - Parameters:
-       - eventCode: Event code from URL
-       - eventModuleId: EventModuleId from URL (identifies specific module delivery)
-       - speakerKnowledge: Rating 1-5
-       - contentDepth: 'Too Technical' | 'Just Right' | 'Too Low Level'
-       - moduleSatisfaction: Rating 1-5
-       - additionalComments: Optional text
+     - Body: {
+         eventCode: string,
+         eventModuleId: number,
+         speakerKnowledge: number (1-5),
+         contentDepth: 'Too Technical' | 'Just Right' | 'Too Low Level',
+         moduleSatisfaction: number (1-5),
+         additionalComments?: string
+       }
      - Returns: { success: true, data: { feedbackId } }
-     - Validates rating ranges (1-5) and content depth options
-     - Links feedback to specific module delivery via EventModuleId
+     - Validates rating ranges and event/module existence
 ```
 
-##### Admin Endpoints (Authentication Not Required - Implemented with Client-Side Auth)
+##### Admin Endpoints (Authentication Required)
 ```
+POST   /api/login
+       - Admin authentication
+       - Body: { username: string, password: string }
+       - Returns: { success: true, token: string, user: { ... } }
+       - Demo credentials: username=admin, password=CATBootcamp2026!
+
 POST   /api/events
        - Create new event
-       - Body: { moduleName, moduleDate, speakerName, cohortId?, description?, isActive }
+       - Body: { eventName, eventCode, startDate, endDate?, cohortId?, isActive }
        - Returns: { success: true, data: { eventId, eventCode } }
-       - Auto-generates unique event code
+       - Event code can be provided or auto-generated
 
 PUT    /api/events/{eventId}
-       - Update event
-       - Body: { moduleName?, moduleDate?, speakerName?, cohortId?, description?, isActive? }
+       - Update event details
+       - Body: { eventName?, startDate?, endDate?, cohortId?, isActive? }
        - Returns: { success: true, data: { eventId } }
 
 PUT    /api/events/{eventId}/status
-       - Update event active status
+       - Activate/deactivate event
        - Body: { isActive: boolean }
        - Returns: { success: true, data: { message, eventId, isActive } }
-       - Used by Activate/Deactivate button in admin interface
-       - Validates eventId exists before updating
-       - Updates IsActive flag and UpdatedAt timestamp
 
-DELETE /api/events/{eventId}
-       - Delete event with cascade delete of feedback
-       - Returns: { success: true, data: { message, eventId, feedbackDeleted } }
-       - Permanently deletes event and all associated feedback
-       - Requires confirmation in admin interface
+POST   /api/modules
+       - Create new reusable module
+       - Body: { moduleName, description?, isActive }
+       - Returns: { success: true, data: { moduleId } }
 
-POST   /api/admin/auth/login
-       - Admin authentication (mock data in development)
-       - Body: { username, password }
-       - Returns: { success: true, token: string, user: { username, fullName } }
-       - Demo credentials: username=admin, password=CATBootcamp2026!
+PUT    /api/modules/{moduleId}
+       - Update module details
+       - Body: { moduleName?, description?, isActive? }
+       - Returns: { success: true, data: { moduleId } }
+
+POST   /api/event-modules
+       - Add a module to an event
+       - Body: { eventId, moduleId, speakerName, deliveryOrder?, deliveryDate? }
+       - Returns: { success: true, data: { eventModuleId } }
+
+DELETE /api/event-modules/{eventModuleId}
+       - Remove a module from an event
+       - Returns: { success: true, data: { message } }
+
+GET    /api/feedback/all
+       - Get all feedback submissions (admin view)
+       - Query params: ?eventCode=XXX&limit=100&offset=0
+       - Returns: { success: true, data: { feedback: [...], total: number } }
 ```
 
 ##### Environment Detection
@@ -626,33 +642,73 @@ Error responses:
 - **Frontend**: JavaScript code handles both PascalCase and camelCase for compatibility
 - Example: `const moduleName = event.ModuleName || event.moduleName;`
 
-### Database Schema (Azure SQL)
+### Database Schema (Azure SQL) - V2 Architecture
+
+**Schema Version:** V2 (Many-to-Many Events ↔ Modules)
+
+**Key Change:** Moved from single Events table to a many-to-many relationship where Events can have multiple Modules, and Modules can be reused across Events.
 
 #### Table: Events
 ```sql
 CREATE TABLE Events (
     EventId INT IDENTITY(1,1) PRIMARY KEY,
     EventCode NVARCHAR(20) UNIQUE NOT NULL,
-    ModuleName NVARCHAR(200) NOT NULL,
-    ModuleDate DATE NOT NULL,
-    SpeakerName NVARCHAR(100) NOT NULL,
+    EventName NVARCHAR(200) NOT NULL,
+    StartDate DATE NOT NULL,
+    EndDate DATE NULL,
     CohortId NVARCHAR(50) NULL,
-    Description NVARCHAR(MAX) NULL,
     IsActive BIT DEFAULT 1,
     CreatedAt DATETIME2 DEFAULT GETDATE(),
     CreatedBy NVARCHAR(100) NULL,
     UpdatedAt DATETIME2 NULL,
     UpdatedBy NVARCHAR(100) NULL,
     INDEX IX_EventCode (EventCode),
-    INDEX IX_IsActive_ModuleDate (IsActive, ModuleDate)
+    INDEX IX_IsActive_StartDate (IsActive, StartDate)
 );
 ```
+
+#### Table: Modules
+```sql
+CREATE TABLE Modules (
+    ModuleId INT IDENTITY(1,1) PRIMARY KEY,
+    ModuleName NVARCHAR(200) NOT NULL,
+    Description NVARCHAR(MAX) NULL,
+    IsActive BIT DEFAULT 1,
+    CreatedAt DATETIME2 DEFAULT GETDATE(),
+    CreatedBy NVARCHAR(100) NULL,
+    UpdatedAt DATETIME2 NULL,
+    UpdatedBy NVARCHAR(100) NULL,
+    INDEX IX_ModuleName (ModuleName),
+    INDEX IX_IsActive (IsActive)
+);
+```
+
+**Purpose:** Reusable training modules that can be delivered at multiple events.
+
+#### Table: EventModules
+```sql
+CREATE TABLE EventModules (
+    EventModuleId INT IDENTITY(1,1) PRIMARY KEY,
+    EventId INT NOT NULL,
+    ModuleId INT NOT NULL,
+    SpeakerName NVARCHAR(100) NOT NULL,
+    DeliveryOrder INT NULL,
+    DeliveryDate DATETIME2 NULL,
+    Notes NVARCHAR(MAX) NULL,
+    FOREIGN KEY (EventId) REFERENCES Events(EventId) ON DELETE CASCADE,
+    FOREIGN KEY (ModuleId) REFERENCES Modules(ModuleId),
+    INDEX IX_EventId_DeliveryOrder (EventId, DeliveryOrder),
+    INDEX IX_ModuleId (ModuleId)
+);
+```
+
+**Purpose:** Junction table linking Events to Modules with delivery-specific details (speaker, order, date).
 
 #### Table: Feedback
 ```sql
 CREATE TABLE Feedback (
     FeedbackId INT IDENTITY(1,1) PRIMARY KEY,
-    EventId INT NOT NULL,
+    EventModuleId INT NOT NULL,
     EventCode NVARCHAR(20) NOT NULL,
     SpeakerKnowledge INT NOT NULL CHECK (SpeakerKnowledge BETWEEN 1 AND 5),
     ContentDepth NVARCHAR(20) NOT NULL CHECK (ContentDepth IN ('Too Technical', 'Just Right', 'Too Low Level')),
@@ -661,11 +717,14 @@ CREATE TABLE Feedback (
     SubmittedAt DATETIME2 DEFAULT GETDATE(),
     IpAddress NVARCHAR(45) NULL,
     UserAgent NVARCHAR(500) NULL,
-    FOREIGN KEY (EventId) REFERENCES Events(EventId),
-    INDEX IX_EventId_SubmittedAt (EventId, SubmittedAt),
+    FOREIGN KEY (EventModuleId) REFERENCES EventModules(EventModuleId) ON DELETE CASCADE,
+    INDEX IX_EventModuleId_SubmittedAt (EventModuleId, SubmittedAt),
+    INDEX IX_EventCode (EventCode),
     INDEX IX_SubmittedAt (SubmittedAt)
 );
 ```
+
+**Purpose:** Stores feedback submissions tied to specific module deliveries (EventModuleId).
 
 #### Table: AdminUsers (Optional)
 ```sql
@@ -819,28 +878,67 @@ The application implements client-side rate limiting to prevent abuse and enhanc
 
 ### Deployment Architecture
 
-#### Option 1: Azure App Service
+#### Current Deployment (Production)
+
+**Architecture:** Azure Static Web App + Separate Azure Functions App
+
 ```
-- Frontend: Static files served from App Service
-- Backend: Node.js/Python/.NET API on same App Service
-- Database: Azure SQL Database
-- Storage: Azure Blob Storage (for QR codes if stored)
+┌──────────────────────────────────┐
+│ Azure Static Web App             │
+│ (Frontend Hosting)               │
+│ - Name: cat-bootcamp-feedback    │
+│ - URL: blue-moss-01913f80f       │
+│   .1.azurestaticapps.net         │
+│ - Auto-deploy from GitHub        │
+└──────────────────────────────────┘
+            │
+            │ HTTPS + CORS
+            ↓
+┌──────────────────────────────────┐
+│ Azure Functions App              │
+│ (Separate Backend)               │
+│ - Name: cat-bootcamp-api         │
+│ - URL: cat-bootcamp-api          │
+│   .azurewebsites.net             │
+│ - Runtime: Node.js 20 (Linux)    │
+│ - Plan: Consumption (Serverless) │
+│ - Deploy: func CLI or GitHub     │
+└──────────────────────────────────┘
+            │
+            ↓
+┌──────────────────────────────────┐
+│ Azure SQL Database               │
+│ - Server: cat-bootcamp-sql-89082 │
+│ - Database: CATBootcampFeedback  │
+│ - Schema: V2 (Many-to-Many)      │
+└──────────────────────────────────┘
 ```
 
-#### Option 2: Azure Static Web Apps + Functions
+**Why Separate Functions App?**
+
+Azure Static Web Apps' managed functions have **limited support for custom routes** with path parameters. Endpoints like `/api/events/{code}/modules/{id}` don't work reliably with managed functions. A separate Functions app provides:
+- Full custom routing support
+- More control over runtime configuration
+- Better scalability and monitoring
+- Independent deployment lifecycle
+
+**Alternative Architectures (Not Implemented):**
+
+#### Option 2: Container-based
 ```
-- Frontend: Azure Static Web Apps
-- Backend: Azure Functions (serverless)
+- Frontend + Backend: Docker containers
+- Hosting: Azure Container Apps
 - Database: Azure SQL Database
-- Storage: Azure Blob Storage
+- Pros: Full control, easier local development
+- Cons: More complex, higher cost
 ```
 
-#### Option 3: Container-based
+#### Option 3: Single Azure App Service
 ```
-- Frontend: Containerized (Docker)
-- Backend: Containerized (Docker)
-- Hosting: Azure Container Apps or Azure Kubernetes Service
+- Frontend + Backend: Combined in one App Service
 - Database: Azure SQL Database
+- Pros: Simpler infrastructure
+- Cons: Less scalable, always-on costs
 ```
 
 ### QR Code Generation
