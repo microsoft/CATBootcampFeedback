@@ -14,15 +14,18 @@ module.exports = async function (context, req) {
         const eventCode = context.bindingData.code;
         const eventModuleId = parseInt(context.bindingData.moduleId);
 
+        // DEBUG: Log received parameters
+        context.log('GetEventModule called:', { eventCode, eventModuleId, rawModuleId: context.bindingData.moduleId });
+
         // Validate event code format
         if (!validateEventCode(eventCode)) {
-            context.res = error(400, 'Invalid event code format', 'INVALID_EVENT_CODE');
+            context.res = error(400, `Invalid event code format: ${eventCode}`, 'INVALID_EVENT_CODE');
             return;
         }
 
         // Validate eventModuleId
         if (!eventModuleId || isNaN(eventModuleId)) {
-            context.res = error(400, 'Invalid module ID', 'INVALID_MODULE_ID');
+            context.res = error(400, `Invalid module ID: ${context.bindingData.moduleId}`, 'INVALID_MODULE_ID');
             return;
         }
 
@@ -64,8 +67,11 @@ module.exports = async function (context, req) {
               AND m.IsActive = 1
         `, { eventCode, eventModuleId });
 
+        // DEBUG: Log query result
+        context.log('Query result:', { resultCount: result ? result.length : 0, result: result });
+
         if (!result || result.length === 0) {
-            context.res = error(404, 'Event or module not found or inactive', 'NOT_FOUND');
+            context.res = error(404, `Event or module not found: eventCode=${eventCode}, eventModuleId=${eventModuleId}, queryReturnedRows=${result ? result.length : 0}`, 'NOT_FOUND');
             return;
         }
 
