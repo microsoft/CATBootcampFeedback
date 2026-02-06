@@ -12,6 +12,7 @@ const { success, error } = require('../shared/utils');
 module.exports = async function (context, req) {
     try {
         // Get all feedback with event and module details using the view
+        // Note: IpAddress excluded to protect privacy (no PII returned)
         const feedback = await query(`
             SELECT
                 FeedbackId,
@@ -29,8 +30,7 @@ module.exports = async function (context, req) {
                 ContentDepth,
                 ModuleSatisfaction,
                 AdditionalComments,
-                SubmittedAt,
-                IpAddress
+                SubmittedAt
             FROM vw_FeedbackWithDetails
             ORDER BY SubmittedAt DESC
         `);
