@@ -939,25 +939,30 @@ async function viewEventDetails(eventId) {
 
                 const moduleUrl = `${window.location.origin}/feedback.html?code=${event.eventCode}&module=${m.eventModuleId}`;
 
-                QRCode.toCanvas(
-                    canvas,
-                    moduleUrl,
-                    {
-                        width: 200,
-                        margin: 2,
-                        color: {
-                            dark: CONFIG.QR_CODE_COLOR_DARK || '#667eea',
-                            light: CONFIG.QR_CODE_COLOR_LIGHT || '#ffffff'
+                if (typeof window.QRCode !== 'undefined') {
+                    window.QRCode.toCanvas(
+                        canvas,
+                        moduleUrl,
+                        {
+                            width: 200,
+                            margin: 2,
+                            color: {
+                                dark: CONFIG.QR_CODE_COLOR_DARK || '#667eea',
+                                light: CONFIG.QR_CODE_COLOR_LIGHT || '#ffffff'
+                            },
+                            errorCorrectionLevel: CONFIG.QR_CODE_ERROR_CORRECTION || 'M'
                         },
-                        errorCorrectionLevel: CONFIG.QR_CODE_ERROR_CORRECTION || 'M'
-                    },
-                    (error) => {
-                        if (error) {
-                            console.error(`QR Code generation error for module ${m.eventModuleId}:`, error);
-                            container.innerHTML = '<p style="color: #dc3545; font-size: 0.85em;">QR code failed</p>';
+                        (error) => {
+                            if (error) {
+                                console.error(`QR Code generation error for module ${m.eventModuleId}:`, error);
+                                container.innerHTML = '<p style="color: #dc3545; font-size: 0.85em;">QR code failed</p>';
+                            }
                         }
-                    }
-                );
+                    );
+                } else {
+                    console.error('QRCode library not loaded');
+                    container.innerHTML = '<p style="color: #dc3545; font-size: 0.85em;">QR library not loaded</p>';
+                }
             }
         });
     }, 100);
@@ -1507,15 +1512,24 @@ window.viewEventDetails = function(eventId) {
     // Generate QR code
     setTimeout(() => {
         const canvas = document.getElementById('qrCanvas');
-        if (typeof QRCode !== 'undefined') {
-            QRCode.toCanvas(canvas, feedbackUrl, {
+        if (typeof window.QRCode !== 'undefined') {
+            window.QRCode.toCanvas(canvas, feedbackUrl, {
                 width: CONFIG.QR_CODE_SIZE,
                 margin: CONFIG.QR_CODE_MARGIN,
                 color: {
                     dark: CONFIG.QR_CODE_COLOR_DARK,
                     light: CONFIG.QR_CODE_COLOR_LIGHT
+                },
+                errorCorrectionLevel: CONFIG.QR_CODE_ERROR_CORRECTION
+            }, (error) => {
+                if (error) {
+                    console.error('QR code generation error:', error);
+                } else {
+                    console.log('QR code generated successfully');
                 }
             });
+        } else {
+            console.error('QRCode library not loaded');
         }
     }, 100);
 
