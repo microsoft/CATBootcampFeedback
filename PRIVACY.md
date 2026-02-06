@@ -172,6 +172,16 @@ We reserve the right to update this privacy policy. Changes will be:
 
 ---
 
+## Microsoft Privacy Statement
+
+This application is part of Microsoft's training programs. For Microsoft's general privacy practices, please see:
+
+**[Microsoft Privacy Statement](https://privacy.microsoft.com/en-us/privacystatement)**
+
+This CAT Bootcamp Feedback application follows privacy-first principles aligned with Microsoft's commitment to data protection and user privacy.
+
+---
+
 ## Contact Information
 
 For questions about this privacy policy or data practices:
@@ -179,6 +189,7 @@ For questions about this privacy policy or data practices:
 - **Repository:** [github.com/microsoft/CATBootcampFeedback](https://github.com/microsoft/CATBootcampFeedback)
 - **Issues:** Submit questions via GitHub Issues
 - **Documentation:** See README.md for additional information
+- **Microsoft Privacy:** [privacy.microsoft.com](https://privacy.microsoft.com/)
 
 ---
 
