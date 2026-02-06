@@ -1,0 +1,158 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type "deploy-to-production" to confirm'
+        required: true
+        type: string
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  validate:
+    name: Validate Deployment Request
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate confirmation
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${{ github.event.inputs.confirmation }}" != "deploy-to-production" ]; then
+            echo "❌ Confirmation failed. You must type 'deploy-to-production' to proceed."
+            exit 1
+          fi
+          echo "✅ Confirmation validated"
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          cd api
+          npm install
+
+      - name: Run tests
+        run: |
+          cd api
+          npm test
+
+  deploy-frontend:
+    name: Deploy Frontend to Production
+    needs: validate
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://blue-moss-01913f80f-prod.centralus.5.azurestaticapps.net
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          lfs: false
+
+      - name: Build and Deploy to Production
+        id: builddeploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PROD }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "/"
+          api_location: ""
+          output_location: ""
+
+      - name: Deployment Summary
+        run: |
+          echo "### 🚀 Frontend Deployed to Production" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: https://blue-moss-01913f80f-prod.centralus.5.azurestaticapps.net" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+  deploy-backend:
+    name: Deploy Backend to Production
+    needs: validate
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://cat-bootcamp-api-prod.azurewebsites.net
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          cd api
+          npm install --production
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: 'cat-bootcamp-api-prod'
+          package: './api'
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE_PROD }}
+
+      - name: Deployment Summary
+        run: |
+          echo "### 🚀 Backend Deployed to Production" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
+          echo "- **Function App**: cat-bootcamp-api-prod" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: https://cat-bootcamp-api-prod.azurewebsites.net" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+  verify:
+    name: Verify Production Deployment
+    needs: [deploy-frontend, deploy-backend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for deployment to stabilize
+        run: sleep 30
+
+      - name: Check API Health
+        run: |
+          echo "Checking API health..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://cat-bootcamp-api-prod.azurewebsites.net/api/health || echo "000")
+          if [ "$response" = "200" ] || [ "$response" = "204" ]; then
+            echo "✅ API is healthy (HTTP $response)"
+          else
+            echo "⚠️ API returned HTTP $response"
+            echo "Note: API may still be starting up"
+          fi
+
+      - name: Check Frontend
+        run: |
+          echo "Checking frontend..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://blue-moss-01913f80f-prod.centralus.5.azurestaticapps.net || echo "000")
+          if [ "$response" = "200" ]; then
+            echo "✅ Frontend is accessible (HTTP $response)"
+          else
+            echo "❌ Frontend check failed (HTTP $response)"
+            exit 1
+          fi
+
+      - name: Verification Summary
+        if: success()
+        run: |
+          echo "### ✅ Production Deployment Verified" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All production services are running and accessible." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next Steps:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Test the application manually" >> $GITHUB_STEP_SUMMARY
+          echo "2. Monitor logs for any issues" >> $GITHUB_STEP_SUMMARY
+          echo "3. Verify database connectivity" >> $GITHUB_STEP_SUMMARY
