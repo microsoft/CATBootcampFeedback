@@ -6,321 +6,359 @@ A comprehensive web-based feedback collection system for CAT Bootcamp modules wi
 
 This application provides a complete solution for collecting and managing feedback on training modules. It consists of three main components:
 
-1. **Public Feedback Form** - URL-based feedback collection (no authentication required)
-2. **Admin Interface** - Manage events, view feedback, generate QR codes, and access analytics
+1. **Public Feedback Form** - Module-specific feedback collection via QR codes
+2. **Admin Interface** - Manage events, modules, view feedback, and generate QR codes
 3. **Live Count Display** - Real-time feedback submission count for presenters
 
 ## System Architecture
 
 ```
-┌─────────────────────┐
-│  Feedback Form      │  feedback.html?code=ABC123
-│  (Public Access)    │  Collects participant feedback
-└─────────────────────┘
-           │
-           ↓
-┌─────────────────────┐
-│    REST API         │  Handles data operations
-│  (Azure Backend)    │  Validates and stores feedback
-└─────────────────────┘
-           │
-           ↓
-┌─────────────────────┐
-│   Azure SQL         │  Persistent data storage
-│   Database          │  Events & Feedback tables
-└─────────────────────┘
-           ↑
-           │
-┌─────────────────────┐      ┌─────────────────────┐
-│  Admin Interface    │      │  Live Count Display │
-│  (Authenticated)    │      │  (Public Access)    │
-└─────────────────────┘      └─────────────────────┘
+┌─────────────────────────────────┐
+│   Azure Static Web App          │
+│   (Frontend Hosting)             │
+│   - feedback.html                │
+│   - admin.html                   │
+│   - count.html                   │
+└─────────────────────────────────┘
+            │
+            │ HTTPS/CORS
+            ↓
+┌─────────────────────────────────┐
+│  Azure Functions App             │
+│  (Separate Backend)              │
+│  - Full custom routing support   │
+│  - Node.js 20 runtime            │
+│  - RESTful API endpoints         │
+└─────────────────────────────────┘
+            │
+            ↓
+┌─────────────────────────────────┐
+│    Azure SQL Database            │
+│    - Events table                │
+│    - Modules table               │
+│    - EventModules table          │
+│    - Feedback table              │
+└─────────────────────────────────┘
 ```
 
-## Files Included
+### Why Separate Azure Functions App?
 
-### Frontend Files
-- **feedback.html** - Public feedback form
-- **feedback.js** - Feedback form logic and URL parameter handling
-- **admin.html** - Admin interface
-- **admin.js** - Admin functionality (events, QR codes, analytics)
-- **admin.css** - Admin interface styling
-- **count.html** - Live feedback count display
-- **count.js** - Count display logic with auto-refresh
-- **styles.css** - Shared styling for all pages
-
-### Documentation
-- **SPECIFICATION.md** - Complete technical specification with Azure SQL schema
-- **README.md** - This file
+Azure Static Web Apps' managed functions have **limited support for custom routes** with path parameters. To enable full RESTful routing (e.g., `/api/events/{code}/modules/{id}`), we use a separate Azure Functions app with complete routing flexibility.
 
 ## Features
 
 ### Public Feedback Form (feedback.html)
 
 #### Access Method
-- Each event has a unique URL: `feedback.html?code=EVENT_CODE`
-- Event code passed as URL parameter (hidden from user)
-- Module information auto-loaded from event code
+- Each module has a unique URL: `feedback.html?code=EVENT_CODE&module=MODULE_ID`
+- QR codes generated in admin panel contain these URLs
+- Module information auto-loaded from parameters
 
 #### Collected Data
-- ✅ **Speaker Knowledge** (1-5 scale, 5 = Excellent) - Required
+- ✅ **Speaker Knowledge** (1-5 scale) - Required
 - ✅ **Content Depth** (Too Technical / Just Right / Too Low Level) - Required
-- ✅ **Module Satisfaction** (1-5 scale, 5 = Very Satisfactory) - Required
+- ✅ **Module Satisfaction** (1-5 scale) - Required
 - ✅ **Additional Comments** (up to 1000 characters) - Optional
-
-#### User Experience
-- URL parameter validation and error handling
-- Loading state while fetching event details
-- Real-time form validation
-- Visual feedback for selected ratings
-- Character counter for comments
-- Success confirmation after submission
-- Fully responsive design
-- No authentication required
 
 ### Admin Interface (admin.html)
 
-#### Authentication
-- Username/password login required
-- Demo credentials: `admin` / `CATBootcamp2026!`
-- Session management with local storage
-
-#### Event Management
-- Create new events with auto-generated codes
-- Edit existing events
+#### Event & Module Management
+- Create events with multiple modules
+- Manage module deliveries and speakers
 - Activate/deactivate events
-- View event details
-- Search and filter events
-- Event code format: CS + 6 random characters (e.g., CSA1B2C3)
+- Reorder modules within events
+- Search and filter
 
 #### QR Code Generation
-- Automatic QR code generation for each event
-- Downloadable as PNG image
-- Includes full feedback URL
+- Individual QR code for each module
+- Downloadable as PNG
+- Includes full feedback URL with event code and module ID
 - Optimized for mobile scanning
 
-#### Feedback Viewing
-- View all feedback submissions
-- Filter by event or rating
-- See detailed responses with comments
-- Export all feedback to CSV
-
-#### Analytics Dashboard
-- Total events count
-- Total feedback submissions
-- Average satisfaction rating
-- Average speaker knowledge rating
-- Content depth distribution chart
+#### Feedback Viewing & Analytics
+- View all submissions with filtering
+- Export to CSV
+- Analytics dashboard with statistics
+- Real-time feedback counts
 
 ### Live Count Display (count.html)
 
-#### Features
-- Shows real-time count of feedback submissions
-- Auto-refreshes every 5 seconds
-- Displays module name and QR code
+- Real-time feedback count with auto-refresh
+- Display module name and event details
 - Fullscreen mode for projection
-- Animated count updates
 - Status indicator for live updates
 
-#### Usage
-- Access from admin panel or directly via URL
-- URL format: `count.html?code=EVENT_CODE`
-- Perfect for displaying during presentations
-- No authentication required
+## Database Schema (V2 - Many-to-Many)
 
-## Getting Started
+The application uses a many-to-many relationship between Events and Modules:
 
-### Quick Start (Demo Mode)
+```sql
+-- Events can have multiple modules
+Events (EventId, EventCode, EventName, StartDate, EndDate, ...)
 
-1. **View Feedback Form**
-   ```
-   Open: feedback.html?code=CSA1B2C3
-   ```
-   - Test with codes: `CSA1B2C3` or `TEST123`
-   - Submit feedback (stored in browser localStorage)
+-- Reusable modules
+Modules (ModuleId, ModuleName, Description, IsActive, ...)
 
-2. **Access Admin Panel**
-   ```
-   Open: admin.html
-   Login: admin / CATBootcamp2026!
-   ```
-   - Create/manage events
-   - View submitted feedback
-   - Generate QR codes
-   - View analytics
+-- Module deliveries within specific events
+EventModules (EventModuleId, EventId, ModuleId, SpeakerName, DeliveryOrder, ...)
 
-3. **View Live Count**
-   ```
-   Open: count.html?code=CSA1B2C3
-   ```
-   - See real-time feedback count
-   - Display during presentations
+-- Feedback tied to specific module deliveries
+Feedback (FeedbackId, EventModuleId, EventCode, SpeakerKnowledge, ...)
+```
 
-### Running with Local Web Server
+See `DATABASE-REFERENCE.md` for complete schema.
 
-For full functionality, serve files through a web server:
+## API Endpoints
+
+### Base URL
+```
+Production: https://cat-bootcamp-api.azurewebsites.net/api
+Local Dev:  http://localhost:7071/api
+```
+
+### Public Endpoints (No Auth Required)
+
+```
+GET  /api/events                              # List all events with modules
+GET  /api/events/{code}/modules               # Get modules for event
+POST /api/feedback                            # Submit feedback
+```
+
+### Admin Endpoints (Authentication Required)
+
+```
+POST   /api/login                             # Admin authentication
+GET    /api/modules                           # List all modules
+POST   /api/modules                           # Create module
+PUT    /api/modules/{id}                      # Update module
+GET    /api/events                            # List events (admin view)
+POST   /api/events                            # Create event
+PUT    /api/events/{id}                       # Update event
+POST   /api/event-modules                     # Add module to event
+DELETE /api/event-modules/{id}                # Remove module from event
+GET    /api/feedback/all                      # Get all feedback (admin)
+```
+
+## Deployment
+
+### Prerequisites
+- Azure subscription
+- GitHub account
+- Node.js 20+ installed locally
+- Azure CLI installed
+- Azure Functions Core Tools installed
+
+### Frontend Deployment (Azure Static Web Apps)
+
+**Already Deployed:**
+- URL: `https://blue-moss-01913f80f.1.azurestaticapps.net`
+- Auto-deploys from GitHub `main` branch
+- Workflow: `.github/workflows/azure-static-web-apps-blue-moss-01913f80f.yml`
+
+### Backend Deployment (Azure Functions App)
+
+**Already Deployed:**
+- Functions App: `cat-bootcamp-api`
+- URL: `https://cat-bootcamp-api.azurewebsites.net`
+- Runtime: Node.js 20, Linux Consumption Plan
+- Database: `cat-bootcamp-sql-89082.database.windows.net`
+
+#### Deploy Functions Manually
 
 ```bash
-# Using Python
-python -m http.server 8000
+# From the api/ directory
+cd api
+npm install
+func azure functionapp publish cat-bootcamp-api --javascript
+```
 
-# Using Node.js (http-server)
+#### Deploy via GitHub Actions
+
+A workflow exists at `.github/workflows/deploy-functions-app.yml` but requires valid publish profile credentials.
+
+### Configuration
+
+#### Frontend Config (`config.js`)
+```javascript
+API_BASE_URL: 'https://cat-bootcamp-api.azurewebsites.net/api'
+```
+
+#### Backend Settings (Azure Portal)
+```
+SQL_SERVER=cat-bootcamp-sql-89082.database.windows.net
+SQL_DATABASE=CATBootcampFeedback
+SQL_USER=sqladmin
+SQL_PASSWORD=*** (configured in Azure)
+NODE_ENV=production
+```
+
+## Development Setup
+
+### Local Frontend Development
+
+```bash
+# Serve frontend files
 npx http-server
 
-# Then access:
-http://localhost:8000/admin.html
+# Or use Python
+python -m http.server 8000
+
+# Access at http://localhost:8000
 ```
 
-## Configuration
+Frontend will use mock data when running on localhost.
 
-### Mock Data vs Real API
+### Local Backend Development
 
-All JavaScript files have configuration at the top:
+```bash
+# Install Azure Functions Core Tools
+npm install -g azure-functions-core-tools@4
 
+# Navigate to api folder
+cd api
+npm install
+
+# Create local.settings.json with database credentials
+# (See api/local.settings.json.example)
+
+# Start Functions locally
+func start
+
+# Functions available at http://localhost:7071/api
+```
+
+Update `config.js` to point to local backend:
 ```javascript
-const API_BASE_URL = '/api';
-const USE_MOCK_DATA = true; // Set to false for production
+API_BASE_URL: 'http://localhost:7071/api'
 ```
-
-**Mock Mode** (USE_MOCK_DATA = true):
-- Works without backend
-- Data stored in localStorage
-- Perfect for testing and demos
-- Includes sample events
-
-**Production Mode** (USE_MOCK_DATA = false):
-- Connects to real REST API
-- Data saved to Azure SQL
-- Requires backend setup
-
-### Switching to Production
-
-1. **Set up Azure SQL Database**
-   - See SPECIFICATION.md for schema
-   - Create tables: Events, Feedback, AdminUsers
-
-2. **Deploy Backend API**
-   - Implement REST endpoints (see SPECIFICATION.md)
-   - Deploy to Azure App Service or Functions
-   - Configure database connection
-
-3. **Update Configuration**
-   ```javascript
-   const API_BASE_URL = 'https://your-api.azurewebsites.net/api';
-   const USE_MOCK_DATA = false;
-   ```
-
-4. **Update Feedback Base URL**
-   ```javascript
-   const FEEDBACK_BASE_URL = 'https://your-domain.com/feedback.html';
-   ```
 
 ## Typical Workflow
 
 ### For Admins
 
-1. **Before Bootcamp**
+1. **Before Event**
    - Log into admin panel
-   - Create events for all modules
-   - Download/print QR codes
+   - Create event with modules
+   - Download QR codes for each module
    - Test feedback URLs
 
 2. **During Each Module**
-   - Share feedback URL or QR code with attendees
+   - Display QR code or share link
    - Open count display on second screen
-   - Monitor live feedback submissions
+   - Monitor live submissions
 
-3. **After Bootcamp**
+3. **After Event**
    - Review all feedback
    - Export data to CSV
-   - Analyze results in analytics tab
-   - Share reports with speakers
+   - Analyze results
+   - Share with speakers
 
 ### For Attendees
 
-1. Scan QR code or click feedback link
-2. Verify module information is correct
-3. Answer three required questions
-4. Optionally add comments
-5. Submit feedback
-6. See confirmation message
+1. Scan module-specific QR code
+2. Verify event and module information
+3. Answer required questions
+4. Submit feedback
+5. See confirmation
 
-### For Presenters
+## Troubleshooting
 
-1. Display count page during presentation
-2. Use fullscreen mode for better visibility
-3. Watch live feedback count increase
-4. Share feedback URL or show QR code
+### Feedback Form Shows Error
 
-## API Endpoints
+**Error: "allEvents.find is not a function"**
+- API response structure issue
+- Check `config.js` points to correct API URL
+- Verify Functions app is running
 
-See SPECIFICATION.md for complete API documentation.
+**Error: "Unable to Load Feedback Form"**
+- Invalid event code or module ID
+- Event or module may be inactive
+- Check admin panel to verify module exists
 
-### Public Endpoints (No Auth)
+### Admin Panel Issues
+
+**Cannot Login**
+- Demo credentials: `admin` / `CATBootcamp2026!`
+- Check that Functions app is accessible
+- Verify CORS is configured correctly
+
+**QR Codes Not Generating**
+- Check browser console for errors
+- Ensure QRCode.js library loaded
+- Verify internet connection
+
+### Deployment Issues
+
+**Functions Not Deploying**
+- Run `func azure functionapp publish cat-bootcamp-api --javascript`
+- Check for syntax errors in function code
+- Verify all dependencies in package.json
+
+**CORS Errors**
+- Add Static Web App URL to Functions app CORS settings:
+  ```bash
+  az functionapp cors add --name cat-bootcamp-api \
+    --resource-group cat-bootcamp-rg \
+    --allowed-origins "https://blue-moss-01913f80f.1.azurestaticapps.net"
+  ```
+
+## Project Structure
+
 ```
-GET  /api/events/{eventCode}       - Get event details
-POST /api/feedback                 - Submit feedback
-GET  /api/events/{eventCode}/count - Get feedback count
-```
-
-### Admin Endpoints (Auth Required)
-```
-POST   /api/admin/auth/login        - Admin login
-GET    /api/admin/events            - List all events
-POST   /api/admin/events            - Create event
-PUT    /api/admin/events/{id}       - Update event
-GET    /api/admin/feedback          - Get all feedback
-GET    /api/admin/analytics         - Get statistics
-```
-
-## Database Schema
-
-### Events Table
-```sql
-CREATE TABLE Events (
-    EventId INT IDENTITY PRIMARY KEY,
-    EventCode NVARCHAR(20) UNIQUE NOT NULL,
-    ModuleName NVARCHAR(200) NOT NULL,
-    ModuleDate DATE NOT NULL,
-    SpeakerName NVARCHAR(100) NOT NULL,
-    CohortId NVARCHAR(50) NULL,
-    IsActive BIT DEFAULT 1,
-    CreatedAt DATETIME2 DEFAULT GETDATE()
-);
-```
-
-### Feedback Table
-```sql
-CREATE TABLE Feedback (
-    FeedbackId INT IDENTITY PRIMARY KEY,
-    EventId INT NOT NULL,
-    EventCode NVARCHAR(20) NOT NULL,
-    SpeakerKnowledge INT NOT NULL,
-    ContentDepth NVARCHAR(20) NOT NULL,
-    ModuleSatisfaction INT NOT NULL,
-    AdditionalComments NVARCHAR(MAX) NULL,
-    SubmittedAt DATETIME2 DEFAULT GETDATE(),
-    FOREIGN KEY (EventId) REFERENCES Events(EventId)
-);
-```
-
-See SPECIFICATION.md for complete schema.
-
-## Development Tools
-
-### Browser Console Commands
-
-**Feedback Form:**
-```javascript
-viewAllFeedback()     // View all stored feedback
-clearAllFeedback()    // Clear localStorage
+feedbackapp/
+├── api/                          # Azure Functions backend
+│   ├── GetEvents/               # List events endpoint
+│   ├── GetEventModules/         # List modules for event
+│   ├── SubmitFeedback/          # Submit feedback endpoint
+│   ├── Login/                   # Admin authentication
+│   ├── src/shared/              # Shared utilities
+│   │   ├── database.js          # SQL connection
+│   │   └── utils.js             # Helper functions
+│   ├── host.json                # Functions runtime config
+│   └── package.json             # Node dependencies
+├── feedback.html                # Public feedback form
+├── feedback.js                  # Feedback form logic
+├── admin.html                   # Admin interface
+├── admin.js                     # Admin functionality
+├── count.html                   # Live count display
+├── count.js                     # Count page logic
+├── config.js                    # Centralized configuration
+├── api.js                       # API client with retry logic
+├── styles.css                   # Shared styling
+├── staticwebapp.config.json     # Static Web App config
+├── README.md                    # This file
+└── DATABASE-REFERENCE.md        # Complete database schema
 ```
 
-**Admin Panel:**
-```javascript
-// Console logs show current state
-// Mock data automatically generated for testing
-```
+## Key Files
+
+- **`config.js`** - Central configuration (API URLs, validation rules)
+- **`api.js`** - API client with error handling and retry logic
+- **`staticwebapp.config.json`** - Routing, CORS, security headers
+- **`api/host.json`** - Azure Functions runtime settings
+- **`api/src/shared/database.js`** - SQL connection and query helper
+- **`api/src/shared/utils.js`** - Response formatters and validation
+
+## Security
+
+### Public Endpoints
+- Event code validation prevents unauthorized access
+- Input sanitization on all fields
+- Rate limiting recommended
+- No PII collected
+
+### Admin Endpoints
+- Authentication required
+- Session tokens with expiration
+- HTTPS enforced
+- CORS configured for Static Web App only
+- Audit logging via Application Insights
+
+### Database
+- Parameterized queries (SQL injection prevention)
+- Azure SQL firewall rules
+- Encrypted connections
+- Regular automated backups
 
 ## Browser Compatibility
 
@@ -331,122 +369,30 @@ clearAllFeedback()    // Clear localStorage
 - ✅ Modern mobile browsers
 - ❌ IE11 (not supported)
 
-## Responsive Design
+## Version History
 
-- **Desktop** (1024px+): Full layout with all features
-- **Tablet** (768px-1023px): Optimized touch targets
-- **Mobile** (320px-767px): Stacked layout, large buttons
+**Version 3.0** (Feb 6, 2026)
+- Migrated to separate Azure Functions app for full routing support
+- Resolved dynamic route issues with managed functions
+- Updated frontend to use external Functions app
+- Improved error handling and API client
 
-## Security Considerations
+**Version 2.0** (Feb 4, 2026)
+- Migrated to many-to-many Events ↔ Modules relationship
+- Added module reusability across events
+- Enhanced admin panel with module management
+- Updated database schema to V2
 
-### Public Feedback Form
-- No authentication required (by design)
-- Event code validation prevents unauthorized access
-- Input sanitization on all text fields
-- Rate limiting recommended (5 submissions per IP/hour)
-- No PII collected
+**Version 1.0** (Feb 3, 2026)
+- Initial release with single Events table
+- Basic feedback collection
+- QR code generation
 
-### Admin Interface
-- Authentication required
-- Session tokens with expiration
-- HTTPS enforced in production
-- CORS configuration required
-- Audit logging recommended
+## Support & Documentation
 
-### Database
-- Parameterized queries prevent SQL injection
-- Azure SQL firewall rules
-- Encrypted connections
-- Regular backups
-- Data retention policy
-
-## Deployment Options
-
-### Option 1: Azure Static Web Apps + Functions
-```
-Frontend: Azure Static Web Apps
-Backend: Azure Functions (serverless)
-Database: Azure SQL Database
-```
-
-### Option 2: Azure App Service
-```
-Frontend + Backend: Single Azure App Service
-Database: Azure SQL Database
-```
-
-### Option 3: Container-based
-```
-Frontend + Backend: Docker containers
-Hosting: Azure Container Apps
-Database: Azure SQL Database
-```
-
-## Customization
-
-### Branding
-- Update gradient colors in `styles.css` and `admin.css`
-- Change logo/header text in HTML files
-- Modify color scheme to match organization
-
-### Event Code Format
-- Edit `generateEventCode()` in `admin.js`
-- Default: CS + 6 random chars
-- Can use sequential, prefixed, or UUID-based codes
-
-### Refresh Interval
-- Change `REFRESH_INTERVAL` in `count.js`
-- Default: 5000ms (5 seconds)
-
-### Form Fields
-- Add/remove questions in HTML
-- Update validation in JavaScript
-- Modify database schema accordingly
-
-## Troubleshooting
-
-### Feedback Form Won't Load
-- Check if event code is in URL
-- Verify event exists and is active
-- Check browser console for errors
-- Try with test code: CSA1B2C3
-
-### Admin Login Fails
-- Use demo credentials: admin/CATBootcamp2026!
-- Clear browser cache and localStorage
-- Check browser console for errors
-
-### Count Not Updating
-- Verify event code is correct
-- Check if feedback is being submitted
-- Look at browser console for errors
-- Ensure mock data mode matches feedback form
-
-### QR Code Not Generating
-- Check if QRCode.js library loaded
-- Verify internet connection (CDN)
-- Check browser console for errors
-
-## Future Enhancements
-
-- [ ] Email notifications for new feedback
-- [ ] Multi-language support
-- [ ] Anonymous vs identified submissions toggle
-- [ ] Custom questions per event
-- [ ] Sentiment analysis on comments
-- [ ] Integration with Teams/Slack
-- [ ] Mobile app version
-- [ ] Automated reports
-- [ ] Comparison across cohorts
-- [ ] Real-time dashboard with WebSockets
-
-## Support
-
-For questions or issues:
-1. Check SPECIFICATION.md for technical details
-2. Review browser console for error messages
-3. Verify configuration settings
-4. Test with mock data first
+- **Complete Schema:** See `DATABASE-REFERENCE.md`
+- **Deployment Guide:** See `DEPLOYMENT_CONFIGURATION.md`
+- **Architecture:** See `DATABASE_ARCHITECTURE_V2.md`
 
 ## License
 
@@ -454,7 +400,6 @@ This is a demonstration project for the CAT Bootcamp.
 
 ---
 
-**Version:** 2.0
-**Last Updated:** 2026-02-03
-**Author:** Claude Code Assistant
-# APIs configured Wed, Feb  4, 2026  4:56:17 AM
+**Version:** 3.0
+**Last Updated:** February 6, 2026
+**Status:** Production - Separate Azure Functions App Architecture
