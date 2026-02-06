@@ -115,8 +115,25 @@ async function loadEventDetails(code) {
     }
 
     try {
-        const response = await apiGet(`/events/${code}/count`);
-        return response.data || response;
+        // Fetch all events and filter client-side (same pattern as feedback.js)
+        const response = await apiGet(`/events`);
+        const allEvents = response.data || response;
+
+        const event = allEvents.find(e => e.eventCode === code);
+        if (!event) {
+            return null;
+        }
+
+        // Calculate total count from modules
+        let totalCount = 0;
+        if (event.modules && Array.isArray(event.modules)) {
+            totalCount = event.modules.reduce((sum, m) => sum + (m.feedbackCount || 0), 0);
+        }
+
+        return {
+            ...event,
+            totalCount: totalCount
+        };
     } catch (error) {
         console.error('Error loading event:', error);
         throw error;
@@ -131,8 +148,34 @@ async function loadModuleDetails(code, modId) {
     }
 
     try {
-        const response = await apiGet(`/events/${code}/modules/${modId}/count`);
-        return response.data || response;
+        // Fetch all events and filter client-side (same pattern as feedback.js)
+        const response = await apiGet(`/events`);
+        const allEvents = response.data || response;
+
+        const event = allEvents.find(e => e.eventCode === code);
+        if (!event) {
+            return null;
+        }
+
+        const module = event.modules.find(m => m.eventModuleId === parseInt(modId));
+        if (!module) {
+            return null;
+        }
+
+        // Construct module data with event context
+        return {
+            eventId: event.eventId,
+            eventCode: event.eventCode,
+            eventName: event.eventName,
+            cohortId: event.cohortId,
+            eventModuleId: module.eventModuleId,
+            moduleId: module.moduleId,
+            moduleName: module.moduleName,
+            speakerName: module.speakerName,
+            deliveryOrder: module.deliveryOrder,
+            deliveryDate: module.deliveryDate,
+            count: module.feedbackCount || 0
+        };
     } catch (error) {
         console.error('Error loading module:', error);
         throw error;
@@ -369,8 +412,25 @@ async function getFeedbackCount(code) {
     }
 
     try {
-        const response = await apiGet(`/events/${code}/count`);
-        return response.data || response;
+        // Fetch all events and filter client-side
+        const response = await apiGet(`/events`);
+        const allEvents = response.data || response;
+
+        const event = allEvents.find(e => e.eventCode === code);
+        if (!event) {
+            return { totalCount: 0, modules: [] };
+        }
+
+        // Calculate total count from modules
+        let totalCount = 0;
+        if (event.modules && Array.isArray(event.modules)) {
+            totalCount = event.modules.reduce((sum, m) => sum + (m.feedbackCount || 0), 0);
+        }
+
+        return {
+            totalCount: totalCount,
+            modules: event.modules || []
+        };
     } catch (error) {
         console.error('Error fetching count:', error);
         return { totalCount: 0, modules: [] };
@@ -384,8 +444,21 @@ async function getModuleFeedbackCount(code, modId) {
     }
 
     try {
-        const response = await apiGet(`/events/${code}/modules/${modId}/count`);
-        return response.data || response;
+        // Fetch all events and filter client-side
+        const response = await apiGet(`/events`);
+        const allEvents = response.data || response;
+
+        const event = allEvents.find(e => e.eventCode === code);
+        if (!event) {
+            return { count: 0 };
+        }
+
+        const module = event.modules.find(m => m.eventModuleId === parseInt(modId));
+        if (!module) {
+            return { count: 0 };
+        }
+
+        return { count: module.feedbackCount || 0 };
     } catch (error) {
         console.error('Error fetching module count:', error);
         return { count: 0 };
