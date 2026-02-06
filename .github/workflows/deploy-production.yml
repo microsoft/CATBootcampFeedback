@@ -73,7 +73,7 @@ jobs:
           echo "### 🚀 Frontend Deployed to Production" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
-          echo "- **URL**: https://blue-moss-01913f80f-prod.centralus.5.azurestaticapps.net" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: https://lively-ocean-076d52c0f.2.azurestaticapps.net" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Triggered by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
 
@@ -153,7 +153,7 @@ jobs:
       - name: Check Frontend
         run: |
           echo "Checking frontend..."
-          response=$(curl -s -o /dev/null -w "%{http_code}" https://blue-moss-01913f80f-prod.centralus.5.azurestaticapps.net || echo "000")
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://lively-ocean-076d52c0f.2.azurestaticapps.net || echo "000")
           if [ "$response" = "200" ]; then
             echo "✅ Frontend is accessible (HTTP $response)"
           else
