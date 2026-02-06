@@ -7,7 +7,8 @@
 IF OBJECT_ID('vw_EventsWithModules', 'V') IS NOT NULL
     DROP VIEW vw_EventsWithModules;
 
--- View: Events with all their modules
+-- Use EXEC to create view in separate batch
+EXEC('
 CREATE VIEW vw_EventsWithModules AS
 SELECT
     e.EventId,
@@ -31,3 +32,4 @@ FROM Events e
 INNER JOIN EventModules em ON e.EventId = em.EventId
 INNER JOIN Modules m ON em.ModuleId = m.ModuleId
 WHERE e.IsDeleted = 0;
+');

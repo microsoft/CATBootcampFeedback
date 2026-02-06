@@ -7,6 +7,8 @@
 IF OBJECT_ID('sp_GetFeedbackCountByEventCode', 'P') IS NOT NULL
     DROP PROCEDURE sp_GetFeedbackCountByEventCode;
 
+-- Use EXEC to create procedure in separate batch
+EXEC('
 CREATE PROCEDURE sp_GetFeedbackCountByEventCode
     @EventCode NVARCHAR(8)
 AS
@@ -44,3 +46,4 @@ BEGIN
     GROUP BY em.EventModuleId, em.ModuleId, m.ModuleName, em.SpeakerName, em.DeliveryOrder
     ORDER BY em.DeliveryOrder;
 END;
+');

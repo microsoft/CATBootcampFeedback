@@ -7,6 +7,8 @@
 IF OBJECT_ID('sp_GetEventByCode', 'P') IS NOT NULL
     DROP PROCEDURE sp_GetEventByCode;
 
+-- Use EXEC to create procedure in separate batch
+EXEC('
 CREATE PROCEDURE sp_GetEventByCode
     @EventCode NVARCHAR(8)
 AS
@@ -39,3 +41,4 @@ BEGIN
     WHERE e.EventCode = @EventCode AND e.IsActive = 1 AND e.IsDeleted = 0 AND m.IsActive = 1
     ORDER BY em.DeliveryOrder;
 END;
+');

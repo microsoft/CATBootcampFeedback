@@ -7,7 +7,8 @@
 IF OBJECT_ID('vw_FeedbackWithDetails', 'V') IS NOT NULL
     DROP VIEW vw_FeedbackWithDetails;
 
--- View: Feedback with full details
+-- Use EXEC to create view in separate batch
+EXEC('
 CREATE VIEW vw_FeedbackWithDetails AS
 SELECT
     f.FeedbackId,
@@ -32,3 +33,4 @@ FROM Feedback f
 INNER JOIN EventModules em ON f.EventModuleId = em.EventModuleId
 INNER JOIN Events e ON em.EventId = e.EventId
 INNER JOIN Modules m ON em.ModuleId = m.ModuleId;
+');

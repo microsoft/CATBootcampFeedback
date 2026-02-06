@@ -7,7 +7,8 @@
 IF OBJECT_ID('vw_EventFeedbackCounts', 'V') IS NOT NULL
     DROP VIEW vw_EventFeedbackCounts;
 
--- View: Event feedback counts
+-- Use EXEC to create view in separate batch
+EXEC('
 CREATE VIEW vw_EventFeedbackCounts AS
 SELECT
     e.EventId,
@@ -26,3 +27,4 @@ LEFT JOIN EventModules em ON e.EventId = em.EventId
 LEFT JOIN Feedback f ON em.EventModuleId = f.EventModuleId
 WHERE e.IsDeleted = 0
 GROUP BY e.EventId, e.EventName, e.EventCode, e.StartDate, e.EndDate, e.CohortId;
+');
