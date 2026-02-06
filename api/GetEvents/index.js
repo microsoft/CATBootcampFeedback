@@ -6,8 +6,8 @@
  * Used by admin panel to list events
  */
 
-const { query } = require('../shared/database');
-const { success, error } = require('../shared/utils');
+const { query } = require('../src/shared/database');
+const { success, error } = require('../src/shared/utils');
 
 module.exports = async function (context, req) {
     try {
