@@ -8,6 +8,16 @@
       "route": "/api/*",
       "methods": ["GET", "POST", "PUT", "DELETE"],
       "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/api/events/*",
+      "methods": ["GET"],
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/api/test",
+      "methods": ["GET"],
+      "allowedRoles": ["anonymous"]
     }
   ],
   "responseOverrides": {
