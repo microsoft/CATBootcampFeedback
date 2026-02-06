@@ -158,7 +158,8 @@ async function loadModuleDetails(code, moduleId) {
 
     try {
         // Fetch all events and filter for the specific event and module
-        const allEvents = await apiGet(`/events`);
+        const response = await apiGet(`/events`);
+        const allEvents = response.data || response; // Handle both {data: [...]} and [...] formats
 
         // Find the event with matching code
         const event = allEvents.find(e => e.eventCode === code);
