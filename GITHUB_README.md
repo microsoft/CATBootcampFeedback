@@ -37,7 +37,7 @@ npx http-server
 
 3. Access the application:
 - Feedback Form: `http://localhost:8000/feedback.html?code=CSA1B2C3`
-- Admin Panel: `http://localhost:8000/admin.html` (admin/admin123)
+- Admin Panel: `http://localhost:8000/admin.html` (admin/CATBootcamp2026!)
 - Live Count: `http://localhost:8000/count.html?code=CSA1B2C3`
 
 ## 📁 Project Structure

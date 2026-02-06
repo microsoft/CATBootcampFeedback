@@ -1,22 +1,32 @@
-// Configuration
-const API_BASE_URL = '/api';
-// Auto-detect environment - use real API in production
-const USE_MOCK_DATA = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+/**
+ * Live Feedback Count Display
+ * Integrated with utility modules
+ */
+
+import { CONFIG } from './config.js';
+import { getUrlParameter, formatDate, escapeHtml } from './utils.js';
+import { apiGet } from './api.js';
+import { getUserFriendlyErrorMessage } from './errors.js';
+
+// Determine base URLs
 const FEEDBACK_BASE_URL = window.location.origin + '/feedback.html';
-const REFRESH_INTERVAL = 5000; // 5 seconds
 
 // Global state
 let eventCode = null;
+let moduleId = null;
 let currentEvent = null;
+let currentModule = null;
 let refreshTimer = null;
+let isModuleMode = false;
 
 // DOM elements
 const loadingState = document.getElementById('loadingState');
 const countDisplay = document.getElementById('countDisplay');
 const errorState = document.getElementById('errorState');
 const errorMessage = document.getElementById('errorMessage');
-const feedbackCount = document.getElementById('feedbackCount');
-const moduleName = document.getElementById('moduleName');
+const eventCodeDisplay = document.getElementById('eventCodeDisplay');
+const totalCount = document.getElementById('totalCount');
+const modulesContainer = document.getElementById('modulesContainer');
 const lastUpdated = document.getElementById('lastUpdated');
 
 // Initialize
@@ -26,83 +36,57 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Initialize the count display
 async function initialize() {
-    // Get event code from URL parameter
+    // Get event code and optional module ID from URL parameters
     eventCode = getUrlParameter('code');
+    moduleId = getUrlParameter('module');
+    isModuleMode = !!moduleId;
 
-    // Clean up event code (remove any extra characters/spaces)
-    if (eventCode) {
-        eventCode = eventCode.trim().toUpperCase();
-    }
-
-    console.log('Count page initializing with event code:', eventCode);
-    console.log('Using mock data:', USE_MOCK_DATA);
+    console.log('Count page initializing with event code:', eventCode, 'module:', moduleId || 'none');
+    console.log('Using mock data:', CONFIG.USE_MOCK_DATA);
 
     if (!eventCode) {
-        showError(
-            'No Event Code Provided',
-            'The count display link is missing the event code parameter.',
-            'The URL should look like: count.html?code=ABC123'
-        );
+        // Show event selector instead of error
+        await showEventSelector();
         return;
     }
 
-    // Load event with the code
-    await loadEventByCode(eventCode);
-}
-
-// Load event by code (used by both URL and manual entry)
-async function loadEventByCode(code) {
-    // Clean and validate code
-    code = code.trim().toUpperCase();
-
-    if (!code) {
-        showError(
-            'Invalid Event Code',
-            'The event code cannot be empty.',
-            null
-        );
-        return false;
-    }
-
-    // Validate format (alphanumeric, 4-20 characters)
-    if (!/^[A-Z0-9]{4,20}$/.test(code)) {
-        showError(
-            'Invalid Event Code Format',
-            'The event code must be 4-20 alphanumeric characters.',
-            `Provided code: "${code}"`
-        );
-        return false;
-    }
-
     try {
-        // Load event details
-        console.log('Loading event details from API...');
-        const event = await loadEventDetails(code);
-        console.log('Event data received:', event);
+        if (isModuleMode) {
+            // Module-specific mode: load specific module details
+            console.log('Loading module details from API...');
+            const moduleData = await loadModuleDetails(eventCode, moduleId);
+            console.log('Module data received:', moduleData);
 
-        if (!event) {
-            console.error('Event is null or undefined');
-            showError(
-                'Event Not Found',
-                'No event exists with this code. Please check the code and try again.',
-                `Event Code: ${code}`
-            );
-            return false;
+            if (!moduleData) {
+                console.error('Module is null or undefined');
+                showError('Module not found or invalid module ID.');
+                return;
+            }
+
+            currentModule = moduleData;
+            currentEvent = {
+                eventId: moduleData.eventId,
+                eventCode: moduleData.eventCode,
+                eventName: moduleData.eventName,
+                cohortId: moduleData.cohortId
+            };
+            console.log('Module mode - current module set:', currentModule);
+        } else {
+            // Event-level mode: load event with all modules
+            console.log('Loading event details from API...');
+            const event = await loadEventDetails(eventCode);
+            console.log('Event data received:', event);
+
+            if (!event) {
+                console.error('Event is null or undefined');
+                showError('Event not found or invalid event code.');
+                return;
+            }
+
+            currentEvent = event;
+            console.log('Event mode - current event set:', currentEvent);
         }
 
-        // Check if event is active
-        if (event.isActive === false || event.IsActive === false) {
-            showError(
-                'Event Inactive',
-                'This event is no longer active.',
-                `Event Code: ${code}`
-            );
-            return false;
-        }
-
-        currentEvent = event;
-        eventCode = code;
-        console.log('Current event set:', currentEvent);
         showCountDisplay();
 
         // Generate QR code
@@ -115,81 +99,83 @@ async function loadEventByCode(code) {
         startLiveUpdates();
         console.log('Count page fully initialized');
 
-        return true;
-
     } catch (error) {
         console.error('Error initializing count page:', error);
         console.error('Error stack:', error.stack);
-        showError(
-            'Connection Error',
-            'Unable to load event information. Please check your internet connection and try again.',
-            error.message
-        );
-        return false;
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showError(friendlyError.message);
     }
-}
-
-// Get URL parameter
-function getUrlParameter(name) {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get(name);
 }
 
 // Load event details
 async function loadEventDetails(code) {
-    if (USE_MOCK_DATA) {
+    if (CONFIG.USE_MOCK_DATA) {
         console.log('Using mock data');
         return mockLoadEventDetails(code);
     }
 
     try {
-        const url = `${API_BASE_URL}/events/${code}`;
-        console.log('Fetching event from:', url);
-        const response = await fetch(url);
-        console.log('Response status:', response.status, response.statusText);
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                console.log(`Event not found: ${code}`);
-                return null;
-            }
-            console.error('API returned error status:', response.status);
-            const errorText = await response.text();
-            console.error('Error response:', errorText);
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        console.log('API response:', result);
-
-        // Handle API response format - API may return { success: true, data: {...} } or just the event object
-        let event = null;
-        if (result.success && result.data) {
-            event = result.data;
-        } else if (result.data) {
-            event = result.data;
-        } else {
-            event = result;
-        }
-
-        // Normalize field names (API returns PascalCase, we use camelCase)
-        if (event) {
-            event.eventId = event.EventId || event.eventId;
-            event.eventCode = event.EventCode || event.eventCode;
-            event.moduleName = event.ModuleName || event.moduleName;
-            event.moduleDate = event.ModuleDate || event.moduleDate;
-            event.speakerName = event.SpeakerName || event.speakerName;
-            event.cohortId = event.CohortId || event.cohortId;
-            event.isActive = event.IsActive !== undefined ? event.IsActive : event.isActive;
-        }
-
-        return event;
+        const response = await apiGet(`/events/${code}/count`);
+        return response.data || response;
     } catch (error) {
         console.error('Error loading event:', error);
-        console.error('Error name:', error.name);
-        console.error('Error message:', error.message);
         throw error;
     }
+}
+
+// Load module details (module-specific mode)
+async function loadModuleDetails(code, modId) {
+    if (CONFIG.USE_MOCK_DATA) {
+        console.log('Using mock module data');
+        return mockLoadModuleDetails(code, modId);
+    }
+
+    try {
+        const response = await apiGet(`/events/${code}/modules/${modId}/count`);
+        return response.data || response;
+    } catch (error) {
+        console.error('Error loading module:', error);
+        throw error;
+    }
+}
+
+// Mock load module details
+function mockLoadModuleDetails(code, modId) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const mockModules = {
+                'CSA1B2C3_1': {
+                    eventId: 1,
+                    eventCode: 'CSA1B2C3',
+                    eventName: 'CAT Bootcamp Q1-2026',
+                    cohortId: 'Q1-2026',
+                    eventModuleId: 1,
+                    moduleId: 1,
+                    moduleName: 'Introduction to CAT Bootcamp',
+                    speakerName: 'John Doe',
+                    deliveryOrder: 1,
+                    deliveryDate: '2026-02-15T09:00:00',
+                    count: Math.floor(Math.random() * 10)
+                },
+                'TEST123_2': {
+                    eventId: 2,
+                    eventCode: 'TEST123',
+                    eventName: 'Test Event',
+                    cohortId: 'Q1-2026',
+                    eventModuleId: 2,
+                    moduleId: 2,
+                    moduleName: 'Building Your First Copilot',
+                    speakerName: 'Jane Smith',
+                    deliveryOrder: 1,
+                    deliveryDate: '2026-02-16T09:00:00',
+                    count: Math.floor(Math.random() * 8)
+                }
+            };
+
+            const key = `${code}_${modId}`;
+            resolve(mockModules[key] || null);
+        }, CONFIG.MOCK_API_DELAY);
+    });
 }
 
 // Mock load event details
@@ -198,39 +184,165 @@ function mockLoadEventDetails(code) {
         setTimeout(() => {
             const mockEvents = {
                 'CSA1B2C3': {
-                    EventId: 1,
-                    EventCode: 'CSA1B2C3',
-                    ModuleName: 'Introduction to CAT Bootcamp',
-                    ModuleDate: '2026-02-15',
-                    SpeakerName: 'John Doe',
-                    CohortId: 'Q1-2026',
-                    IsActive: true
+                    eventId: 1,
+                    eventCode: 'CSA1B2C3',
+                    startDate: '2026-02-15',
+                    cohortId: 'Q1-2026',
+                    totalCount: 5,
+                    modules: [
+                        {
+                            eventModuleId: 1,
+                            moduleId: 1,
+                            moduleName: 'Introduction to CAT Bootcamp',
+                            speakerName: 'John Doe',
+                            deliveryOrder: 1,
+                            feedbackCount: 5
+                        }
+                    ]
                 },
                 'TEST123': {
-                    EventId: 2,
-                    EventCode: 'TEST123',
-                    ModuleName: 'Building Your First Copilot',
-                    ModuleDate: '2026-02-16',
-                    SpeakerName: 'Jane Smith',
-                    CohortId: 'Q1-2026',
-                    IsActive: true
+                    eventId: 2,
+                    eventCode: 'TEST123',
+                    startDate: '2026-02-16',
+                    cohortId: 'Q1-2026',
+                    totalCount: 8,
+                    modules: [
+                        {
+                            eventModuleId: 2,
+                            moduleId: 2,
+                            moduleName: 'Building Your First Copilot',
+                            speakerName: 'Jane Smith',
+                            deliveryOrder: 1,
+                            feedbackCount: 5
+                        },
+                        {
+                            eventModuleId: 3,
+                            moduleId: 3,
+                            moduleName: 'Advanced Copilot Features',
+                            speakerName: 'Bob Johnson',
+                            deliveryOrder: 2,
+                            feedbackCount: 3
+                        }
+                    ]
                 }
             };
 
             resolve(mockEvents[code] || null);
-        }, 500);
+        }, CONFIG.MOCK_API_DELAY);
     });
+}
+
+// Show event selector (fallback when no event code in URL)
+async function showEventSelector() {
+    const eventSelectionView = document.getElementById('eventSelectionView');
+    const eventSelect = document.getElementById('eventSelect');
+    const continueBtn = document.getElementById('continueBtn');
+    const viewModeSelection = document.getElementById('viewModeSelection');
+    const moduleSelect = document.getElementById('moduleSelect');
+
+    loadingState.style.display = 'none';
+    eventSelectionView.style.display = 'block';
+
+    try {
+        // Load events list
+        const response = await apiGet('/events');
+        const events = response.data || response;
+
+        if (!events || events.length === 0) {
+            showError('No active events found.');
+            return;
+        }
+
+        // Populate event selector
+        eventSelect.innerHTML = '<option value="">-- Select an Event --</option>' +
+            events.filter(e => e.isActive).map(e =>
+                `<option value="${e.eventCode}" data-event-id="${e.eventId}">${escapeHtml(e.eventName || e.eventCode)} - ${formatDate(e.startDate)}</option>`
+            ).join('');
+
+        // Handle event selection
+        eventSelect.addEventListener('change', async function() {
+            const selectedCode = this.value;
+            if (selectedCode) {
+                viewModeSelection.style.display = 'block';
+                continueBtn.disabled = false;
+
+                // Load modules for selected event
+                const selectedEvent = events.find(e => e.eventCode === selectedCode);
+                if (selectedEvent && selectedEvent.modules) {
+                    moduleSelect.innerHTML = '<option value="">-- Select a Module --</option>' +
+                        selectedEvent.modules.map(m =>
+                            `<option value="${m.eventModuleId}">${escapeHtml(m.moduleName)} - ${escapeHtml(m.speakerName)}</option>`
+                        ).join('');
+                }
+            } else {
+                viewModeSelection.style.display = 'none';
+                continueBtn.disabled = true;
+            }
+        });
+
+        // Handle view mode selection
+        document.querySelectorAll('input[name="viewMode"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                moduleSelect.style.display = this.value === 'module' ? 'block' : 'none';
+            });
+        });
+
+        // Handle continue button
+        continueBtn.addEventListener('click', function() {
+            const selectedCode = eventSelect.value;
+            const viewMode = document.querySelector('input[name="viewMode"]:checked').value;
+            const selectedModuleId = moduleSelect.value;
+
+            if (selectedCode) {
+                const url = new URL(window.location);
+                url.searchParams.set('code', selectedCode);
+
+                if (viewMode === 'module' && selectedModuleId) {
+                    url.searchParams.set('module', selectedModuleId);
+                }
+
+                window.history.pushState({}, '', url);
+                window.location.reload();
+            }
+        });
+    } catch (error) {
+        console.error('Error loading events:', error);
+        showError('Unable to load events.');
+    }
 }
 
 // Update feedback count
 async function updateCount() {
     try {
-        const count = await getFeedbackCount(eventCode);
+        if (isModuleMode) {
+            // Module-specific mode: update single module count
+            const data = await getModuleFeedbackCount(eventCode, moduleId);
+            const currentTotal = parseInt(totalCount.textContent);
+            if (data.count !== currentTotal) {
+                animateCount(totalCount, currentTotal, data.count);
+            }
+        } else {
+            // Event-level mode: update total and per-module counts
+            const data = await getFeedbackCount(eventCode);
 
-        // Animate count change
-        const currentCount = parseInt(feedbackCount.textContent);
-        if (count !== currentCount) {
-            animateCount(currentCount, count);
+            // Update total count with animation
+            const currentTotal = parseInt(totalCount.textContent);
+            if (data.totalCount !== currentTotal) {
+                animateCount(totalCount, currentTotal, data.totalCount);
+            }
+
+            // Update module counts
+            if (data.modules && data.modules.length > 0) {
+                data.modules.forEach(module => {
+                    const moduleCountEl = document.getElementById(`module-count-${module.eventModuleId}`);
+                    if (moduleCountEl) {
+                        const currentModuleCount = parseInt(moduleCountEl.textContent);
+                        if (module.feedbackCount !== currentModuleCount) {
+                            animateCount(moduleCountEl, currentModuleCount, module.feedbackCount);
+                        }
+                    }
+                });
+            }
         }
 
         // Update last updated time
@@ -246,20 +358,47 @@ async function updateCount() {
     }
 }
 
-// Get feedback count from API
+// Get feedback count from API (event-level)
 async function getFeedbackCount(code) {
-    if (USE_MOCK_DATA) {
+    if (CONFIG.USE_MOCK_DATA) {
         return mockGetFeedbackCount(code);
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/events/${code}/count`);
-        const data = await response.json();
-        return data.data?.count || 0;
+        const response = await apiGet(`/events/${code}/count`);
+        return response.data || response;
     } catch (error) {
         console.error('Error fetching count:', error);
-        return 0;
+        return { totalCount: 0, modules: [] };
     }
+}
+
+// Get module feedback count from API (module-specific)
+async function getModuleFeedbackCount(code, modId) {
+    if (CONFIG.USE_MOCK_DATA) {
+        return mockGetModuleFeedbackCount(code, modId);
+    }
+
+    try {
+        const response = await apiGet(`/events/${code}/modules/${modId}/count`);
+        return response.data || response;
+    } catch (error) {
+        console.error('Error fetching module count:', error);
+        return { count: 0 };
+    }
+}
+
+// Mock get module feedback count
+function mockGetModuleFeedbackCount(code, modId) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const allFeedback = JSON.parse(localStorage.getItem('bootcampFeedback')) || [];
+            const moduleFeedback = allFeedback.filter(
+                fb => fb.eventCode === code && fb.eventModuleId === parseInt(modId)
+            );
+            resolve({ count: moduleFeedback.length });
+        }, CONFIG.MOCK_API_DELAY);
+    });
 }
 
 // Mock get feedback count
@@ -268,13 +407,46 @@ function mockGetFeedbackCount(code) {
         // Get feedback from localStorage (for demo)
         const allFeedback = JSON.parse(localStorage.getItem('bootcampFeedback')) || [];
         const eventFeedback = allFeedback.filter(fb => fb.eventCode === code);
-        resolve(eventFeedback.length);
+
+        // Use the mock event data structure
+        const mockEvents = {
+            'CSA1B2C3': {
+                totalCount: eventFeedback.length,
+                modules: [
+                    {
+                        eventModuleId: 1,
+                        moduleName: 'Introduction to CAT Bootcamp',
+                        speakerName: 'John Doe',
+                        feedbackCount: eventFeedback.length
+                    }
+                ]
+            },
+            'TEST123': {
+                totalCount: eventFeedback.length,
+                modules: [
+                    {
+                        eventModuleId: 2,
+                        moduleName: 'Building Your First Copilot',
+                        speakerName: 'Jane Smith',
+                        feedbackCount: Math.floor(eventFeedback.length * 0.6)
+                    },
+                    {
+                        eventModuleId: 3,
+                        moduleName: 'Advanced Copilot Features',
+                        speakerName: 'Bob Johnson',
+                        feedbackCount: Math.ceil(eventFeedback.length * 0.4)
+                    }
+                ]
+            }
+        };
+
+        resolve(mockEvents[code] || { totalCount: 0, modules: [] });
     });
 }
 
 // Animate count change
-function animateCount(from, to) {
-    const duration = 1000; // 1 second
+function animateCount(element, from, to) {
+    const duration = CONFIG.COUNT_ANIMATION_DURATION;
     const steps = 20;
     const stepDuration = duration / steps;
     const increment = (to - from) / steps;
@@ -287,10 +459,10 @@ function animateCount(from, to) {
         current += increment;
 
         if (step >= steps) {
-            feedbackCount.textContent = to;
+            element.textContent = to;
             clearInterval(animation);
         } else {
-            feedbackCount.textContent = Math.round(current);
+            element.textContent = Math.round(current);
         }
     }, stepDuration);
 }
@@ -299,7 +471,7 @@ function animateCount(from, to) {
 function startLiveUpdates() {
     refreshTimer = setInterval(() => {
         updateCount();
-    }, REFRESH_INTERVAL);
+    }, CONFIG.COUNT_REFRESH_INTERVAL);
 }
 
 // Stop live updates
@@ -315,18 +487,22 @@ function generateQRCode() {
     const feedbackUrl = `${FEEDBACK_BASE_URL}?code=${eventCode}`;
     const canvas = document.getElementById('qrCode');
 
-    QRCode.toCanvas(canvas, feedbackUrl, {
-        width: 200,
-        margin: 2,
-        color: {
-            dark: '#667eea',
-            light: '#ffffff'
-        }
-    }, function(error) {
-        if (error) {
-            console.error('QR Code generation error:', error);
-        }
-    });
+    if (typeof QRCode !== 'undefined') {
+        QRCode.toCanvas(canvas, feedbackUrl, {
+            width: 200,
+            margin: CONFIG.QR_CODE_MARGIN,
+            color: {
+                dark: CONFIG.QR_CODE_COLOR_DARK,
+                light: CONFIG.QR_CODE_COLOR_LIGHT
+            }
+        }, function(error) {
+            if (error) {
+                console.error('QR Code generation error:', error);
+            }
+        });
+    } else {
+        console.error('QRCode library not loaded');
+    }
 }
 
 // Show count display
@@ -335,104 +511,37 @@ function showCountDisplay() {
     errorState.style.display = 'none';
     countDisplay.style.display = 'block';
 
-    // API returns PascalCase (ModuleName), handle both cases for compatibility
-    moduleName.textContent = currentEvent.ModuleName || currentEvent.moduleName || 'Unknown Module';
+    // Display event code
+    const eventCodeText = currentEvent.EventCode || currentEvent.eventCode || eventCode;
+    eventCodeDisplay.textContent = `Event: ${escapeHtml(eventCodeText)}`;
+
+    // Display initial counts
+    totalCount.textContent = currentEvent.totalCount || 0;
+
+    // Render module cards
+    const modules = currentEvent.modules || [];
+    if (modules.length > 0) {
+        modulesContainer.innerHTML = modules.map(module => `
+            <div class="module-card">
+                <div class="module-info">
+                    <div class="module-name">${escapeHtml(module.moduleName)}</div>
+                    <div class="module-speaker">👤 ${escapeHtml(module.speakerName)}</div>
+                </div>
+                <div class="module-count" id="module-count-${module.eventModuleId}">${module.feedbackCount || 0}</div>
+            </div>
+        `).join('');
+    } else {
+        modulesContainer.innerHTML = '<p style="color: #666;">No modules for this event yet.</p>';
+    }
 }
 
 // Show error
-function showError(title, message, details = null) {
+function showError(message) {
     loadingState.style.display = 'none';
     countDisplay.style.display = 'none';
-
-    // Update error content
-    const errorTitle = document.getElementById('errorTitle');
-    if (errorTitle) errorTitle.textContent = title || 'Unable to Load Count Display';
-
-    errorMessage.textContent = message || 'Unable to load feedback count.';
-
-    // Show details if provided
-    const errorDetailsEl = document.getElementById('errorDetails');
-    if (errorDetailsEl) {
-        if (details) {
-            errorDetailsEl.textContent = details;
-            errorDetailsEl.style.display = 'block';
-        } else {
-            errorDetailsEl.textContent = '';
-            errorDetailsEl.style.display = 'none';
-        }
-    }
-
-    // Clear manual entry error
-    const manualError = document.getElementById('manualEntryError');
-    if (manualError) {
-        manualError.style.display = 'none';
-        manualError.textContent = '';
-    }
-
-    // Clear manual entry input
-    const manualInput = document.getElementById('manualEventCode');
-    if (manualInput) {
-        manualInput.value = '';
-    }
-
     errorState.style.display = 'block';
+    errorMessage.textContent = message;
 }
-
-// Load event from manual entry
-window.loadManualEventCode = async function() {
-    const input = document.getElementById('manualEventCode');
-    const btn = document.getElementById('loadCountBtn');
-    const errorEl = document.getElementById('manualEntryError');
-    const code = input.value.trim().toUpperCase();
-
-    // Clear previous error
-    errorEl.style.display = 'none';
-    errorEl.textContent = '';
-
-    if (!code) {
-        errorEl.textContent = 'Please enter an event code';
-        errorEl.style.display = 'block';
-        input.focus();
-        return;
-    }
-
-    // Show loading on button
-    const btnText = btn.querySelector('.btn-text');
-    const btnSpinner = btn.querySelector('.btn-spinner');
-    btn.disabled = true;
-    btnText.textContent = 'Loading...';
-    btnSpinner.style.display = 'inline-block';
-
-    // Try to load event
-    const success = await loadEventByCode(code);
-
-    // Reset button
-    btn.disabled = false;
-    btnText.textContent = 'Load Count';
-    btnSpinner.style.display = 'none';
-
-    if (!success) {
-        // Error is already shown by loadEventByCode
-        input.focus();
-    }
-};
-
-// Handle Enter key in manual entry input
-document.addEventListener('DOMContentLoaded', function() {
-    const manualInput = document.getElementById('manualEventCode');
-    if (manualInput) {
-        manualInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                window.loadManualEventCode();
-            }
-        });
-
-        // Auto-uppercase as user types
-        manualInput.addEventListener('input', function(e) {
-            this.value = this.value.toUpperCase();
-        });
-    }
-});
 
 // Toggle fullscreen
 function toggleFullscreen() {
@@ -447,6 +556,9 @@ function toggleFullscreen() {
     }
 }
 
+// Make toggleFullscreen available globally
+window.toggleFullscreen = toggleFullscreen;
+
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {
     stopLiveUpdates();
@@ -454,5 +566,5 @@ window.addEventListener('beforeunload', () => {
 
 console.log('Feedback Count Display Loaded');
 console.log('Event Code:', eventCode);
-console.log('Using Mock Data:', USE_MOCK_DATA);
-console.log('Auto-refresh every', REFRESH_INTERVAL / 1000, 'seconds');
+console.log('Using Mock Data:', CONFIG.USE_MOCK_DATA);
+console.log('Auto-refresh every', CONFIG.COUNT_REFRESH_INTERVAL / 1000, 'seconds');

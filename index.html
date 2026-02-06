@@ -7,26 +7,32 @@
     <link rel="stylesheet" href="styles.css">
     <style>
         .welcome-container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 50px auto;
             text-align: center;
-            padding: 40px;
+            padding: 50px 40px;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
         }
 
         .welcome-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: #2c3e50;
             font-size: 3em;
             margin-bottom: 20px;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .welcome-description {
-            font-size: 1.2em;
-            color: #6c757d;
+            font-size: 1.3em;
+            color: #2c3e50;
             margin-bottom: 40px;
-            line-height: 1.6;
+            line-height: 1.8;
+            font-weight: 500;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .card-grid {
@@ -59,8 +65,9 @@
         }
 
         .info-card p {
-            color: #6c757d;
-            line-height: 1.5;
+            color: #495057;
+            line-height: 1.6;
+            font-size: 1.05em;
         }
 
         .icon {
@@ -71,8 +78,20 @@
         .footer {
             margin-top: 60px;
             padding: 20px;
-            color: #6c757d;
-            font-size: 0.9em;
+            color: #495057;
+            font-size: 1em;
+            line-height: 1.7;
+        }
+
+        .footer h3 {
+            color: #2c3e50;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+
+        .footer strong {
+            color: #2c3e50;
+            font-weight: 600;
         }
 
         .status-badge {

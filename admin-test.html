@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .status { padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        pre { background: #f4f4f4; padding: 10px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Admin Page Diagnostic Test</h1>
+
+    <div id="results"></div>
+
+    <h2>Actions</h2>
+    <button onclick="testModuleImports()">Test Module Imports</button>
+    <button onclick="testConfigAccess()">Test Config Access</button>
+    <button onclick="testMockLogin()">Test Mock Login</button>
+    <button onclick="clearAllStorage()">Clear All Storage</button>
+
+    <h2>Diagnostics</h2>
+    <button onclick="checkEnvironment()">Check Environment</button>
+    <button onclick="listLocalStorage()">List LocalStorage</button>
+
+    <script type="module">
+        window.results = document.getElementById('results');
+
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+
+        window.testModuleImports = async function() {
+            addResult('Testing module imports...', 'info');
+
+            try {
+                const { CONFIG } = await import('./config.js');
+                addResult('✓ config.js loaded successfully', 'success');
+                addResult(`<pre>USE_MOCK_DATA: ${CONFIG.USE_MOCK_DATA}</pre>`, 'info');
+            } catch (e) {
+                addResult(`✗ Failed to load config.js: ${e.message}`, 'error');
+            }
+
+            try {
+                const utils = await import('./utils.js');
+                addResult('✓ utils.js loaded successfully', 'success');
+            } catch (e) {
+                addResult(`✗ Failed to load utils.js: ${e.message}`, 'error');
+            }
+
+            try {
+                const api = await import('./api.js');
+                addResult('✓ api.js loaded successfully', 'success');
+            } catch (e) {
+                addResult(`✗ Failed to load api.js: ${e.message}`, 'error');
+            }
+
+            try {
+                const errors = await import('./errors.js');
+                addResult('✓ errors.js loaded successfully', 'success');
+            } catch (e) {
+                addResult(`✗ Failed to load errors.js: ${e.message}`, 'error');
+            }
+
+            try {
+                const rl = await import('./RateLimiter.js');
+                addResult('✓ RateLimiter.js loaded successfully', 'success');
+            } catch (e) {
+                addResult(`✗ Failed to load RateLimiter.js: ${e.message}`, 'error');
+            }
+        };
+
+        window.testConfigAccess = async function() {
+            try {
+                const { CONFIG } = await import('./config.js');
+                addResult('<h3>Config Values:</h3>', 'info');
+                addResult(`<pre>${JSON.stringify({
+                    USE_MOCK_DATA: CONFIG.USE_MOCK_DATA,
+                    API_BASE_URL: CONFIG.API_BASE_URL,
+                    MAX_LOGIN_ATTEMPTS: CONFIG.MAX_LOGIN_ATTEMPTS,
+                    hostname: window.location.hostname
+                }, null, 2)}</pre>`, 'info');
+            } catch (e) {
+                addResult(`Error: ${e.message}`, 'error');
+            }
+        };
+
+        window.testMockLogin = async function() {
+            addResult('Testing mock login...', 'info');
+
+            try {
+                const { CONFIG } = await import('./config.js');
+
+                // Simulate mock authentication
+                const username = 'admin';
+                const password = 'CATBootcamp2026!';
+
+                if (CONFIG.USE_MOCK_DATA) {
+                    if (username === 'admin' && password === 'CATBootcamp2026!') {
+                        addResult('✓ Mock login would succeed!', 'success');
+                        addResult('Credentials: admin / CATBootcamp2026!', 'success');
+                    } else {
+                        addResult('✗ Mock login would fail with these credentials', 'error');
+                    }
+                } else {
+                    addResult('⚠ App is NOT in mock mode - would try real API', 'error');
+                    addResult('Real API endpoint: /api/admin/auth/login', 'info');
+                }
+            } catch (e) {
+                addResult(`Error: ${e.message}`, 'error');
+            }
+        };
+
+        window.checkEnvironment = function() {
+            addResult('<h3>Environment Info:</h3>', 'info');
+            addResult(`<pre>${JSON.stringify({
+                hostname: window.location.hostname,
+                href: window.location.href,
+                userAgent: navigator.userAgent,
+                isAzure: window.location.hostname.includes('azurestaticapps.net'),
+                isLocalhost: window.location.hostname === 'localhost'
+            }, null, 2)}</pre>`, 'info');
+        };
+
+        window.listLocalStorage = function() {
+            addResult('<h3>LocalStorage Contents:</h3>', 'info');
+            const items = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                items[key] = localStorage.getItem(key);
+            }
+            addResult(`<pre>${JSON.stringify(items, null, 2)}</pre>`, 'info');
+        };
+
+        window.clearAllStorage = function() {
+            localStorage.clear();
+            sessionStorage.clear();
+            addResult('✓ Cleared all localStorage and sessionStorage', 'success');
+        };
+
+        // Auto-run on load
+        addResult('Diagnostic page loaded. Click buttons above to run tests.', 'info');
+        checkEnvironment();
+    </script>
+</body>
+</html>

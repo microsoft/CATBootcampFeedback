@@ -579,3 +579,126 @@ textarea {
 .hidden {
     display: none !important;
 }
+
+/* Notification Styles */
+.error-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-width: 400px;
+    z-index: 10000;
+    animation: slideIn 0.3s ease-out;
+    border-left: 4px solid #e74c3c;
+}
+
+.error-notification.success {
+    border-left-color: #27ae60;
+}
+
+.error-notification.info {
+    border-left-color: #3498db;
+}
+
+.error-notification.warning {
+    border-left-color: #f39c12;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.error-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.error-content strong {
+    font-size: 1.1rem;
+    color: #2c3e50;
+}
+
+.error-content p {
+    color: #666;
+    margin: 0;
+}
+
+.notification-close {
+    align-self: flex-end;
+    background: #ecf0f1;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #2c3e50;
+    transition: background-color 0.2s ease;
+}
+
+.notification-close:hover {
+    background: #bdc3c7;
+}
+
+/* Loading Skeleton */
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton-text {
+    height: 16px;
+    margin: 10px 0;
+}
+
+.skeleton-title {
+    height: 24px;
+    width: 60%;
+    margin: 10px 0;
+}
+
+/* Accessibility improvements */
+[role="alert"],
+[aria-live="assertive"] {
+    font-weight: 600;
+}
+
+/* Focus visible */
+:focus-visible {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
+}
+
+/* Screen reader only */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}

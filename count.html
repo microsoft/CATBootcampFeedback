@@ -27,35 +27,90 @@
             padding: 60px 80px;
             text-align: center;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 800px;
+            max-width: 900px;
             width: 100%;
         }
 
-        .module-name {
-            font-size: 1.5rem;
-            color: #666;
+        .event-header {
+            margin-bottom: 40px;
+        }
+
+        .event-code {
+            font-size: 1.8rem;
+            color: #333;
+            font-weight: 600;
             margin-bottom: 10px;
-            font-weight: 500;
+        }
+
+        .total-count-section {
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid #f0f0f0;
         }
 
         .count-label {
-            font-size: 1.25rem;
+            font-size: 1.1rem;
             color: #999;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             text-transform: uppercase;
             letter-spacing: 2px;
         }
 
-        .count-display {
-            font-size: 8rem;
+        .total-count {
+            font-size: 6rem;
             font-weight: 700;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin: 30px 0;
+            margin: 20px 0;
             line-height: 1;
             animation: pulse 2s ease-in-out infinite;
+        }
+
+        .modules-section {
+            margin: 30px 0;
+        }
+
+        .module-card {
+            background: #f8f9ff;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .module-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .module-info {
+            text-align: left;
+            flex: 1;
+        }
+
+        .module-name {
+            font-size: 1.2rem;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .module-speaker {
+            font-size: 0.95rem;
+            color: #666;
+        }
+
+        .module-count {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #667eea;
+            min-width: 80px;
+            text-align: right;
         }
 
         @keyframes pulse {
@@ -144,23 +199,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Button hover effects for manual entry */
-        .manual-entry-form button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .manual-entry-form button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .manual-entry-form input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
         .qr-section {
             margin-top: 40px;
             padding-top: 40px;
@@ -234,16 +272,52 @@
             <p class="loading">Loading feedback count...</p>
         </div>
 
+        <div id="eventSelectionView" style="display: none; text-align: left;">
+            <h2 style="margin-bottom: 20px;">Select Event</h2>
+            <p style="margin-bottom: 20px; color: #666;">Choose the event to display feedback counts for:</p>
+            <select id="eventSelect" style="width: 100%; padding: 12px; font-size: 16px; border-radius: 8px; border: 2px solid #ddd; margin-bottom: 20px;">
+                <option value="">-- Loading events... --</option>
+            </select>
+            <div id="viewModeSelection" style="display: none; margin-bottom: 20px;">
+                <p style="margin-bottom: 10px; color: #666;">View mode:</p>
+                <label style="display: block; margin-bottom: 10px;">
+                    <input type="radio" name="viewMode" value="event" checked> Event-level (all modules)
+                </label>
+                <label style="display: block; margin-bottom: 10px;">
+                    <input type="radio" name="viewMode" value="module"> Module-specific
+                </label>
+                <select id="moduleSelect" style="width: 100%; padding: 12px; font-size: 16px; border-radius: 8px; border: 2px solid #ddd; display: none;">
+                    <option value="">-- Select a module --</option>
+                </select>
+            </div>
+            <button id="continueBtn" class="btn" style="width: 100%; padding: 15px; font-size: 18px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer;" disabled>
+                Continue →
+            </button>
+        </div>
+
         <div id="countDisplay" style="display: none;">
             <div class="feedback-icon">💬</div>
-            <div class="module-name" id="moduleName">Module Name</div>
-            <div class="count-label">Feedback Submissions</div>
-            <div class="count-display" id="feedbackCount">0</div>
-            <div class="status-indicator">
-                <div class="status-dot"></div>
-                <span>Live Updates Active</span>
+
+            <div class="event-header">
+                <div class="event-code" id="eventCodeDisplay">Event Code</div>
             </div>
-            <div class="last-updated">Last updated: <span id="lastUpdated">-</span></div>
+
+            <div class="total-count-section">
+                <div class="count-label">Total Feedback Submissions</div>
+                <div class="total-count" id="totalCount">0</div>
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span>Live Updates Active</span>
+                </div>
+                <div class="last-updated">Last updated: <span id="lastUpdated">-</span></div>
+            </div>
+
+            <div class="modules-section">
+                <div class="count-label" style="margin-bottom: 20px;">Per-Module Breakdown</div>
+                <div id="modulesContainer">
+                    <!-- Module cards will be inserted here -->
+                </div>
+            </div>
 
             <div class="qr-section">
                 <div class="qr-label">Scan to Submit Feedback</div>
@@ -256,34 +330,11 @@
         </div>
 
         <div id="errorState" style="display: none;">
-            <div class="feedback-icon" style="font-size: 4rem; margin-bottom: 20px;">⚠️</div>
-            <h3 id="errorTitle" style="font-size: 1.75rem; color: #333; margin-bottom: 15px;">Unable to Load Count Display</h3>
             <div class="error-message" id="errorMessage">Unable to load feedback count.</div>
-            <div class="error-details" id="errorDetails" style="display: none; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 10px 15px; margin: 15px auto; max-width: 600px; color: #856404; font-size: 0.9rem; font-family: 'Courier New', monospace;"></div>
-
-            <!-- Manual Event Code Entry -->
-            <div class="manual-entry-section" style="margin: 30px auto; padding: 30px; background: rgba(255, 255, 255, 0.9); border: 2px solid #e0e5ff; border-radius: 10px; max-width: 500px;">
-                <p class="manual-entry-prompt" style="font-size: 1rem; color: #333; font-weight: 600; margin-bottom: 15px;">Have a valid event code? Enter it below:</p>
-                <div class="manual-entry-form" style="display: flex; gap: 10px; margin-bottom: 10px;">
-                    <input
-                        type="text"
-                        id="manualEventCode"
-                        placeholder="Enter event code (e.g., CSA1B2C3)"
-                        maxlength="20"
-                        style="flex: 1; padding: 12px 15px; border: 2px solid #ddd; border-radius: 6px; font-size: 1rem; font-family: 'Courier New', monospace; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;">
-                    <button type="button" class="btn btn-primary" id="loadCountBtn" onclick="loadManualEventCode()" style="padding: 12px 24px; white-space: nowrap; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;">
-                        <span class="btn-text">Load Count</span>
-                        <span class="btn-spinner" style="display: none; width: 16px; height: 16px; border: 2px solid #ffffff; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></span>
-                    </button>
-                </div>
-                <p class="manual-entry-error" id="manualEntryError" style="display: none; color: #e74c3c; font-size: 0.875rem; padding: 10px; background: #ffe6e6; border-radius: 6px; border: 1px solid #e74c3c; margin-top: 10px;"></p>
-            </div>
-
-            <p class="error-help" style="color: #999; font-size: 0.9rem; font-style: italic; margin-top: 20px;">Don't have a code? Contact the event organizer for the correct link.</p>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-    <script src="count.js"></script>
+    <script type="module" src="count.js"></script>
 </body>
 </html>

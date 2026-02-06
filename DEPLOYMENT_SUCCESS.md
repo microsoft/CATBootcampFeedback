@@ -33,7 +33,7 @@ Your CAT Bootcamp Feedback Application is now **fully deployed and operational**
 - QR code generation
 - Feedback viewing
 - Analytics dashboard
-- Demo login: admin / admin123 (⚠️ Change this!)
+- Demo login: admin / CATBootcamp2026! (⚠️ Change this!)
 
 ---
 
@@ -161,7 +161,7 @@ Internet
 - Visit the landing page
 - Submit test feedback using event code CSA1B2C3
 - View the live count display
-- Log into admin panel (admin/admin123)
+- Log into admin panel (admin/CATBootcamp2026!)
 
 ### 2. Create Real Events
 - Log into admin panel
@@ -180,7 +180,7 @@ Internet
 - Review analytics and reports
 
 ### 5. Security (Important!)
-⚠️ **Change the admin password from the demo credentials (admin/admin123)**
+⚠️ **Change the admin password from the demo credentials (admin/CATBootcamp2026!)**
 
 ---
 
@@ -202,7 +202,7 @@ Internet
 
 ### Admin Panel (Demo - Change This!)
 - Username: admin
-- Password: admin123
+- Password: CATBootcamp2026!
 
 ---
 

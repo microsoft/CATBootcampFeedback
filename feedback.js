@@ -1,11 +1,31 @@
-// Configuration
-const API_BASE_URL = '/api';
-// Auto-detect environment - use real API in production
-const USE_MOCK_DATA = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+/**
+ * Feedback Form - Main Application
+ * Integrated with utility modules for better security, error handling, and maintainability
+ */
+
+import { CONFIG } from './config.js';
+import {
+    InputSanitizer,
+    escapeHtml,
+    getUrlParameter,
+    formatDate,
+    validateFeedbackData
+} from './utils.js';
+import {
+    getUserFriendlyErrorMessage,
+    FeedbackError,
+    EventError,
+    NetworkError
+} from './errors.js';
+import { apiGet, apiPost } from './api.js';
+import { createFeedbackRateLimiter } from './RateLimiter.js';
+import { eventCache } from './Cache.js';
 
 // Global state
 let currentEvent = null;
+let selectedEventModule = null;
 let eventCode = null;
+let rateLimiter = null;
 
 // DOM elements
 const loadingState = document.getElementById('loadingState');
@@ -26,143 +46,175 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Initialize form
 async function initializeForm() {
-    // Get event code from URL parameter
+    // Get event code and module ID from URL parameters
     eventCode = getUrlParameter('code');
+    const moduleId = getUrlParameter('module');
 
-    // Clean up event code (remove any extra characters/spaces)
-    if (eventCode) {
-        eventCode = eventCode.trim().toUpperCase();
-    }
-
-    if (!eventCode) {
-        showError(
-            'No Event Code Provided',
-            'The feedback link is missing the event code parameter.',
-            'The URL should look like: feedback.html?code=ABC123'
-        );
-        return;
-    }
-
-    // Load event with the code
-    await loadEventByCode(eventCode);
-}
-
-// Load event by code (used by both URL and manual entry)
-async function loadEventByCode(code) {
-    // Clean and validate code
-    code = code.trim().toUpperCase();
-
-    if (!code) {
-        showError(
-            'Invalid Event Code',
-            'The event code cannot be empty.',
-            null
-        );
-        return false;
-    }
-
-    // Validate format (alphanumeric, 4-20 characters)
-    if (!/^[A-Z0-9]{4,20}$/.test(code)) {
-        showError(
-            'Invalid Event Code Format',
-            'The event code must be 4-20 alphanumeric characters.',
-            `Provided code: "${code}"`
-        );
-        return false;
-    }
-
-    // Load event details
     try {
-        const event = await loadEventDetails(code);
-        if (event) {
-            // Check if event is active
-            if (event.isActive === false || event.IsActive === false) {
-                showError(
-                    'Event Inactive',
-                    'This event is no longer accepting feedback.',
-                    `Event Code: ${code}`
-                );
-                return false;
-            }
+        // Case 1: No event code - show event selector
+        if (!eventCode) {
+            await showEventSelector();
+            return;
+        }
 
-            currentEvent = event;
-            eventCode = code;
-            displayEventInfo(event);
-            showForm();
-            setupFormListeners();
-            return true;
+        // Validate event code format
+        if (!InputSanitizer.validateEventCode(eventCode)) {
+            showError('Not a valid event code.');
+            return;
+        }
+
+        // Initialize rate limiter for this event
+        rateLimiter = createFeedbackRateLimiter(eventCode);
+
+        // Case 2: Event code present, module ID present - direct to feedback
+        if (moduleId) {
+            const moduleData = await loadModuleDetails(eventCode, moduleId);
+            if (moduleData) {
+                currentEvent = {
+                    eventId: moduleData.eventId,
+                    eventCode: moduleData.eventCode,
+                    eventName: moduleData.eventName,
+                    startDate: moduleData.startDate,
+                    endDate: moduleData.endDate,
+                    cohortId: moduleData.cohortId,
+                    isActive: moduleData.isActive
+                };
+                selectedEventModule = {
+                    eventModuleId: moduleData.eventModuleId,
+                    moduleId: moduleData.moduleId,
+                    moduleName: moduleData.moduleName,
+                    speakerName: moduleData.speakerName,
+                    deliveryDate: moduleData.deliveryDate,
+                    deliveryOrder: moduleData.deliveryOrder
+                };
+                displayModuleInfo(selectedEventModule);
+                showForm();
+                setupFormListeners();
+            } else {
+                showError('Not a valid event code or module.');
+            }
         } else {
-            showError(
-                'Event Not Found',
-                'No event exists with this code. Please check the code and try again.',
-                `Event Code: ${code}`
-            );
-            return false;
+            // Case 3: Event code present, no module ID - show module selector
+            const event = await loadEventDetails(eventCode);
+            if (event) {
+                currentEvent = event;
+                displayEventInfo(event);
+                showForm();
+                setupFormListeners();
+            } else {
+                showError('Not a valid event code.');
+            }
         }
     } catch (error) {
         console.error('Error loading event:', error);
-        showError(
-            'Connection Error',
-            'Unable to load event information. Please check your internet connection and try again.',
-            error.message
-        );
-        return false;
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showError(friendlyError.message);
     }
-}
-
-// Get URL parameter
-function getUrlParameter(name) {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get(name);
 }
 
 // Load event details from API
 async function loadEventDetails(code) {
-    if (USE_MOCK_DATA) {
-        // Mock data for testing
+    if (CONFIG.USE_MOCK_DATA) {
         return mockLoadEventDetails(code);
     }
 
+    // Check cache first
+    const cached = eventCache.get(code);
+    if (cached) {
+        console.log('Using cached event data');
+        return cached;
+    }
+
     try {
-        const response = await fetch(`${API_BASE_URL}/events/${code}`);
+        const event = await apiGet(`/events/${code}`);
 
-        if (!response.ok) {
-            if (response.status === 404) {
-                console.log(`Event not found: ${code}`);
-                return null;
-            }
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        console.log('API response:', result);
-
-        // Handle API response format - API may return { success: true, data: {...} } or just the event object
-        let event = null;
-        if (result.success && result.data) {
-            event = result.data;
-        } else if (result.data) {
-            event = result.data;
-        } else {
-            event = result;
-        }
-
-        // Normalize field names (API returns PascalCase, we use camelCase)
+        // Cache the result
         if (event) {
-            event.eventId = event.EventId || event.eventId;
-            event.eventCode = event.EventCode || event.eventCode;
-            event.moduleName = event.ModuleName || event.moduleName;
-            event.moduleDate = event.ModuleDate || event.moduleDate;
-            event.speakerName = event.SpeakerName || event.speakerName;
-            event.cohortId = event.CohortId || event.cohortId;
-            event.isActive = event.IsActive !== undefined ? event.IsActive : event.isActive;
+            eventCache.set(code, event);
         }
 
         return event;
     } catch (error) {
-        console.error('Error fetching event:', error);
+        if (error instanceof EventError) {
+            return null;
+        }
         throw error;
     }
+}
+
+// Load specific module delivery details from API
+async function loadModuleDetails(code, moduleId) {
+    if (CONFIG.USE_MOCK_DATA) {
+        return mockLoadModuleDetails(code, moduleId);
+    }
+
+    // Check cache first
+    const cacheKey = `${code}_${moduleId}`;
+    const cached = eventCache.get(cacheKey);
+    if (cached) {
+        console.log('Using cached module data');
+        return cached;
+    }
+
+    try {
+        const moduleData = await apiGet(`/events/${code}/modules/${moduleId}`);
+
+        // Cache the result
+        if (moduleData) {
+            eventCache.set(cacheKey, moduleData);
+        }
+
+        return moduleData;
+    } catch (error) {
+        if (error instanceof EventError) {
+            return null;
+        }
+        throw error;
+    }
+}
+
+// Mock function for loading specific module details
+function mockLoadModuleDetails(code, moduleId) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const mockModules = {
+                'CSA1B2C3_1': {
+                    eventId: 1,
+                    eventCode: 'CSA1B2C3',
+                    eventName: 'CAT Bootcamp Q1-2026',
+                    startDate: '2026-02-15',
+                    endDate: '2026-02-20',
+                    cohortId: 'Q1-2026',
+                    isActive: true,
+                    eventModuleId: 1,
+                    moduleId: 1,
+                    moduleName: 'Introduction to Copilot Studio',
+                    speakerName: 'John Doe',
+                    deliveryOrder: 1,
+                    deliveryDate: '2026-02-15T09:00:00'
+                },
+                'TEST123_2': {
+                    eventId: 2,
+                    eventCode: 'TEST123',
+                    eventName: 'Test Event',
+                    startDate: '2026-02-16',
+                    endDate: '2026-02-17',
+                    cohortId: 'Q1-2026',
+                    isActive: true,
+                    eventModuleId: 2,
+                    moduleId: 2,
+                    moduleName: 'Building Your First Copilot',
+                    speakerName: 'Jane Smith',
+                    deliveryOrder: 1,
+                    deliveryDate: '2026-02-16T09:00:00'
+                }
+            };
+
+            const key = `${code}_${moduleId}`;
+            const moduleData = mockModules[key];
+            resolve(moduleData || null);
+        }, CONFIG.MOCK_API_DELAY);
+    });
 }
 
 // Mock function for testing without backend
@@ -174,44 +226,200 @@ function mockLoadEventDetails(code) {
                 'CSA1B2C3': {
                     eventId: 1,
                     eventCode: 'CSA1B2C3',
-                    moduleName: 'Introduction to Copilot Studio',
-                    moduleDate: '2026-02-15',
-                    speakerName: 'John Doe',
+                    startDate: '2026-02-15',
                     cohortId: 'Q1-2026',
-                    isActive: true
+                    isActive: true,
+                    modules: [
+                        {
+                            eventModuleId: 1,
+                            moduleId: 1,
+                            moduleName: 'Introduction to Copilot Studio',
+                            speakerName: 'John Doe',
+                            deliveryOrder: 1,
+                            deliveryDate: '2026-02-15T09:00:00'
+                        }
+                    ]
                 },
                 'TEST123': {
                     eventId: 2,
                     eventCode: 'TEST123',
-                    moduleName: 'Building Your First Copilot',
-                    moduleDate: '2026-02-16',
-                    speakerName: 'Jane Smith',
+                    startDate: '2026-02-16',
                     cohortId: 'Q1-2026',
-                    isActive: true
+                    isActive: true,
+                    modules: [
+                        {
+                            eventModuleId: 2,
+                            moduleId: 2,
+                            moduleName: 'Building Your First Copilot',
+                            speakerName: 'Jane Smith',
+                            deliveryOrder: 1,
+                            deliveryDate: '2026-02-16T09:00:00'
+                        },
+                        {
+                            eventModuleId: 3,
+                            moduleId: 3,
+                            moduleName: 'Advanced Copilot Features',
+                            speakerName: 'Bob Johnson',
+                            deliveryOrder: 2,
+                            deliveryDate: '2026-02-16T13:00:00'
+                        }
+                    ]
                 }
             };
 
             const event = mockEvents[code];
             resolve(event || null);
-        }, 1000); // Simulate network delay
+        }, CONFIG.MOCK_API_DELAY);
+    });
+}
+
+// Show event selector (fallback when no event code in URL)
+async function showEventSelector() {
+    const eventSelectionView = document.getElementById('eventSelectionView');
+    const eventSelect = document.getElementById('eventSelect');
+    const continueBtn = document.getElementById('continueWithEventBtn');
+
+    loadingState.classList.add('hidden');
+    eventSelectionView.classList.remove('hidden');
+
+    try {
+        // Load list of active events
+        const events = await loadEventsList();
+
+        if (!events || events.length === 0) {
+            showError('No active events found. Please contact the event organizer.');
+            return;
+        }
+
+        // Populate event selector
+        eventSelect.innerHTML = '<option value="">-- Select an Event --</option>' +
+            events.filter(e => e.isActive).map(e =>
+                `<option value="${e.eventCode}">${escapeHtml(e.eventName || e.eventCode)} - ${formatDate(e.startDate)}</option>`
+            ).join('');
+
+        // Enable continue button when event is selected
+        eventSelect.addEventListener('change', function() {
+            continueBtn.disabled = !this.value;
+        });
+
+        // Handle continue button click
+        continueBtn.addEventListener('click', function() {
+            const selectedEventCode = eventSelect.value;
+            if (selectedEventCode) {
+                // Update URL and reinitialize
+                const url = new URL(window.location);
+                url.searchParams.set('code', selectedEventCode);
+                window.history.pushState({}, '', url);
+
+                // Reload with event code
+                eventCode = selectedEventCode;
+                eventSelectionView.classList.add('hidden');
+                loadingState.classList.remove('hidden');
+                initializeForm();
+            }
+        });
+    } catch (error) {
+        console.error('Error loading events list:', error);
+        showError('Unable to load events. Please try again later.');
+    }
+}
+
+// Load list of all active events
+async function loadEventsList() {
+    if (CONFIG.USE_MOCK_DATA) {
+        return mockLoadEventsList();
+    }
+
+    try {
+        const response = await apiGet('/events');
+        return response.data || response;
+    } catch (error) {
+        console.error('Error fetching events list:', error);
+        throw error;
+    }
+}
+
+// Mock load events list
+function mockLoadEventsList() {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve([
+                {
+                    eventId: 1,
+                    eventCode: 'CSA1B2C3',
+                    eventName: 'CAT Bootcamp Q1-2026',
+                    startDate: '2026-02-15',
+                    isActive: true
+                },
+                {
+                    eventId: 2,
+                    eventCode: 'TEST123',
+                    eventName: 'Test Event',
+                    startDate: '2026-02-16',
+                    isActive: true
+                }
+            ]);
+        }, CONFIG.MOCK_API_DELAY);
     });
 }
 
 // Display event information
 function displayEventInfo(event) {
-    document.getElementById('displayModuleName').textContent = event.moduleName;
-    document.getElementById('displayModuleDate').textContent = formatDate(event.moduleDate);
-    document.getElementById('displaySpeakerName').textContent = event.speakerName;
+    const modules = event.modules || [];
+
+    if (modules.length === 0) {
+        showError('This event has no modules assigned.');
+        return;
+    }
+
+    if (modules.length === 1) {
+        // Single module - display directly
+        selectedEventModule = modules[0];
+        document.getElementById('moduleSelector').style.display = 'none';
+        document.getElementById('moduleInfoDisplay').style.display = 'block';
+        updateModuleDisplay(modules[0]);
+    } else {
+        // Multiple modules - show selector
+        document.getElementById('moduleSelector').style.display = 'block';
+        document.getElementById('moduleInfoDisplay').style.display = 'none';
+
+        const moduleSelect = document.getElementById('moduleSelect');
+        moduleSelect.innerHTML = '<option value="">-- Select a Module --</option>' +
+            modules.map(m =>
+                `<option value="${m.eventModuleId}">${escapeHtml(m.moduleName)} - ${escapeHtml(m.speakerName)}</option>`
+            ).join('');
+
+        // Listen for module selection
+        moduleSelect.addEventListener('change', function() {
+            const selectedId = parseInt(this.value);
+            const module = modules.find(m => m.eventModuleId === selectedId);
+            if (module) {
+                selectedEventModule = module;
+                document.getElementById('moduleInfoDisplay').style.display = 'block';
+                updateModuleDisplay(module);
+            } else {
+                selectedEventModule = null;
+                document.getElementById('moduleInfoDisplay').style.display = 'none';
+            }
+        });
+    }
 }
 
-// Format date for display
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
+// Display module information (for module-specific URLs)
+function displayModuleInfo(module) {
+    // Hide module selector (not needed when module is pre-selected from URL)
+    document.getElementById('moduleSelector').style.display = 'none';
+
+    // Show module info display
+    document.getElementById('moduleInfoDisplay').style.display = 'block';
+    updateModuleDisplay(module);
+}
+
+// Update module display with selected module info
+function updateModuleDisplay(module) {
+    document.getElementById('displayModuleName').textContent = escapeHtml(module.moduleName);
+    document.getElementById('displayModuleDate').textContent = formatDate(module.deliveryDate || currentEvent.startDate);
+    document.getElementById('displaySpeakerName').textContent = escapeHtml(module.speakerName);
 }
 
 // Show form
@@ -222,101 +430,12 @@ function showForm() {
 }
 
 // Show error
-function showError(title, message, details = null) {
+function showError(message) {
     loadingState.classList.add('hidden');
     feedbackForm.classList.add('hidden');
-    successMessage.classList.add('hidden');
-
-    // Update error content
-    const errorTitle = errorState.querySelector('h3');
-    if (errorTitle) errorTitle.textContent = title || 'Unable to Load Feedback Form';
-
-    errorMessage.textContent = message || 'The feedback link appears to be invalid or expired.';
-
-    // Show details if provided
-    const errorDetailsEl = document.getElementById('errorDetails');
-    if (errorDetailsEl) {
-        if (details) {
-            errorDetailsEl.textContent = details;
-            errorDetailsEl.style.display = 'block';
-        } else {
-            errorDetailsEl.textContent = '';
-            errorDetailsEl.style.display = 'none';
-        }
-    }
-
-    // Clear manual entry error
-    const manualError = document.getElementById('manualEntryError');
-    if (manualError) {
-        manualError.classList.add('hidden');
-        manualError.textContent = '';
-    }
-
-    // Clear manual entry input
-    const manualInput = document.getElementById('manualEventCode');
-    if (manualInput) {
-        manualInput.value = '';
-    }
-
+    errorMessage.textContent = message;
     errorState.classList.remove('hidden');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-
-// Load event from manual entry
-window.loadManualEventCode = async function() {
-    const input = document.getElementById('manualEventCode');
-    const btn = document.getElementById('loadEventBtn');
-    const errorEl = document.getElementById('manualEntryError');
-    const code = input.value.trim().toUpperCase();
-
-    // Clear previous error
-    errorEl.classList.add('hidden');
-    errorEl.textContent = '';
-
-    if (!code) {
-        errorEl.textContent = 'Please enter an event code';
-        errorEl.classList.remove('hidden');
-        input.focus();
-        return;
-    }
-
-    // Show loading on button
-    const btnText = btn.querySelector('.btn-text');
-    const btnSpinner = btn.querySelector('.btn-spinner');
-    btn.disabled = true;
-    btnText.textContent = 'Loading...';
-    btnSpinner.classList.remove('hidden');
-
-    // Try to load event
-    const success = await loadEventByCode(code);
-
-    // Reset button
-    btn.disabled = false;
-    btnText.textContent = 'Load Event';
-    btnSpinner.classList.add('hidden');
-
-    if (!success) {
-        // Error is already shown by loadEventByCode
-        input.focus();
-    }
-};
-
-// Handle Enter key in manual entry input
-document.addEventListener('DOMContentLoaded', function() {
-    const manualInput = document.getElementById('manualEventCode');
-    if (manualInput) {
-        manualInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                window.loadManualEventCode();
-            }
-        });
-
-        // Auto-uppercase as user types
-        manualInput.addEventListener('input', function(e) {
-            this.value = this.value.toUpperCase();
-        });
-    }
-});
 
 // Setup form listeners
 function setupFormListeners() {
@@ -332,10 +451,13 @@ function updateCharCount() {
     const count = additionalComments.value.length;
     charCount.textContent = count;
 
-    if (count > 900) {
+    const warningThreshold = CONFIG.COMMENTS_MAX_LENGTH * 0.9;
+    const dangerThreshold = CONFIG.COMMENTS_MAX_LENGTH * 0.8;
+
+    if (count > warningThreshold) {
         charCount.style.color = '#e74c3c';
         charCount.style.fontWeight = 'bold';
-    } else if (count > 800) {
+    } else if (count > dangerThreshold) {
         charCount.style.color = '#f39c12';
     } else {
         charCount.style.color = '#666';
@@ -359,8 +481,29 @@ async function handleSubmit(e) {
         return;
     }
 
+    // Check rate limiting (skip if MAX_SUBMISSIONS_PER_EVENT is 0)
+    if (CONFIG.FEATURES.ENABLE_CLIENT_RATE_LIMITING &&
+        CONFIG.MAX_SUBMISSIONS_PER_EVENT > 0 &&
+        !rateLimiter.canAttempt()) {
+        const waitTime = rateLimiter.getFormattedTimeUntilNextAttempt();
+        showNotification(
+            'Rate Limit Exceeded',
+            `You've submitted feedback recently. Please wait ${waitTime} before submitting again.`,
+            'error',
+            false
+        );
+        return;
+    }
+
     // Collect form data
-    const formData = collectFormData();
+    let formData;
+    try {
+        formData = collectFormData();
+    } catch (error) {
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showNotification(friendlyError.title, friendlyError.message, 'error', true);
+        return;
+    }
 
     // Show loading state on button
     setButtonLoading(true);
@@ -369,15 +512,30 @@ async function handleSubmit(e) {
         // Submit feedback
         const result = await submitFeedback(formData);
 
-        if (result.success) {
+        if (result.success || result.feedbackId) {
+            // Record attempt for rate limiting (skip if limit is 0)
+            if (CONFIG.FEATURES.ENABLE_CLIENT_RATE_LIMITING && CONFIG.MAX_SUBMISSIONS_PER_EVENT > 0) {
+                rateLimiter.recordAttempt();
+            }
             showSuccess();
         } else {
-            alert('There was an error submitting your feedback. Please try again.');
+            showNotification(
+                'Submission Failed',
+                'There was an error submitting your feedback. Please try again.',
+                'error',
+                true
+            );
             setButtonLoading(false);
         }
     } catch (error) {
         console.error('Error submitting feedback:', error);
-        alert('There was an error submitting your feedback. Please try again.');
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showNotification(
+            friendlyError.title,
+            friendlyError.message,
+            'error',
+            friendlyError.canRetry
+        );
         setButtonLoading(false);
     }
 }
@@ -385,6 +543,12 @@ async function handleSubmit(e) {
 // Validate form
 function validateForm() {
     let isValid = true;
+
+    // Validate module selection (if multiple modules)
+    if (currentEvent.modules && currentEvent.modules.length > 1 && !selectedEventModule) {
+        showValidationError('moduleSelect', 'Please select a module');
+        isValid = false;
+    }
 
     // Validate speaker knowledge rating
     const speakerKnowledge = document.querySelector('input[name="speakerKnowledge"]:checked');
@@ -416,13 +580,19 @@ function showValidationError(fieldName, message) {
     const formGroup = errorElement.closest('.form-group');
 
     errorElement.textContent = message;
+    errorElement.setAttribute('role', 'alert');
+    errorElement.setAttribute('aria-live', 'assertive');
     formGroup.classList.add('error');
 }
 
 // Clear all errors
 function clearErrors() {
     const errorMessages = document.querySelectorAll('.error-message');
-    errorMessages.forEach(error => error.textContent = '');
+    errorMessages.forEach(error => {
+        error.textContent = '';
+        error.removeAttribute('role');
+        error.removeAttribute('aria-live');
+    });
 
     const errorGroups = document.querySelectorAll('.form-group.error');
     errorGroups.forEach(group => group.classList.remove('error'));
@@ -430,39 +600,39 @@ function clearErrors() {
 
 // Collect form data
 function collectFormData() {
-    return {
+    if (!selectedEventModule) {
+        throw new FeedbackError('Please select a module before submitting feedback');
+    }
+
+    const data = {
         eventCode: eventCode,
         eventId: currentEvent.eventId,
+        eventModuleId: selectedEventModule.eventModuleId,
         speakerKnowledge: parseInt(document.querySelector('input[name="speakerKnowledge"]:checked').value),
         contentDepth: document.querySelector('input[name="contentDepth"]:checked').value,
         moduleSatisfaction: parseInt(document.querySelector('input[name="moduleSatisfaction"]:checked').value),
-        additionalComments: document.getElementById('additionalComments').value.trim()
+        additionalComments: InputSanitizer.sanitizeText(
+            document.getElementById('additionalComments').value.trim(),
+            CONFIG.COMMENTS_MAX_LENGTH
+        )
     };
+
+    // Validate data
+    validateFeedbackData(data);
+
+    return data;
 }
 
 // Submit feedback to API
 async function submitFeedback(data) {
-    if (USE_MOCK_DATA) {
+    if (CONFIG.USE_MOCK_DATA) {
         return mockSubmitFeedback(data);
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/feedback`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
+        const result = await apiPost('/feedback', data);
         return result;
     } catch (error) {
-        console.error('Error submitting feedback:', error);
         throw error;
     }
 }
@@ -487,7 +657,7 @@ function mockSubmitFeedback(data) {
             localStorage.setItem('bootcampFeedback', JSON.stringify(allFeedback));
 
             resolve({ success: true, feedbackId: Date.now() });
-        }, 1000); // Simulate network delay
+        }, CONFIG.MOCK_API_DELAY);
     });
 }
 
@@ -558,6 +728,8 @@ function addRealTimeValidation() {
                 const errorElement = formGroup.querySelector('.error-message');
                 if (errorElement) {
                     errorElement.textContent = '';
+                    errorElement.removeAttribute('role');
+                    errorElement.removeAttribute('aria-live');
                 }
             }
         });
@@ -569,10 +741,40 @@ function addRealTimeValidation() {
                 const errorElement = formGroup.querySelector('.error-message');
                 if (errorElement) {
                     errorElement.textContent = '';
+                    errorElement.removeAttribute('role');
+                    errorElement.removeAttribute('aria-live');
                 }
             }
         });
     });
+}
+
+// Show notification
+function showNotification(title, message, type = 'error', canRetry = false) {
+    // Remove any existing notifications
+    const existing = document.querySelector('.error-notification');
+    if (existing) {
+        existing.remove();
+    }
+
+    const notification = document.createElement('div');
+    notification.className = `error-notification ${type}`;
+    notification.innerHTML = `
+        <div class="error-content">
+            <strong>${escapeHtml(title)}</strong>
+            <p>${escapeHtml(message)}</p>
+            <button class="notification-close" onclick="this.closest('.error-notification').remove()">Close</button>
+        </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 10000);
 }
 
 // Utility function to view all stored feedback (for debugging)
@@ -593,8 +795,8 @@ window.clearAllFeedback = function() {
 
 console.log('CAT Bootcamp Feedback Form Loaded');
 console.log('Event Code:', eventCode);
-console.log('Using Mock Data:', USE_MOCK_DATA);
-if (USE_MOCK_DATA) {
+console.log('Using Mock Data:', CONFIG.USE_MOCK_DATA);
+if (CONFIG.USE_MOCK_DATA) {
     console.log('Try these event codes: CSA1B2C3, TEST123');
     console.log('Developer tools: viewAllFeedback(), clearAllFeedback()');
 }

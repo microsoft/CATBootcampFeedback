@@ -4,8 +4,107 @@
 A web application to collect structured feedback on modules delivered during the CAT Bootcamp. The application will gather quantitative ratings and qualitative feedback to assess module effectiveness and instructor performance.
 
 The system consists of two main components:
-1. **Public Feedback Form** - Unauthenticated forms accessed via unique URLs with embedded event codes
-2. **Admin Interface** - Authenticated portal for managing events and generating QR codes
+1. **Public Feedback Form** - Unauthenticated forms accessed via unique URLs with embedded event codes AND module IDs
+2. **Admin Interface** - Authenticated portal for managing modules and generating feedback collection URLs
+
+## Key Architecture Decision: Module-Specific QR Codes
+
+**Each module delivery within an event gets its own unique QR code and feedback URL.**
+
+- **Previous approach**: One QR code per event → users select which module → submit feedback
+- **New approach**: One QR code per module → users scan specific module QR → feedback form auto-loaded → submit feedback
+
+**Benefits:**
+- **Targeted feedback collection**: Each module's QR code links directly to its feedback form
+- **No user selection needed**: Module, speaker, and date are pre-populated
+- **Better tracking**: Feedback is directly tied to specific module deliveries
+- **Clearer user experience**: Scan QR code → see module info → provide ratings → done
+
+**URL Format:**
+```
+https://yourdomain.com/feedback.html?code=CSA1B2C3&module=5
+```
+- `code`: Event code (e.g., CSA1B2C3)
+- `module`: EventModuleId (unique identifier for this module's delivery in this event)
+
+## Terminology
+
+**Important:** This application collects feedback on **modules** delivered at **events**.
+
+- **Module**: Reusable training content (e.g., "Introduction to Copilot Studio")
+  - Timeless training material/curriculum
+  - Has a name and description
+  - **Does NOT have speaker** - speakers vary by delivery
+  - Can be delivered multiple times at different events by different speakers
+
+- **Event**: A training session or bootcamp instance
+  - Has a unique event code (admin-provided, e.g., "CSA1B2C3")
+  - Has start/end dates and cohort ID
+  - **Can include MULTIPLE modules** delivered as part of the event
+  - Each module at the event has a designated speaker
+  - Example: "CAT Bootcamp Q1-2026" event includes:
+    - Module 1: "Intro to Copilot" delivered by John Doe
+    - Module 2: "Advanced Copilot" delivered by Jane Smith
+    - Module 3: "Best Practices" delivered by Mike Johnson
+
+- **Event Module Delivery**: The junction between events and modules
+  - Links a specific module to a specific event
+  - Specifies WHO is delivering the module at this event
+  - Specifies WHEN the module is delivered (order/date)
+  - Each delivery has a unique speaker assigned
+
+**Architecture:**
+```
+Events (1) ←→ (many) EventModules (many) ←→ (1) Modules
+                          ↓
+                    SpeakerName (per delivery)
+                    DeliveryOrder
+```
+
+**Flow:**
+1. Admin creates **modules** (reusable training content)
+2. Admin creates an **event** with event code, dates, cohort
+3. Admin adds **multiple modules** to the event, specifying:
+   - Which module
+   - Who's delivering it (speaker name)
+   - When it's delivered (order/sequence)
+4. System generates **unique feedback URL for each module delivery**: `feedback.html?code=CSA1B2C3&module=5`
+   - `code` parameter = event code
+   - `module` parameter = EventModuleId (unique identifier for this specific module delivery)
+5. Participants scan QR code or access URL with both event and module pre-selected
+6. Feedback form auto-loads with the specific event and module information
+7. Feedback is captured for the specific module delivery at that event
+8. If event code or module is invalid, user sees error: "Not a valid event code or module"
+
+**In the Admin Interface:**
+- Create and manage **modules** (reusable training content)
+- Create **events** with unique event codes
+- Add multiple modules to each event with delivery details:
+  - Select module from library
+  - Assign speaker for this delivery
+  - Set delivery order/sequence
+- View event details and associated modules
+  - See all modules included in an event
+  - View speaker assignments and delivery dates
+  - Check feedback count per event
+- Generate and manage QR codes for events:
+  - View QR code in modal dialog
+  - Download QR code as PNG image
+  - Copy feedback URL to clipboard
+- Edit existing events:
+  - Modify event details (dates, cohort)
+  - Update module assignments
+  - Change speaker names
+  - Reorder modules within event:
+    - Move modules up/down in delivery sequence
+    - Visual indicators for current order
+    - Automatic order number updates
+    - Changes saved immediately to database
+- Activate/Deactivate events:
+  - Toggle event active status
+  - Confirmation dialog before status change
+  - Deactivated events cannot receive new feedback
+- View feedback per event or per module delivery
 
 ## Core Requirements
 
@@ -42,56 +141,152 @@ The system consists of two main components:
 
 ### Module Information
 Each feedback submission should be associated with:
-- **Event Code** (passed via URL parameter, not visible to user)
-- Module name/title (auto-populated from event code)
-- Module date/session (auto-populated from event code)
-- Speaker name (auto-populated from event code)
-- Bootcamp cohort/batch (optional, auto-populated from event code)
+- **Event Code** (transparently passed via URL parameter `code`, not visible as form field)
+- **EventModuleId** (transparently passed via URL parameter `module`, not visible as form field)
+- Module name/title (auto-populated from EventModuleId lookup)
+- Module delivery date (auto-populated from EventModuleId lookup)
+- Speaker name (auto-populated from EventModuleId lookup - specific to this delivery)
+- Event name and cohort (auto-populated from Event lookup)
+
+**URL Parameter Transparency**:
+- **Primary Flow**: URL parameters (`code` and `module`) transparently provide event and module identification
+  - Parameters are embedded in QR codes and shared links
+  - Users never see or need to know about these technical identifiers
+  - Information flows through the URL without user interaction
+- **Fallback Flow**: If URL parameters are missing, users are presented with user-friendly selection interfaces
+  - Event selector: Shows event names, dates, and descriptions (not technical codes)
+  - Module selector: Shows module names, speakers, and delivery dates (not technical IDs)
+  - After selection, URL is updated with appropriate parameters for future sharing
 
 ## Functional Requirements
 
 ### User Stories
-1. As a bootcamp participant, I want to provide feedback on a module via a simple URL/QR code so that I can quickly share my thoughts
+1. As a bootcamp participant, I want to scan a QR code for a specific module and immediately provide feedback without selecting from a list
+   - QR code takes me directly to the feedback form for that specific module
+   - Module name, speaker, and date are already shown - no selection needed
+   - I can quickly provide my ratings and submit
 2. As a bootcamp organizer, I want to collect standardized feedback so that I can measure module effectiveness
+   - Each module delivery gets its own unique QR code
+   - Participants scan the relevant QR code during or after each module
 3. As an instructor, I want to receive constructive feedback so that I can improve my delivery
-4. As an admin, I want to create events and generate unique URLs/QR codes for each module
-5. As an admin, I want to view and manage all feedback submissions in one place
+   - Feedback is tied directly to my specific module delivery
+   - Can track feedback across multiple events where I deliver the same module
+4. As an admin, I want to create events with multiple modules and generate unique QR codes for each module
+   - Create an event with event code (e.g., "CSA1B2C3")
+   - Add multiple modules to the event, each with a speaker and delivery order
+   - System generates a unique feedback URL for each module: `feedback.html?code=CSA1B2C3&module=5`
+   - System generates a unique QR code for each module delivery
+   - Download and print individual QR codes for each module
+   - Invalid event codes or module IDs show error: "Not a valid event code or module"
+5. As an admin, I want to view and manage all feedback submissions for each module delivery
+   - View feedback aggregated by module across all events
+   - View feedback for a specific module delivery at a specific event
 
 ### Key Features
 
 #### Public Feedback Form
-- **URL-Based Access**: Each module has unique URL with embedded event code (e.g., `feedback.html?code=ABC123`)
+- **URL-Based Access**: Each module delivery has unique URL with event code AND module ID (e.g., `feedback.html?code=CSA1B2C3&module=5`)
+  - `code` parameter: Event code identifying the training event
+  - `module` parameter: EventModuleId identifying the specific module delivery
+- **Transparent URL Parameter Flow** (Primary):
+  - When both `code` and `module` parameters are provided in URL
+  - Event and module details loaded automatically from URL parameters
+  - Module name, speaker name, and delivery date pre-populated
+  - No selection dropdowns needed - information transparently passed through URL
+  - User proceeds directly to providing feedback ratings
+- **Manual Selection Fallback** (When URL Parameters Missing):
+  - If `code` parameter is missing or invalid: Display user-friendly event selector
+    - Show list of active events with event names and dates
+    - User selects event from dropdown or search interface
+  - If `module` parameter is missing (but code is present): Display module selector
+    - Show list of modules for the selected event
+    - Display module name, speaker, and delivery date for each option
+    - User selects which module to provide feedback for
+  - After selections are made, proceed to feedback form with information populated
+  - URL is updated to include selected parameters for sharing
 - **No Authentication Required**: Participants can submit feedback without logging in
-- **Auto-Population**: Module details loaded automatically based on event code
 - **Clean UI**: Intuitive form with clear labels and validation
 - **Form Validation**: Prevent submission until all required fields are completed
+- **Error Handling**: Display friendly error messages for invalid parameters or selections
 - **Confirmation**: Display success message after submission
 - **Responsive Design**: Work on desktop, tablet, and mobile devices
 - **Accessibility**: WCAG 2.1 AA compliant
 
 #### Admin Interface
-- **Event Management**: Create, edit, and manage bootcamp events/modules
-- **Event Deletion**: Delete events with cascade deletion of all associated feedback (requires confirmation)
-- **QR Code Generation**: Automatically generate QR codes for each event URL
-- **Feedback Viewing**: View all submitted feedback with filtering options
-- **Analytics Dashboard**: View summary statistics and trends
+- **Module Management**: Create, edit, and manage bootcamp modules (training sessions)
+  - Module details: name, date, speaker, cohort
+  - Admin provides a unique event code for each module
+- **Event Code Input**: Admin specifies event code when creating a module (e.g., "CSA1B2C3")
+  - Format validation: Typically 8 characters, starts with "CS"
+  - Event codes are admin-provided, not auto-generated
+- **Event Actions**: Each event card provides action buttons:
+  - **View Details & QR**: Opens modal showing:
+    - Complete event information (dates, cohort, status)
+    - List of all modules in the event with speaker names
+    - Feedback count and submission statistics
+    - QR code for feedback form (scannable)
+    - Download QR code button (saves as PNG)
+    - Copy feedback URL button (copies to clipboard)
+  - **Edit**: Opens event editing modal
+    - Modify event details (dates, cohort ID)
+    - Update module assignments and speakers
+    - Reuses existing event management modal
+  - **Activate/Deactivate**: Toggle event active status
+    - Confirmation dialog before status change
+    - Updates database via API
+    - Real-time UI update after change
+    - Deactivated events cannot receive new feedback
+- **Feedback URL Creation**: System generates URLs with the admin-provided event codes (e.g., `feedback.html?code=CSA1B2C3`)
+- **QR Code Generation**: System automatically generates **unique QR codes for each module delivery**
+  - Each QR code links to feedback form with both event code AND module ID
+  - URL format: `feedback.html?code={EVENT_CODE}&module={EVENT_MODULE_ID}`
+  - Participants scan to provide feedback about the specific module
+  - No module selection needed - pre-populated from URL parameters
+  - Customizable QR code colors (purple theme)
+  - Each module in an event has its own downloadable QR code
+- **Error Handling**: Invalid event codes in feedback URLs display: "Not a valid event code"
+- **Event Deletion**: Delete modules/events with cascade deletion of all associated feedback (requires confirmation)
+- **Feedback Viewing**: View all submitted feedback for each module, filtered by event code
+- **Analytics Dashboard**: View summary statistics and trends per module
 - **Export Capabilities**: Export feedback data to CSV/Excel
 - **Authentication Required**: Secure access for administrators only (client-side authentication)
 - **Count Display**: Dedicated page for displaying live feedback counts with auto-refresh
 - **Responsive Design**: Fully responsive interface that works on desktop, tablet, and mobile devices
+- **Visual Accessibility**: High contrast module count badges for better readability
 
 ### Count Display Page
-- **Access Pattern**: `count.html?code={EVENT_CODE}`
+- **Access Patterns**:
+  - Event-level: `count.html?code={EVENT_CODE}` (shows total feedback for all modules)
+  - Module-level: `count.html?code={EVENT_CODE}&module={EVENT_MODULE_ID}` (shows feedback for specific module)
 - **Purpose**: Live display of feedback count during presentations
+- **Transparent URL Parameter Flow** (Primary):
+  - When `code` parameter is provided: Display event-level or module-level count
+  - Information automatically loaded from URL parameters
+  - QR code generated with parameters included
+  - Auto-refresh every 5 seconds
+- **Manual Selection Fallback** (When URL Parameters Missing):
+  - If `code` parameter is missing: Display user-friendly event selector
+    - Show list of active events with names and dates
+    - User selects event to display counts for
+    - Option to further select specific module or view event-level counts
+  - If `code` is present but `module` is missing:
+    - Default to event-level view (shows all modules)
+    - Provide option to select specific module for module-level view
+  - After selection, URL is updated with parameters and display begins
+  - Selection interface can be hidden after initial setup for clean presentation view
 - **Features**:
   - Real-time feedback count with auto-refresh (5 second intervals)
   - Animated count transitions when numbers change
-  - QR code display for attendees to scan
-  - Event information display (module name)
+  - QR code display for attendees to scan (includes module parameter if module-specific)
+  - Event and module information display
+    - Event-level: Shows event name and total module count
+    - Module-level: Shows specific module name and speaker
   - Last updated timestamp
   - Fullscreen mode toggle for presentations
-  - Error handling for invalid/missing event codes
+  - Error handling for invalid/missing event codes or module IDs
 - **Use Case**: Displayed on projector/screen during bootcamp sessions to encourage participation
+  - Module-level display shown during individual module presentations
+  - Event-level display shown for overall event feedback tracking
 
 ## User Interface Design
 
@@ -136,62 +331,98 @@ Feedback Questions:
 
 ## Data Model
 
+**Architecture:** The system uses a many-to-many relationship between Events and Modules through the EventModules junction table.
+
+```
+Events (1) ←→ (many) EventModules (many) ←→ (1) Modules
+                        ↓
+                  Feedback (many)
+```
+
 ### Event Object
+
+**Note:** An "Event" represents a training session or bootcamp instance with a unique event code. Events can contain multiple modules.
+
 ```json
 {
   "eventId": 1,
   "eventCode": "CSA1B2C3",
-  "moduleName": "Introduction to Copilot Studio",
-  "moduleDate": "2026-02-15",
-  "speakerName": "John Doe",
+  "eventName": "Cloud Adoption Training - Q1 2026",
+  "startDate": "2026-02-15",
+  "endDate": "2026-02-20",
   "cohortId": "Q1-2026",
-  "description": "Getting started with Copilot Studio basics",
   "isActive": true,
-  "feedbackUrl": "https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3",
-  "qrCodeUrl": "https://storage.blob.core.windows.net/qr-codes/events/CSA1B2C3/print-400.png",
-  "qrCodeGeneratedAt": "2026-02-01T10:15:00Z",
-  "qrCodeStorageEnabled": true,
-  "qrCodeConfigurations": [
-    {
-      "configId": 1,
-      "size": "DIGITAL",
-      "format": "PNG",
-      "errorCorrection": "Q",
-      "colorScheme": "PRIMARY",
-      "blobUrl": "https://storage.blob.core.windows.net/qr-codes/events/CSA1B2C3/digital-200.png",
-      "generatedAt": "2026-02-01T10:15:00Z"
-    },
-    {
-      "configId": 2,
-      "size": "PRINT_STANDARD",
-      "format": "PNG",
-      "errorCorrection": "H",
-      "colorScheme": "HIGH_CONTRAST",
-      "blobUrl": "https://storage.blob.core.windows.net/qr-codes/events/CSA1B2C3/print-400.png",
-      "generatedAt": "2026-02-01T10:15:00Z"
-    },
-    {
-      "configId": 3,
-      "size": "PRINT_HIGHRES",
-      "format": "SVG",
-      "errorCorrection": "H",
-      "colorScheme": "PRIMARY",
-      "blobUrl": "https://storage.blob.core.windows.net/qr-codes/events/CSA1B2C3/print-800.svg",
-      "generatedAt": "2026-02-01T10:15:00Z"
-    }
-  ],
   "createdAt": "2026-02-01T10:00:00Z",
   "createdBy": "admin@company.com",
-  "updatedAt": null,
-  "updatedBy": null
+  "modules": [
+    {
+      "eventModuleId": 5,
+      "moduleId": 1,
+      "moduleName": "Introduction to Copilot Studio",
+      "speakerName": "John Doe",
+      "deliveryOrder": 1,
+      "deliveryDate": "2026-02-15T09:00:00Z",
+      "feedbackUrl": "https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3&module=5"
+    }
+  ]
 }
 ```
 
+**Key Fields:**
+- `eventCode`: Unique identifier for the event (e.g., "CSA1B2C3")
+  - NVARCHAR(20), UNIQUE, NOT NULL
+  - Admin-provided when creating events
+  - Used in feedback URLs and QR codes
+- `eventName`: Descriptive name for the event (e.g., "CAT Bootcamp Q1-2026")
+- `modules`: Array of module deliveries associated with this event
+
+### Module Object
+
+**Note:** Modules are reusable training content that can be delivered at multiple events.
+
+```json
+{
+  "moduleId": 1,
+  "moduleName": "Introduction to Copilot Studio",
+  "description": "Getting started with Copilot Studio basics",
+  "isActive": true,
+  "createdAt": "2026-01-15T10:00:00Z"
+}
+```
+
+### Event Module Delivery Object
+
+**Note:** Links a module to an event with delivery-specific details (speaker, order, date).
+
+```json
+{
+  "eventModuleId": 5,
+  "eventId": 1,
+  "moduleId": 1,
+  "speakerName": "John Doe",
+  "deliveryOrder": 1,
+  "deliveryDate": "2026-02-15T09:00:00Z",
+  "notes": "Morning session",
+  "feedbackUrl": "https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3&module=5"
+}
+```
+
+**Key Fields:**
+- `eventModuleId`: Unique identifier for this specific module delivery
+  - Used in feedback URLs as the `module` parameter
+  - Links feedback to specific module delivery at specific event
+- `speakerName`: Who is delivering this module at this event
+- `deliveryOrder`: Sequence of this module within the event
+
 ### Feedback Submission Object
+
+**Note:** Feedback is collected for specific module deliveries. Both `eventId` and `eventModuleId` link feedback to the exact module delivery instance.
+
 ```json
 {
   "feedbackId": 123,
   "eventId": 1,
+  "eventModuleId": 5,
   "eventCode": "CSA1B2C3",
   "speakerKnowledge": 5,
   "contentDepth": "Just Right",
@@ -202,6 +433,11 @@ Feedback Questions:
   "userAgent": "Mozilla/5.0..."
 }
 ```
+
+**Key Fields:**
+- `eventCode`: Captured from URL parameter `code`
+- `eventModuleId`: Captured from URL parameter `module`
+- Links feedback to specific module delivery at specific event
 
 ## Technical Architecture
 
@@ -224,15 +460,28 @@ Feedback Questions:
 
 #### Public Feedback Form
 - **Technology**: HTML5, CSS3, Vanilla JavaScript
-- **Access Pattern**: `feedback.html?code={EVENT_CODE}`
+- **Access Pattern**: `feedback.html?code={EVENT_CODE}&module={EVENT_MODULE_ID}`
 - **URL Parameters**:
-  - `code` (required) - Unique event identifier
+  - `code` - Unique event identifier (e.g., CSA1B2C3)
+  - `module` - EventModuleId identifying the specific module delivery
+  - Both parameters are optional; fallback UI shown if missing
 - **Client-Side Operations**:
-  - Parse URL parameter for event code
-  - Fetch event details from API using event code
-  - Display error if invalid/expired event code
-  - Client-side validation before submission
-  - POST feedback to API
+  - **Primary Flow (URL parameters present)**:
+    - Parse URL parameters for event code and module ID
+    - Fetch event and module details from API using both parameters
+    - Display error if invalid/expired event code or module ID
+    - Auto-populate form with module name, speaker, and delivery date
+    - Show feedback form directly without selection screens
+  - **Fallback Flow (URL parameters missing)**:
+    - If `code` missing: Fetch list of active events, display event selector
+    - If `code` present but `module` missing: Fetch modules for event, display module selector
+    - User selects event and/or module from user-friendly dropdown/list
+    - Update URL with selected parameters (enables sharing)
+    - Fetch details and display form
+  - **Common Operations**:
+    - Client-side validation before submission
+    - POST feedback to API with EventModuleId
+    - Display success confirmation or error messages
 - **No Authentication**: Publicly accessible
 
 #### Admin Interface
@@ -258,16 +507,31 @@ Feedback Questions:
 
 ##### Public Endpoints (No Authentication)
 ```
+GET  /api/events/{eventCode}/modules/{eventModuleId}
+     - Get specific module delivery details for feedback form
+     - Parameters:
+       - eventCode: Event code (e.g., CSA1B2C3)
+       - eventModuleId: EventModuleId from URL parameter
+     - Returns: { success: true, data: { EventId, EventCode, EventModuleId, ModuleName, SpeakerName, DeliveryDate, DeliveryOrder, EventName, CohortId, IsActive } }
+     - Returns 404 if event or module not found or inactive
+     - Used by feedback form to load event and module details
+     - Note: Returns PascalCase field names from database
+
 GET  /api/events/{eventCode}
-     - Get event details by code
-     - Returns: { success: true, data: { EventId, EventCode, ModuleName, ModuleDate, SpeakerName, CohortId, IsActive } }
+     - Get event details with all modules (legacy support)
+     - Returns: { success: true, data: { EventId, EventCode, EventName, StartDate, EndDate, CohortId, IsActive, Modules: [...] } }
      - Returns 404 if not found or inactive
      - Note: Returns PascalCase field names from database
 
-GET  /api/events/{eventCode}/count
-     - Get feedback count for an event
+GET  /api/events/{eventCode}/modules/{eventModuleId}/count
+     - Get feedback count for a specific module delivery
      - Returns: { success: true, data: { count: number } }
-     - Used by count display page for live updates
+     - Used by count display page for live updates per module
+
+GET  /api/events/{eventCode}/count
+     - Get total feedback count for an event (all modules)
+     - Returns: { success: true, data: { count: number } }
+     - Used by count display page for event-level updates
 
 GET  /api/events
      - List all events (supports admin interface)
@@ -282,10 +546,18 @@ GET  /api/feedback
      - Includes event details (ModuleName, SpeakerName, ModuleDate) via JOIN
 
 POST /api/feedback
-     - Submit feedback
-     - Body: { eventCode, speakerKnowledge, contentDepth, moduleSatisfaction, additionalComments }
+     - Submit feedback for a specific module delivery
+     - Body: { eventCode, eventModuleId, speakerKnowledge, contentDepth, moduleSatisfaction, additionalComments }
+     - Parameters:
+       - eventCode: Event code from URL
+       - eventModuleId: EventModuleId from URL (identifies specific module delivery)
+       - speakerKnowledge: Rating 1-5
+       - contentDepth: 'Too Technical' | 'Just Right' | 'Too Low Level'
+       - moduleSatisfaction: Rating 1-5
+       - additionalComments: Optional text
      - Returns: { success: true, data: { feedbackId } }
      - Validates rating ranges (1-5) and content depth options
+     - Links feedback to specific module delivery via EventModuleId
 ```
 
 ##### Admin Endpoints (Authentication Not Required - Implemented with Client-Side Auth)
@@ -301,6 +573,14 @@ PUT    /api/events/{eventId}
        - Body: { moduleName?, moduleDate?, speakerName?, cohortId?, description?, isActive? }
        - Returns: { success: true, data: { eventId } }
 
+PUT    /api/events/{eventId}/status
+       - Update event active status
+       - Body: { isActive: boolean }
+       - Returns: { success: true, data: { message, eventId, isActive } }
+       - Used by Activate/Deactivate button in admin interface
+       - Validates eventId exists before updating
+       - Updates IsActive flag and UpdatedAt timestamp
+
 DELETE /api/events/{eventId}
        - Delete event with cascade delete of feedback
        - Returns: { success: true, data: { message, eventId, feedbackDeleted } }
@@ -311,7 +591,7 @@ POST   /api/admin/auth/login
        - Admin authentication (mock data in development)
        - Body: { username, password }
        - Returns: { success: true, token: string, user: { username, fullName } }
-       - Demo credentials: username=admin, password=admin123
+       - Demo credentials: username=admin, password=CATBootcamp2026!
 ```
 
 ##### Environment Detection
@@ -425,11 +705,39 @@ function generateEventCode() {
 }
 ```
 
+### Rate Limiting Configuration
+
+The application implements client-side rate limiting to prevent abuse and enhance security:
+
+#### Admin Login Rate Limiting
+- **Maximum Attempts**: 5 failed login attempts
+- **Time Window**: 5 minutes (300,000 ms)
+- **Behavior**: After 5 failed attempts, user must wait until the oldest attempt expires from the 5-minute window
+- **Storage**: Uses localStorage with key `rateLimiter_login`
+- **Configuration**: `MAX_LOGIN_ATTEMPTS: 5`, `LOGIN_COOLDOWN_MS: 300000`
+
+#### Feedback Submission Rate Limiting
+- **Maximum Submissions**: **UNLIMITED** (disabled for high-volume events)
+- **Rationale**: Events may have hundreds of participants submitting feedback simultaneously
+- **Behavior**: No rate limiting applied to feedback submissions
+- **Storage**: Not applicable (rate limiting disabled)
+- **Configuration**: `MAX_SUBMISSIONS_PER_EVENT: 0` (0 = unlimited)
+- **Note**: Set to 0 to support large-scale events with many participants
+- **Server-side Protection**: Should be implemented at API/database level if spam becomes an issue
+
+#### Implementation Details
+- **Client-Side Only**: Current implementation is client-side (can be bypassed)
+- **Server-Side Recommendation**: Should be complemented with server-side rate limiting
+- **Azure SQL Rate Limiting**: IP-based rate limiting can be tracked in database using `IX_Feedback_IpAddress_SubmittedAt` index
+- **User Experience**: Shows friendly messages with time remaining (e.g., "Please wait 2 minutes")
+
 ### Security Considerations
 
 #### Public Feedback Form
 - **No PII Collection**: Don't require names, emails, or identifying information
-- **Rate Limiting**: Limit submissions per IP (e.g., 5 per hour)
+- **Rate Limiting**: Client-side rate limiting disabled (set MAX_SUBMISSIONS_PER_EVENT = 0)
+  - **Reason**: Events may have hundreds of participants
+  - **Recommendation**: Implement server-side IP-based rate limiting if spam becomes an issue
 - **Input Validation**:
   - Sanitize all text inputs to prevent XSS
   - Validate rating values (1-5)
@@ -443,10 +751,15 @@ function generateEventCode() {
   - Azure AD integration (recommended)
   - Or username/password with bcrypt hashing
   - Or API key-based access
+- **Rate Limiting**:
+  - Max 5 login attempts per 5 minutes (client-side)
+  - Prevents brute force attacks
+  - User-friendly lockout duration
 - **Authorization**: Role-based access control (RBAC)
 - **Session Management**:
   - JWT tokens with expiration
   - Secure, httpOnly cookies
+  - Session stored in sessionStorage (not localStorage)
 - **HTTPS Only**: Force SSL/TLS
 - **Audit Logging**: Track all admin actions
 
@@ -485,380 +798,28 @@ function generateEventCode() {
 
 ### QR Code Generation
 
-#### Overview
-QR codes provide quick, convenient access to feedback forms for bootcamp attendees. The system supports multiple sizes, formats, and customization options for different use cases (digital displays, print materials, presentations).
+- **Library**: QRCode.js (client-side) or qrcode npm package (server-side)
+- **Content**: Full feedback URL with event code AND module ID
+- **Format**: PNG or SVG
+- **Size**: 300x300px minimum for print
+- **Error Correction**: Level M or H for reliability
+- **Storage**:
+  - Option 1: Generate on-the-fly in admin interface (per module)
+  - Option 2: Generate and store in Azure Blob Storage
+  - Option 3: Both (cache in blob, regenerate if missing)
+- **Generation Scope**: One unique QR code per module delivery
+  - Each module in an event gets its own QR code
+  - QR codes embed both event code and EventModuleId
+  - Allows targeted feedback collection per module
 
-#### Configuration Standards
-
-**Size Standards:**
-| Use Case | Size | Purpose | Error Correction |
-|----------|------|---------|------------------|
-| Digital Display | 200x200px | Count display, web viewing | Level Q (25%) |
-| Print Standard | 400x400px | Flyers, handouts, presentations | Level H (30%) |
-| Print High-Res | 800x800px | Posters, banners, large format | Level H (30%) |
-
-**Error Correction Levels:**
-- **L (Low)**: ~7% recovery - Digital-only, controlled environment
-- **M (Medium)**: ~15% recovery - General digital use (legacy default)
-- **Q (Quartile)**: ~25% recovery - Recommended for digital displays
-- **H (High)**: ~30% recovery - **Recommended for all print materials**
-
-**Margin/Quiet Zone:**
-- Minimum: 4 modules (QR code modules, not pixels)
-- Current implementation: 2px (to be updated to 4 modules)
-
-**Color Schemes:**
-| Scheme | Dark Color | Light Color | Use Case |
-|--------|------------|-------------|----------|
-| Primary | #667eea (Purple) | #ffffff (White) | Default, digital |
-| Microsoft Blue | #0078d4 | #ffffff | Official materials |
-| Copilot Green | #10a37f | #ffffff | Copilot Studio events |
-| High Contrast | #000000 (Black) | #ffffff | Print, accessibility |
-| Monochrome | #333333 | #ffffff | Professional print |
-
-#### Format Support
-
-**PNG Format (Current):**
-- Universal support, good for digital displays
-- Use cases: Email attachments, PowerPoint presentations, quick downloads
-- File size: ~5-15 KB depending on size and complexity
-
-**SVG Format (Planned):**
-- Infinitely scalable, smaller file size
-- Use cases: Print materials, web embedding, professional design tools
-- File size: ~2-5 KB
-
-**PDF Format (Future):**
-- Print-ready documents with event information
-- Use cases: Multiple QR codes per page, professional handouts
-
-#### Storage Strategy
-
-**Hybrid Approach (Recommended):**
-1. **Primary**: Generate on-the-fly in admin interface
-   - Fast, no storage cost
-   - Browser caching (sessionStorage/localStorage)
-   - Regenerate when event details change
-
-2. **Secondary** (Optional): Azure Blob Storage
-   - Pre-generate and store during event creation
-   - Permanent URLs for sharing
-   - CDN distribution for performance
-   - Container structure:
-     ```
-     qr-codes/
-       ├── events/
-       │   ├── {eventCode}/
-       │   │   ├── digital-200.png
-       │   │   ├── print-400.png
-       │   │   ├── print-800.png
-       │   │   ├── digital.svg
-       │   │   └── print.svg
-     ```
-
-**Storage Cost Analysis:**
-- Average QR code: ~10 KB
-- 1000 events × 5 formats = 50 MB
-- Azure Blob Storage: ~$0.02/GB/month
-- **Estimated cost: < $0.01/month** (negligible)
-
-#### Library & Implementation
-
-**Client-Side (Current):**
-- Library: QRCode.js v1.5.3+
-- CDN: `https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js`
-- Method: `QRCode.toCanvas()` for rendering to canvas element
-
-**Server-Side (Optional):**
-- Package: `qrcode` npm package
-- Use for pre-generation and blob storage
-- Headless canvas support via `jsdom` or `canvas` package
-
-#### Content & URL Structure
-
-**QR Code Content:**
+Example URL in QR Code:
 ```
-https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3
+https://feedbackapp.azurewebsites.net/feedback.html?code=CSA1B2C3&module=5
 ```
 
-**URL Components:**
-- Base URL: Application domain (production or custom domain)
-- Path: `/feedback.html` (public feedback form)
-- Parameter: `?code={EVENT_CODE}` (unique event identifier)
-
-**Future Enhancement - Short URLs:**
-- Custom short domain: `https://cat.ms/fb/ABC123`
-- Reduces QR code complexity
-- Built-in analytics tracking
-
-#### Print Templates
-
-**Template 1: Business Card (3.5" × 2")**
-- QR code: 1.5" × 1.5"
-- Event information beside QR code
-- Use case: Handouts, quick reference cards
-
-**Template 2: Flyer (8.5" × 11" Letter)**
-- QR code: 3" × 3" centered
-- Event details above and below QR code
-- Use case: Standard handouts, posted notices
-
-**Template 3: Poster (11" × 17" Tabloid)**
-- QR code: 6" × 6" large format
-- Prominent branding and event information
-- Use case: Classroom posters, hallway displays
-
-**Template 4: PowerPoint Slide (16:9)**
-- QR code: 2.5" × 2.5"
-- Slide layout with instructions
-- Use case: Embedded in presentations
-
-#### Branding & Customization
-
-**Logo Overlay:**
-- Optional Microsoft/Copilot Studio logo in center
-- Logo size: Maximum 20% of QR code area
-- Requirements:
-  - Transparent background PNG
-  - Must use Error Correction Level H
-  - White background box around logo for contrast
-  - Does not impede scannability
-
-**Branding Elements:**
-- Consistent header: "CAT Bootcamp Feedback"
-- Footer: Company logo, website, or tagline
-- Color scheme matching event/company brand
-- Typography: Segoe UI (primary), Arial (fallback)
-
-#### Admin Interface Features
-
-**QR Code Configuration Panel:**
-- Size selector (Digital/Print Standard/Print High-Res)
-- Format selector (PNG/SVG)
-- Color scheme selector (5 standard schemes)
-- Error correction level selector
-- Logo overlay checkbox
-- Storage option (generate only / store in blob)
-
-**Download Options:**
-- Download PNG (current size)
-- Download SVG (scalable)
-- Download all sizes (ZIP)
-- Print templates (business card, flyer, poster, slide)
-- Copy feedback URL to clipboard
-
-**Preview:**
-- Live preview of QR code with current settings
-- Test scan capability (show URL being encoded)
-- Size comparison view
-
-#### Database Schema Updates
-
-**Events Table Enhancements:**
-```sql
-ALTER TABLE Events ADD COLUMN QrCodeUrl NVARCHAR(500) NULL;
-ALTER TABLE Events ADD COLUMN QrCodeGeneratedAt DATETIME2 NULL;
-ALTER TABLE Events ADD COLUMN QrCodeStorageEnabled BIT DEFAULT 0;
-```
-
-**New Table: QrCodeConfigurations**
-```sql
-CREATE TABLE QrCodeConfigurations (
-    ConfigId INT IDENTITY(1,1) PRIMARY KEY,
-    EventId INT NOT NULL,
-    Size NVARCHAR(20) NOT NULL, -- 'DIGITAL', 'PRINT_STANDARD', 'PRINT_HIGHRES'
-    Format NVARCHAR(10) NOT NULL, -- 'PNG', 'SVG'
-    ErrorCorrection NVARCHAR(1) NOT NULL, -- 'L', 'M', 'Q', 'H'
-    ColorScheme NVARCHAR(50) NOT NULL,
-    BlobUrl NVARCHAR(500) NULL,
-    GeneratedAt DATETIME2 DEFAULT GETDATE(),
-    FOREIGN KEY (EventId) REFERENCES Events(EventId) ON DELETE CASCADE,
-    INDEX IX_EventId (EventId)
-);
-```
-
-#### API Enhancements
-
-**Generate QR Code (New Endpoint):**
-```
-POST /api/events/{eventId}/qr-code
-Body: {
-    "size": "PRINT_STANDARD",      // DIGITAL | PRINT_STANDARD | PRINT_HIGHRES
-    "format": "PNG",                // PNG | SVG
-    "errorCorrection": "H",         // L | M | Q | H
-    "colorScheme": "PRIMARY",       // Color scheme identifier
-    "includeLogo": true,            // Include logo overlay
-    "storeInBlob": true             // Store in Azure Blob Storage
-}
-Response: {
-    "success": true,
-    "data": {
-        "qrCodeUrl": "https://storage.blob.core.windows.net/.../ABC123-400.png",
-        "dataUrl": "data:image/png;base64,...",
-        "blobPath": "qr-codes/events/ABC123/print-400.png",
-        "metadata": {
-            "size": 400,
-            "format": "PNG",
-            "errorCorrection": "H",
-            "generatedAt": "2026-02-05T10:00:00Z"
-        }
-    }
-}
-```
-
-**Get QR Code Configurations:**
-```
-GET /api/events/{eventId}/qr-codes
-Response: {
-    "success": true,
-    "data": {
-        "configurations": [
-            {
-                "configId": 1,
-                "size": "DIGITAL",
-                "format": "PNG",
-                "url": "https://...",
-                "generatedAt": "2026-02-05T10:00:00Z"
-            }
-        ]
-    }
-}
-```
-
-**Delete QR Code:**
-```
-DELETE /api/events/{eventId}/qr-codes/{configId}
-```
-
-**Update GET /api/events/{eventCode}:**
-Add QR code URLs to response:
-```json
-{
-    "EventId": 1,
-    "EventCode": "CSA1B2C3",
-    "QrCodeUrl": "https://storage.blob.core.windows.net/.../CSA1B2C3-400.png",
-    "QrCodeConfigurations": [...]
-}
-```
-
-#### Accessibility Features
-
-**Alternative Access Methods:**
-- Text link always displayed alongside QR code
-- Short code for manual entry
-- Readable URL format
-
-**Screen Reader Support:**
-- Proper ARIA labels on QR code images
-- Alternative text describing QR code purpose
-- Links provided as fallback
-
-**High Contrast Mode:**
-- Automatic detection of high contrast preferences
-- Switch to monochrome color scheme when needed
-- Enhanced border visibility
-
-#### Performance Optimizations
-
-**Client-Side Caching:**
-- Cache generated QR codes in sessionStorage
-- Prevent redundant generation
-- Clear cache on event updates
-
-**Lazy Loading:**
-- Generate QR codes only when modal is opened
-- Reduces initial page load time
-
-**Web Workers (Future):**
-- Background QR code generation
-- Non-blocking UI rendering
-- Batch generation support
-
-#### Testing & Quality Assurance
-
-**Scannability Tests:**
-- Test with iOS Camera app
-- Test with Android Camera app
-- Test with dedicated QR reader apps
-- Test at various distances (6", 12", 24", 36")
-- Test on different phone models
-
-**Print Quality Tests:**
-- Print on different paper types (glossy, matte, newsprint)
-- Print at different DPI (300 DPI, 600 DPI)
-- Verify readability after printing
-- Test damage tolerance (fold, smudge, partial obstruction)
-
-**Format Compatibility:**
-- Test PNG downloads in all major browsers
-- Test SVG rendering and scalability
-- Verify PDF generation includes proper metadata
-
-**Color Scheme Tests:**
-- Verify contrast ratio (WCAG AA: 4.5:1)
-- Test in different lighting conditions
-- Test with color blindness simulators
-
-#### Security Considerations
-
-**URL Validation:**
-- Only encode event codes from database
-- Validate event code format before generation
-- Prevent injection of malicious URLs
-
-**Rate Limiting:**
-- Limit QR code generation requests (10 per minute)
-- Prevent abuse of generation API
-- Track usage patterns
-
-**Storage Security:**
-- Use SAS tokens with expiration for blob access
-- Implement blob-level access control
-- Enable Azure Blob Storage audit logging
-- Set appropriate CORS policies
-
-#### Implementation Status
-
-**Current Implementation:**
-- ✅ Basic QR code generation using QRCode.js
-- ✅ PNG format support
-- ✅ Canvas-based rendering
-- ✅ Download capability
-- ✅ Admin interface integration
-- ✅ Count display integration
-
-**Planned Enhancements:**
-- ⏳ Standardized sizes (200/400/800px)
-- ⏳ Error correction level configuration (default to H)
-- ⏳ Color scheme selector (5 standard schemes)
-- ⏳ SVG format support
-- ⏳ Azure Blob Storage integration
-- ⏳ Print templates (business card, flyer, poster, slide)
-- ⏳ Logo overlay capability
-- ⏳ Enhanced API endpoints
-- ⏳ Database schema updates
-- ⏳ Client-side caching
-
-#### Success Metrics
-
-**Technical KPIs:**
-- QR code generation time < 500ms
-- Scan success rate > 95%
-- Download completion rate > 90%
-- Print quality satisfaction > 90%
-
-**Business KPIs:**
-- QR code usage rate (% of feedback via QR)
-- Time saved vs manual URL entry
-- Print cost reduction
-- User satisfaction with QR quality
-
-**Monitoring:**
-- Track QR codes generated per event
-- Monitor most popular sizes/formats
-- Analyze download counts
-- Measure blob storage usage
-- Track scan-to-submission conversion rate
+Where:
+- `code=CSA1B2C3` identifies the event
+- `module=5` identifies the specific EventModuleId (this module's delivery in this event)
 
 ## Reporting & Analytics (Future Enhancement)
 
@@ -877,8 +838,6 @@ Add QR code URLs to response:
 - Quality/length of optional comments
 
 ## Future Enhancements
-
-### Application Features
 - Multi-language support
 - Real-time feedback display (for organizers)
 - Email notifications for new submissions
@@ -887,49 +846,32 @@ Add QR code URLs to response:
 - Mobile app version
 - Offline submission capability with sync
 
-### QR Code Advanced Features
-- **Dynamic QR Codes**: QR codes that can be updated to point to different events
-- **QR Code Analytics**:
-  - Track scan location (geographic data)
-  - Track scan time distribution
-  - Track device types scanning codes
-  - Scan-to-submission conversion tracking
-- **Animated QR Codes**: Subtle animations for digital displays
-- **Personalized QR Codes**:
-  - Generate unique QR codes per attendee
-  - Track individual responses
-  - Gamification (badges for completing feedback)
-- **Multi-language QR Codes**: QR code detects device language and redirects accordingly
-- **URL Shortening Integration**:
-  - Custom short domain (e.g., cat.ms/fb/ABC123)
-  - Built-in analytics tracking
-  - Third-party services (bit.ly, Azure URL shortener)
-- **Batch Operations**:
-  - Bulk QR code generation for multiple events
-  - Scheduled regeneration
-  - Automatic updates when event details change
-- **Advanced Templates**:
-  - Custom branded templates
-  - Multi-event templates (schedule posters)
-  - Interactive digital templates
-- **Web Workers**: Background QR code generation for performance
-
 ## Acceptance Criteria
 
 ### Public Feedback Form
-- [ ] Form loads with event code from URL parameter
-- [ ] Invalid/missing event code shows user-friendly error
-- [ ] Module information auto-populated from event code
-- [ ] Event code not visible anywhere on the form
-- [ ] All required fields must be filled before submission
-- [ ] Rating scales clearly indicate 5 as the best score
-- [ ] Form provides immediate validation feedback
-- [ ] Successful submission shows confirmation message
-- [ ] Form is responsive on mobile devices
-- [ ] Form is accessible to users with disabilities
-- [ ] Feedback is saved to Azure SQL database
-- [ ] Optional comments field has no submission requirement
-- [ ] No authentication required to submit feedback
+- [ ] **URL Parameter Flow (Primary)**:
+  - [ ] Form loads with event code AND module ID from URL parameters
+  - [ ] Module information auto-populated from URL parameters (module name, speaker, date)
+  - [ ] Event code and module ID not visible as form fields (transparently passed)
+  - [ ] No selection dropdowns shown when parameters are present
+  - [ ] Invalid event code or module ID shows user-friendly error
+- [ ] **Fallback Selection Flow (When Parameters Missing)**:
+  - [ ] If no `code` parameter: Show event selector with active events
+  - [ ] Event selector displays user-friendly names and dates (not technical codes)
+  - [ ] If `code` present but no `module`: Show module selector for that event
+  - [ ] Module selector displays module names, speakers, delivery dates
+  - [ ] After selection, URL updates to include parameters
+  - [ ] Form proceeds with selected event/module information populated
+- [ ] **General Form Behavior**:
+  - [ ] All required fields must be filled before submission
+  - [ ] Rating scales clearly indicate 5 as the best score
+  - [ ] Form provides immediate validation feedback
+  - [ ] Successful submission shows confirmation message
+  - [ ] Form is responsive on mobile devices
+  - [ ] Form is accessible to users with disabilities
+  - [ ] Feedback is saved to Azure SQL database with EventModuleId
+  - [ ] Optional comments field has no submission requirement
+  - [ ] No authentication required to submit feedback
 
 ### Admin Interface
 - [x] Authentication required to access admin interface
@@ -940,46 +882,56 @@ Add QR code URLs to response:
 - [x] Download QR code as PNG image
 - [x] View list of all events with search/filter
 - [x] Edit existing events
-- [x] Deactivate/activate events
+- [x] Deactivate/activate events with confirmation
 - [x] Delete events with confirmation dialog and cascade deletion
 - [x] View feedback submissions for each event
 - [x] View aggregate statistics (averages, counts)
 - [x] Export feedback data to CSV
 - [x] Responsive design for admin interface
 - [x] Login form with consistent input styling
-
-### QR Code Generation (Enhanced)
-- [x] Basic QR code generation with QRCode.js
-- [x] PNG format download capability
-- [ ] Multiple size options (200px, 400px, 800px)
-- [ ] Configurable error correction levels (L, M, Q, H)
-- [ ] Color scheme selector (5 standard schemes)
-- [ ] SVG format support
-- [ ] Azure Blob Storage integration
-- [ ] Persistent QR code URLs
-- [ ] Logo overlay capability
-- [ ] Print template generation:
-  - [ ] Business card template (3.5" × 2")
-  - [ ] Flyer template (8.5" × 11")
-  - [ ] Poster template (11" × 17")
-  - [ ] PowerPoint slide template (16:9)
-- [ ] Live preview of QR code with current settings
-- [ ] Batch download (all sizes/formats)
-- [ ] QR code regeneration when event details change
-- [ ] Client-side caching for performance
-- [ ] Accessibility features (alt text, screen reader support)
-- [ ] High contrast mode support
-- [ ] Scannability testing across major devices
-- [ ] Print quality validation (300+ DPI)
+- [ ] **View Details & QR button**: Display event details modal
+  - [ ] Show complete event information (dates, cohort, status)
+  - [ ] List all modules with speaker names and delivery dates
+  - [ ] Display feedback count per module
+  - [ ] **Generate and display unique QR code for EACH module delivery**
+    - [ ] Each module row shows its own QR code
+    - [ ] QR code includes both event code and EventModuleId
+    - [ ] Download individual QR code as PNG per module
+    - [ ] Copy module-specific feedback URL to clipboard
+  - [ ] Optional: Show event-level QR code for all modules (if needed)
+- [x] **Edit button**: Open event editing modal
+- [x] **Activate/Deactivate button**: Toggle event status
+  - [x] Confirmation dialog before status change
+  - [x] API endpoint for status updates
+  - [x] Real-time UI update after change
+- [x] High contrast module count badges for accessibility
+- [x] **Module Reordering**: Reorder modules within an event
+  - [x] Up/down arrow buttons for each module
+  - [x] API endpoint for updating delivery order
+  - [x] Automatic reordering of other modules
+  - [x] Real-time UI update after reordering
 
 ### Count Display
-- [x] Display live feedback count for specific event
-- [x] Auto-refresh count every 5 seconds
-- [x] Display event information (module name, date, speaker)
-- [x] Generate and display QR code for feedback form
-- [x] Handle zero feedback gracefully (display 0)
-- [x] Fullscreen mode for presentations
-- [x] Last updated timestamp display
+- [ ] **URL Parameter Flow (Primary)**:
+  - [x] Display live feedback count when URL parameters provided
+  - [x] Event-level: `code` parameter shows total count for all modules
+  - [ ] Module-level: `code` and `module` parameters show count for specific module
+  - [x] Auto-refresh count every 5 seconds
+  - [x] Display event/module information (name, date, speaker)
+  - [x] Generate and display QR code with URL parameters included
+- [ ] **Fallback Selection Flow (When Parameters Missing)**:
+  - [ ] If no `code` parameter: Show event selector interface
+  - [ ] Display list of active events for selection
+  - [ ] After event selection, show option for event-level or module-level view
+  - [ ] If module-level selected, show module selector
+  - [ ] Update URL with selected parameters after selection
+  - [ ] Hide selection interface after setup for clean presentation view
+- [ ] **General Display Behavior**:
+  - [x] Handle zero feedback gracefully (display 0)
+  - [x] Fullscreen mode toggle for presentations
+  - [x] Last updated timestamp display
+  - [x] Animated count transitions when numbers change
+  - [ ] Responsive design for various screen sizes
 
 ## Implementation Phases
 
@@ -995,62 +947,10 @@ Add QR code URLs to response:
 - Event code generation
 - View event-specific feedback
 
-### Phase 3: QR Code Generation & Enhancement
-
-**Phase 3.1: Foundation (2 weeks)**
-- ✅ Basic QR code generation using QRCode.js (completed)
-- ✅ PNG format support (completed)
-- ✅ Canvas-based rendering (completed)
-- ✅ Download capability (completed)
-- ⏳ Standardize QR code sizes (200px, 400px, 800px)
-- ⏳ Implement error correction level configuration (default to Level H)
-- ⏳ Add margin configuration (4 modules minimum)
-- ⏳ Update count.js to use consistent 200px size
-
-**Phase 3.2: Storage & Persistence (2 weeks)**
-- ⏳ Set up Azure Blob Storage container structure
-- ⏳ Add database schema updates:
-  - QrCodeUrl column in Events table
-  - QrCodeGeneratedAt column in Events table
-  - QrCodeStorageEnabled column in Events table
-  - New QrCodeConfigurations table
-- ⏳ Implement blob upload/download functionality
-- ⏳ Add "Save to Storage" option in admin interface
-- ⏳ Create API endpoints:
-  - POST /api/events/{eventId}/qr-code
-  - GET /api/events/{eventId}/qr-codes
-  - DELETE /api/events/{eventId}/qr-codes/{configId}
-- ⏳ Update GET /api/events/{eventCode} to include QR code URLs
-
-**Phase 3.3: Formats & Templates (2 weeks)**
-- ⏳ Add SVG format support
-- ⏳ Create business card template (3.5" × 2")
-- ⏳ Create flyer template (8.5" × 11" letter)
-- ⏳ Create poster template (11" × 17" tabloid)
-- ⏳ Create PowerPoint slide template (16:9)
-- ⏳ Implement PDF generation with multiple templates
-- ⏳ Add template download options in admin interface
-
-**Phase 3.4: Branding & Customization (2 weeks)**
-- ⏳ Add color scheme selector in admin interface:
-  - Primary (Purple)
-  - Microsoft Blue
-  - Copilot Green
-  - High Contrast
-  - Monochrome
-- ⏳ Implement logo overlay capability
-- ⏳ Add custom color scheme creation
-- ⏳ Add branding elements (headers, footers)
-- ⏳ Create branded template library
-- ⏳ Add live preview before download
-
-**Phase 3.5: Testing & Optimization (1 week)**
-- ⏳ Comprehensive scannability testing across devices
-- ⏳ Print quality validation
-- ⏳ Performance optimization (caching, lazy loading)
-- ⏳ Accessibility audit
-- ⏳ Security review
-- ⏳ Documentation completion
+### Phase 3: QR Code Generation
+- QR code generation for events
+- Download QR codes as images
+- Print-friendly QR code layouts
 
 ### Phase 4: Analytics & Reporting
 - Aggregate statistics dashboard
@@ -1068,9 +968,15 @@ Add QR code URLs to response:
 ## Notes
 
 ### URL Structure
-- Feedback form: `https://yourdomain.com/feedback.html?code=CSA1B2C3`
-- Each module gets its own unique URL via event code
-- QR codes encode the full URL for easy scanning
+- **Feedback form**: `https://yourdomain.com/feedback.html?code=CSA1B2C3&module=5`
+  - `code` parameter: Event code (e.g., CSA1B2C3)
+  - `module` parameter: EventModuleId (e.g., 5)
+- **Each module delivery gets its own unique URL**
+  - Event code identifies which event
+  - Module ID identifies which specific module within that event
+- **QR codes encode the full URL** with both parameters for easy scanning
+- **Count display**: `https://yourdomain.com/count.html?code=CSA1B2C3&module=5`
+  - Can omit `module` parameter for event-level count
 - Short URLs (bit.ly, etc.) can be added later for easier sharing
 
 ### Event Code Best Practices
@@ -1121,6 +1027,64 @@ Add QR code URLs to response:
 - Mobile app version
 
 ## Implementation Notes
+
+### URL Parameter Handling and Fallback Flows
+
+The application implements a transparent URL parameter system with intelligent fallback behavior.
+
+#### Primary Flow: Transparent URL Parameters
+When users access feedback or count pages via QR codes or shared links, parameters are transparently passed through the URL:
+- **Feedback Form**: `feedback.html?code=CSA1B2C3&module=5`
+- **Count Display**: `count.html?code=CSA1B2C3&module=5` or `count.html?code=CSA1B2C3`
+
+**User Experience:**
+- Users never see or interact with technical identifiers (event codes, module IDs)
+- Information is automatically loaded and displayed in user-friendly format
+- Module name, speaker, date, and event details are shown clearly
+- Users proceed directly to providing feedback or viewing counts
+- No selection screens or dropdowns required
+
+#### Fallback Flow: Manual Selection
+When users access pages without URL parameters (bookmarked base URL, direct navigation, etc.):
+
+**Feedback Form Fallback:**
+1. **No `code` parameter**: Display event selector
+   - Show active events with readable names, dates, descriptions
+   - User selects event from dropdown or list interface
+   - Fetch modules for selected event
+2. **`code` present, no `module`**: Display module selector
+   - Show modules for the event with names, speakers, delivery dates
+   - User selects specific module to provide feedback for
+3. **After selection**:
+   - URL updates to include parameters: `?code=CSA1B2C3&module=5`
+   - Form proceeds with selected information pre-populated
+   - URL can be bookmarked or shared for future direct access
+
+**Count Display Fallback:**
+1. **No `code` parameter**: Display event selector
+   - Show active events with names and dates
+   - User selects event
+   - Option to view event-level (all modules) or select specific module
+2. **`code` present, no `module`**: Default to event-level view
+   - Display total count for all modules in event
+   - Provide option to switch to module-specific view
+   - Show module selector if user requests module-level view
+3. **After selection**:
+   - URL updates with parameters
+   - Selection interface can be hidden for clean presentation view
+   - Counts refresh automatically every 5 seconds
+
+#### Implementation Considerations
+- **API Requirements**: Need endpoints to list active events and modules
+  - `GET /api/events` - List all active events
+  - `GET /api/events/{eventCode}/modules` - List modules for an event (already exists)
+- **User-Friendly Display**: Show business-readable information, not technical IDs
+  - Event names, not event codes
+  - Module names with speakers, not module IDs
+- **URL Updates**: Use `history.pushState()` to update URL without page reload
+- **Session Persistence**: Consider storing last selection in sessionStorage
+- **Error Handling**: Gracefully handle cases where no events or modules exist
+- **Accessibility**: Ensure selection interfaces are keyboard navigable and screen reader friendly
 
 ### Delete Functionality
 The delete feature includes comprehensive safeguards:

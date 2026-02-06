@@ -36,7 +36,7 @@
                     </div>
                     <div class="error-message" id="loginError"></div>
                     <button type="submit" class="btn btn-primary btn-block">Login</button>
-                    <p class="login-help">Demo: username=<strong>admin</strong>, password=<strong>admin123</strong></p>
+                    <p class="login-help">Demo: username=<strong>admin</strong>, password=<strong>CATBootcamp2026!</strong></p>
                 </form>
             </div>
         </div>
@@ -45,7 +45,11 @@
         <div id="mainContent" class="main-content hidden">
             <!-- Navigation Tabs -->
             <nav class="tabs">
-                <button class="tab-button active" data-tab="events">
+                <button class="tab-button active" data-tab="modules">
+                    <span class="tab-icon">📚</span>
+                    Modules
+                </button>
+                <button class="tab-button" data-tab="events">
                     <span class="tab-icon">📅</span>
                     Events
                 </button>
@@ -59,8 +63,29 @@
                 </button>
             </nav>
 
+            <!-- Modules Tab -->
+            <div id="modulesTab" class="tab-content active">
+                <div class="tab-header">
+                    <h2>Manage Modules</h2>
+                    <button class="btn btn-primary" id="createModuleBtn">
+                        <span>+ Create New Module</span>
+                    </button>
+                </div>
+
+                <div class="search-bar">
+                    <input type="text" id="moduleSearch" placeholder="Search modules by name or speaker...">
+                </div>
+
+                <div class="modules-list" id="modulesList">
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <p>Loading modules...</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Events Tab -->
-            <div id="eventsTab" class="tab-content active">
+            <div id="eventsTab" class="tab-content">
                 <div class="tab-header">
                     <h2>Manage Events</h2>
                     <button class="btn btn-primary" id="createEventBtn">
@@ -149,6 +174,39 @@
             </div>
         </div>
 
+        <!-- Create/Edit Module Modal -->
+        <div id="moduleModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="moduleModalTitle">Create New Module</h3>
+                    <button class="modal-close" id="closeModuleModal">&times;</button>
+                </div>
+                <form id="moduleForm">
+                    <div class="form-group">
+                        <label for="moduleNameInput">Module Name <span class="required">*</span></label>
+                        <input type="text" id="moduleNameInput" name="moduleName" required
+                               placeholder="e.g., Introduction to Copilot Studio">
+                    </div>
+                    <div class="form-group">
+                        <label for="moduleDescription">Description</label>
+                        <textarea id="moduleDescription" name="description" rows="4"
+                                  placeholder="Brief description of the module content..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="moduleIsActive" name="isActive" checked>
+                            <span>Module is active</span>
+                        </label>
+                    </div>
+                    <input type="hidden" id="moduleId" name="moduleId">
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelModuleBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="saveModuleBtn">Save Module</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Create/Edit Event Modal -->
         <div id="eventModal" class="modal hidden">
             <div class="modal-content">
@@ -158,35 +216,98 @@
                 </div>
                 <form id="eventForm">
                     <div class="form-group">
-                        <label for="moduleName">Module Name <span class="required">*</span></label>
-                        <input type="text" id="moduleName" name="moduleName" required>
+                        <label for="eventName">Event Name <span class="required">*</span></label>
+                        <input type="text" id="eventName" name="eventName" required
+                               placeholder="e.g., Cloud Adoption Training - January 2026"
+                               maxlength="200">
+                        <small class="form-help">Descriptive name for this event</small>
                     </div>
                     <div class="form-group">
-                        <label for="moduleDate">Module Date <span class="required">*</span></label>
-                        <input type="date" id="moduleDate" name="moduleDate" required>
+                        <label for="eventCode">Event Code <span class="required">*</span></label>
+                        <input type="text" id="eventCode" name="eventCode" required
+                               placeholder="e.g., CSA1B2C3"
+                               pattern="^CS[A-Z0-9]{6}$"
+                               title="Must start with CS followed by 6 alphanumeric characters (e.g., CSA1B2C3)"
+                               maxlength="8">
+                        <small class="form-help">8 characters: CS followed by 6 alphanumeric characters</small>
                     </div>
                     <div class="form-group">
-                        <label for="speakerName">Speaker Name <span class="required">*</span></label>
-                        <input type="text" id="speakerName" name="speakerName" required>
+                        <label for="startDate">Start Date <span class="required">*</span></label>
+                        <input type="date" id="startDate" name="startDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="endDate">End Date</label>
+                        <input type="date" id="endDate" name="endDate">
+                        <small class="form-help">Optional - leave blank if same day as start</small>
                     </div>
                     <div class="form-group">
                         <label for="cohortId">Cohort/Batch ID</label>
                         <input type="text" id="cohortId" name="cohortId" placeholder="e.g., Q1-2026">
                     </div>
                     <div class="form-group">
-                        <label for="description">Description</label>
-                        <textarea id="description" name="description" rows="3" placeholder="Optional event description..."></textarea>
-                    </div>
-                    <div class="form-group">
                         <label class="checkbox-label">
-                            <input type="checkbox" id="isActive" name="isActive" checked>
+                            <input type="checkbox" id="eventIsActive" name="isActive" checked>
                             <span>Event is active</span>
                         </label>
                     </div>
+
+                    <!-- Modules Section (only shown when editing) -->
+                    <div id="eventModulesSection" class="form-section" style="display: none;">
+                        <div class="form-section-header">
+                            <h4>Event Modules</h4>
+                            <button type="button" class="btn btn-primary btn-sm" id="addModuleBtn">+ Add Module</button>
+                        </div>
+                        <div id="eventModulesList">
+                            <!-- Event modules will be listed here -->
+                        </div>
+                    </div>
+
                     <input type="hidden" id="eventId" name="eventId">
                     <div class="modal-actions">
                         <button type="button" class="btn btn-secondary" id="cancelEventBtn">Cancel</button>
                         <button type="submit" class="btn btn-primary" id="saveEventBtn">Save Event</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Add Module to Event Modal -->
+        <div id="addModuleModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Add Module to Event</h3>
+                    <button class="modal-close" id="closeAddModuleModal">&times;</button>
+                </div>
+                <form id="addModuleForm">
+                    <div class="form-group">
+                        <label for="moduleSelectForEvent">Module <span class="required">*</span></label>
+                        <select id="moduleSelectForEvent" name="moduleId" required>
+                            <option value="">-- Select a Module --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="speakerNameForModule">Speaker Name <span class="required">*</span></label>
+                        <input type="text" id="speakerNameForModule" name="speakerName" required
+                               placeholder="e.g., John Doe">
+                        <small class="form-help">Who is delivering this module at this event?</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="deliveryOrder">Delivery Order <span class="required">*</span></label>
+                        <input type="number" id="deliveryOrder" name="deliveryOrder" min="1" value="1" required>
+                        <small class="form-help">Order in which this module is delivered</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="deliveryDate">Delivery Date & Time</label>
+                        <input type="datetime-local" id="deliveryDate" name="deliveryDate">
+                        <small class="form-help">Optional - when this module is delivered</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="moduleNotes">Notes</label>
+                        <textarea id="moduleNotes" name="notes" rows="3" placeholder="Optional notes about this module delivery..."></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelAddModuleBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Add Module</button>
                     </div>
                 </form>
             </div>
@@ -208,6 +329,6 @@
 
     <!-- Include QR Code library -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-    <script src="admin.js"></script>
+    <script type="module" src="admin.js"></script>
 </body>
 </html>

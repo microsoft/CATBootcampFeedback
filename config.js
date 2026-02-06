@@ -6,7 +6,8 @@
 export const CONFIG = {
     // API Configuration
     API_BASE_URL: '/api',
-    USE_MOCK_DATA: true,  // Set to false for production
+    // Auto-detect environment: use real APIs in production, mock in localhost
+    USE_MOCK_DATA: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
 
     // Timeouts & Intervals
     API_TIMEOUT: 30000,                 // 30 seconds
@@ -26,10 +27,10 @@ export const CONFIG = {
     MODULE_NAME_MAX_LENGTH: 200,
 
     // Rate Limiting (client-side)
-    MAX_SUBMISSIONS_PER_EVENT: 5,
-    SUBMISSION_COOLDOWN_MS: 3600000,    // 1 hour
+    MAX_SUBMISSIONS_PER_EVENT: 0,       // 0 = unlimited (no limit for events with many participants)
+    SUBMISSION_COOLDOWN_MS: 3600000,    // Not used when MAX_SUBMISSIONS_PER_EVENT = 0
     MAX_LOGIN_ATTEMPTS: 5,
-    LOGIN_COOLDOWN_MS: 900000,          // 15 minutes
+    LOGIN_COOLDOWN_MS: 300000,          // 5 minutes
 
     // QR Code Settings
     QR_CODE_SIZE: 300,

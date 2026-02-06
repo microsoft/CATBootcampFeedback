@@ -1,6 +1,9 @@
 /**
- * Get Feedback Count for Event
+ * Get Feedback Count for Event (Live Counter)
  * GET /api/events/{code}/count
+ *
+ * Returns event details with per-module feedback counts
+ * Used by the live counter display
  */
 
 const { query } = require('../shared/database');
@@ -16,18 +19,76 @@ module.exports = async function (context, req) {
             return;
         }
 
-        // Get count from database
-        const result = await query(
-            `SELECT COUNT(*) as count
-             FROM Feedback f
-             INNER JOIN Events e ON f.EventId = e.EventId
-             WHERE e.EventCode = @eventCode AND e.IsActive = 1`,
-            { eventCode }
-        );
+        // Get event details
+        const eventResult = await query(`
+            SELECT
+                e.EventId,
+                e.EventCode,
+                e.StartDate,
+                e.EndDate,
+                e.CohortId
+            FROM Events e
+            WHERE e.EventCode = @eventCode AND e.IsActive = 1
+        `, { eventCode });
 
-        const count = result && result.length > 0 ? result[0].count : 0;
+        if (!eventResult || eventResult.length === 0) {
+            context.res = error(404, 'Event not found or inactive', 'EVENT_NOT_FOUND');
+            return;
+        }
 
-        context.res = success({ count, eventCode });
+        const event = eventResult[0];
+
+        // Get per-module feedback counts
+        const modulesResult = await query(`
+            SELECT
+                em.EventModuleId,
+                em.ModuleId,
+                m.ModuleName,
+                em.SpeakerName,
+                em.DeliveryOrder,
+                em.DeliveryDate,
+                COUNT(f.FeedbackId) AS FeedbackCount,
+                AVG(CAST(f.SpeakerKnowledge AS FLOAT)) AS AvgSpeakerKnowledge,
+                AVG(CAST(f.ModuleSatisfaction AS FLOAT)) AS AvgModuleSatisfaction,
+                MAX(f.SubmittedAt) AS LastSubmittedAt
+            FROM EventModules em
+            INNER JOIN Modules m ON em.ModuleId = m.ModuleId
+            LEFT JOIN Feedback f ON em.EventModuleId = f.EventModuleId
+            WHERE em.EventId = @eventId AND m.IsActive = 1
+            GROUP BY em.EventModuleId, em.ModuleId, m.ModuleName, em.SpeakerName,
+                     em.DeliveryOrder, em.DeliveryDate
+            ORDER BY em.DeliveryOrder ASC
+        `, { eventId: event.EventId });
+
+        // Calculate total feedback count
+        const totalCount = modulesResult.reduce((sum, m) => sum + (m.FeedbackCount || 0), 0);
+
+        // Format module data
+        const modules = modulesResult.map(m => ({
+            eventModuleId: m.EventModuleId,
+            moduleId: m.ModuleId,
+            moduleName: m.ModuleName,
+            speakerName: m.SpeakerName,
+            deliveryOrder: m.DeliveryOrder,
+            deliveryDate: m.DeliveryDate,
+            feedbackCount: m.FeedbackCount || 0,
+            averages: {
+                speakerKnowledge: m.AvgSpeakerKnowledge ? parseFloat(m.AvgSpeakerKnowledge.toFixed(2)) : null,
+                moduleSatisfaction: m.AvgModuleSatisfaction ? parseFloat(m.AvgModuleSatisfaction.toFixed(2)) : null
+            },
+            lastSubmittedAt: m.LastSubmittedAt
+        }));
+
+        // Format response for live counter
+        context.res = success({
+            eventCode: event.EventCode,
+            eventId: event.EventId,
+            startDate: event.StartDate,
+            endDate: event.EndDate,
+            cohortId: event.CohortId,
+            totalCount: totalCount,
+            modules: modules
+        });
     } catch (err) {
         context.log.error('Error in GetFeedbackCount:', err);
         context.res = error(500, 'Internal server error', 'SERVER_ERROR');

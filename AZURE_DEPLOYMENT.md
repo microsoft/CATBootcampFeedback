@@ -34,7 +34,20 @@ Complete guide for deploying the CAT Bootcamp Feedback Application to Azure.
 - Azure subscription
 - Azure CLI installed
 - GitHub account with repository access
-- Node.js 18+ installed locally (for testing)
+- Node.js 20+ installed locally (for testing)
+
+## ⚠️ CRITICAL: Azure Functions V4 Required
+
+**Azure Static Web Apps requires Azure Functions V4 programming model.**
+
+This application uses the V4 model. See `AZURE_FUNCTIONS_V4_MIGRATION.md` for details.
+
+Key requirements:
+- Functions must use `app.http()` from `@azure/functions`
+- Functions in `api/src/functions/` directory
+- Entry point in `api/src/index.js`
+- `package.json` must specify `"main": "src/index.js"`
+- No `function.json` files (V2/V3 model not supported)
 
 ## 🚀 Deployment Options
 
@@ -168,19 +181,24 @@ az staticwebapp secrets list \
 # Value: (paste the token from above)
 ```
 
-Configure environment variables in Azure Portal:
+Configure environment variables via Azure CLI:
 
+```bash
+az staticwebapp appsettings set \
+  --name cat-bootcamp-feedback \
+  --resource-group cat-bootcamp-rg \
+  --setting-names \
+    SQL_SERVER=cat-bootcamp-sql-89082.database.windows.net \
+    SQL_DATABASE=CATBootcampFeedback \
+    SQL_USER=sqladmin \
+    SQL_PASSWORD=YourSecurePassword123! \
+    NODE_ENV=production
+```
+
+Or via Azure Portal:
 1. Go to your Static Web App in Azure Portal
 2. Navigate to **Configuration** → **Application settings**
-3. Add these settings:
-
-```
-SQL_SERVER=cat-bootcamp-sql.database.windows.net
-SQL_DATABASE=CATBootcampFeedback
-SQL_USER=sqladmin
-SQL_PASSWORD=YourSecurePassword123!
-NODE_ENV=production
-```
+3. Add the settings listed above
 
 #### Step 5: Deploy
 
