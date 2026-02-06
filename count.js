@@ -683,7 +683,11 @@ function initializeRefreshIntervalSelector() {
 
 // Generate QR code
 function generateQRCode() {
-    const feedbackUrl = `${FEEDBACK_BASE_URL}?code=${eventCode}`;
+    // Generate URL with module ID if in module-specific mode
+    let feedbackUrl = `${FEEDBACK_BASE_URL}?code=${eventCode}`;
+    if (isModuleMode && moduleId) {
+        feedbackUrl += `&module=${moduleId}`;
+    }
     const canvas = document.getElementById('qrCode');
 
     if (typeof QRCode !== 'undefined') {
