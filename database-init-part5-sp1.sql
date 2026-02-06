@@ -3,6 +3,10 @@
 -- Run this fifth in Azure Portal Query Editor
 -- ============================================
 
+-- Drop if exists
+IF OBJECT_ID('sp_GetEventByCode', 'P') IS NOT NULL
+    DROP PROCEDURE sp_GetEventByCode;
+
 CREATE PROCEDURE sp_GetEventByCode
     @EventCode NVARCHAR(8)
 AS

@@ -3,6 +3,10 @@
 -- Run this fourth in Azure Portal Query Editor
 -- ============================================
 
+-- Drop if exists
+IF OBJECT_ID('vw_EventFeedbackCounts', 'V') IS NOT NULL
+    DROP VIEW vw_EventFeedbackCounts;
+
 -- View: Event feedback counts
 CREATE VIEW vw_EventFeedbackCounts AS
 SELECT

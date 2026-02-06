@@ -3,6 +3,10 @@
 -- Run this sixth (final) in Azure Portal Query Editor
 -- ============================================
 
+-- Drop if exists
+IF OBJECT_ID('sp_GetFeedbackCountByEventCode', 'P') IS NOT NULL
+    DROP PROCEDURE sp_GetFeedbackCountByEventCode;
+
 CREATE PROCEDURE sp_GetFeedbackCountByEventCode
     @EventCode NVARCHAR(8)
 AS

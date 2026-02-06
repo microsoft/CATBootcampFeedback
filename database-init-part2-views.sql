@@ -3,6 +3,10 @@
 -- Run this second in Azure Portal Query Editor
 -- ============================================
 
+-- Drop if exists
+IF OBJECT_ID('vw_EventsWithModules', 'V') IS NOT NULL
+    DROP VIEW vw_EventsWithModules;
+
 -- View: Events with all their modules
 CREATE VIEW vw_EventsWithModules AS
 SELECT
