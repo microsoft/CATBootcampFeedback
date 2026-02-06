@@ -2,27 +2,31 @@
  * Login API
  * POST /api/login
  *
- * Simple authentication for admin panel
- * NOTE: This is a basic implementation for demo purposes
- * In production, use proper authentication (Azure AD, JWT, etc.)
+ * JWT-based authentication for the admin panel
+ * Generates a signed JWT token valid for 8 hours
+ *
+ * TODO: Migrate to Azure AD for enterprise authentication
  */
 
 const { app } = require('@azure/functions');
+const bcrypt = require('bcryptjs');
+const { generateToken } = require('../shared/auth');
 
-// Hardcoded credentials for demo
-// In production, validate against database or Azure AD
-const VALID_CREDENTIALS = [
+// Admin credentials with bcrypt-hashed passwords
+// Password: CATBootcamp2026! (hashed with bcrypt rounds=10)
+// TODO: Move to Azure Key Vault or database with proper user management
+const ADMIN_USERS = [
     {
         username: 'admin',
-        password: 'CATBootcamp2026!',
-        fullName: 'Admin User',
-        role: 'admin'
+        passwordHash: '$2b$10$.QNiEI80R3baYb5/KxY.Z.O4Gsvp.FC1JXjcd0ycnqK9t10LdpgGG',
+        fullName: 'CAT Admin',
+        email: 'admin@microsoft.com'
     },
     {
         username: 'dewainr',
-        password: 'CATBootcamp2026!',
+        passwordHash: '$2b$10$.QNiEI80R3baYb5/KxY.Z.O4Gsvp.FC1JXjcd0ycnqK9t10LdpgGG',
         fullName: 'Dewain Robinson',
-        role: 'admin'
+        email: 'dewainr@microsoft.com'
     }
 ];
 
@@ -32,15 +36,11 @@ app.http('login', {
     route: 'login',
     handler: async (request, context) => {
         try {
-            context.log('Login request received');
+            context.log('JWT Login request received');
 
-            // Parse request body - V4 way
+            // Parse request body
             const bodyText = await request.text();
-            context.log('Raw body:', bodyText);
-
             const body = JSON.parse(bodyText);
-            context.log('Parsed body:', JSON.stringify(body));
-
             const { username, password } = body;
 
             if (!username || !password) {
@@ -54,31 +54,13 @@ app.http('login', {
                 };
             }
 
-            // Find matching user
-            const user = VALID_CREDENTIALS.find(
-                cred => cred.username === username && cred.password === password
+            // Find user by username
+            const user = ADMIN_USERS.find(u =>
+                u.username.toLowerCase() === username.toLowerCase()
             );
 
-            if (user) {
-                context.log('Login successful for:', username);
-
-                // Generate simple token (in production, use JWT)
-                const token = 'token-' + Date.now() + '-' + Math.random().toString(36).substring(7);
-
-                return {
-                    status: 200,
-                    jsonBody: {
-                        success: true,
-                        token: token,
-                        user: {
-                            username: user.username,
-                            fullName: user.fullName,
-                            role: user.role
-                        }
-                    }
-                };
-            } else {
-                context.log('Invalid credentials for:', username);
+            if (!user) {
+                context.log('User not found:', username);
                 return {
                     status: 401,
                     jsonBody: {
@@ -87,6 +69,44 @@ app.http('login', {
                     }
                 };
             }
+
+            // Verify password with bcrypt
+            const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+
+            if (!isPasswordValid) {
+                context.log('Invalid password for user:', username);
+                return {
+                    status: 401,
+                    jsonBody: {
+                        success: false,
+                        message: 'Invalid username or password'
+                    }
+                };
+            }
+
+            // Generate JWT token
+            const token = generateToken({
+                username: user.username,
+                email: user.email,
+                fullName: user.fullName
+            });
+
+            context.log('JWT Login successful for:', username);
+
+            return {
+                status: 200,
+                jsonBody: {
+                    success: true,
+                    token: token,
+                    user: {
+                        username: user.username,
+                        fullName: user.fullName,
+                        email: user.email
+                    },
+                    expiresIn: '8h'
+                }
+            };
+
         } catch (err) {
             context.log('Login error:', err.message);
             context.log('Error stack:', err.stack);
@@ -100,4 +120,3 @@ app.http('login', {
         }
     }
 });
-// Force rebuild
