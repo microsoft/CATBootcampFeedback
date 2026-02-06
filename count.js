@@ -269,8 +269,12 @@ async function showEventSelector() {
                 // Load modules for selected event
                 const selectedEvent = events.find(e => e.eventCode === selectedCode);
                 if (selectedEvent && selectedEvent.modules) {
+                    // DEFENSIVE: Filter out inactive modules
+                    const activeModules = selectedEvent.modules.filter(m =>
+                        m.eventModuleId && m.moduleName && m.isActive === true
+                    );
                     moduleSelect.innerHTML = '<option value="">-- Select a Module --</option>' +
-                        selectedEvent.modules.map(m =>
+                        activeModules.map(m =>
                             `<option value="${m.eventModuleId}">${escapeHtml(m.moduleName)} - ${escapeHtml(m.speakerName)}</option>`
                         ).join('');
                 }
@@ -520,8 +524,12 @@ function showCountDisplay() {
 
     // Render module cards
     const modules = currentEvent.modules || [];
-    if (modules.length > 0) {
-        modulesContainer.innerHTML = modules.map(module => `
+    // DEFENSIVE: Filter out inactive modules before displaying
+    const activeModules = modules.filter(m =>
+        m.eventModuleId && m.moduleName && m.isActive !== false
+    );
+    if (activeModules.length > 0) {
+        modulesContainer.innerHTML = activeModules.map(module => `
             <div class="module-card">
                 <div class="module-info">
                     <div class="module-name">${escapeHtml(module.moduleName)}</div>
