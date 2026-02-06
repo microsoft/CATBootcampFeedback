@@ -705,6 +705,53 @@ function generateEventCode() {
 }
 ```
 
+### Event and Module Lifecycle Management
+
+#### Default Active Status
+All new events and modules are created with active status by default:
+- **New Events**: `IsActive = 1` (active) by default
+- **New Modules**: `IsActive = 1` (active) by default
+- **Database Default**: Both Events and Modules tables have `IsActive BIT DEFAULT 1`
+- **API Default**: CreateEvent and CreateModule APIs default `isActive = true` if not specified
+
+#### Automatic Event Archival
+Events are automatically archived (marked inactive) based on age:
+- **Trigger**: Events with EndDate more than 14 days in the past
+- **Action**: `IsActive` set to 0 automatically
+- **Timing**: Checked when GetEvents API is called (admin panel loads)
+- **Audit Trail**: UpdatedBy set to 'system-auto-archive', UpdatedAt set to current timestamp
+
+**Auto-Archive Logic:**
+```sql
+UPDATE Events
+SET IsActive = 0,
+    UpdatedAt = GETDATE(),
+    UpdatedBy = 'system-auto-archive'
+WHERE IsActive = 1
+  AND EndDate IS NOT NULL
+  AND DATEDIFF(DAY, EndDate, GETDATE()) > 14
+```
+
+#### Manual Status Management
+Administrators can manually change status:
+- **Deactivate Early**: Mark events inactive before auto-archive period
+- **Reactivate**: Manually set IsActive = 1 to reactivate archived events
+- **Module Deactivation**: Mark modules inactive to hide from all events
+- **Cascading Effect**: Inactive modules are filtered from all API responses
+
+#### Status Filter Behavior
+- **GetEvents**: Returns only active events (`WHERE e.IsActive = 1`)
+- **GetEventModule**: Returns only if both event AND module are active
+- **Admin Panel**: Only shows and generates QR codes for active modules
+- **Feedback Form**: Only accepts feedback for active event-module combinations
+
+#### Business Rules
+1. **Archive Period**: 14 days after event EndDate
+2. **Null EndDate**: Events without EndDate are never auto-archived
+3. **Manual Override**: Admins can reactivate archived events if needed
+4. **Module Reuse**: Inactive modules can be reactivated for new events
+5. **Data Retention**: Archived events retain all feedback data
+
 ### Rate Limiting Configuration
 
 The application implements client-side rate limiting to prevent abuse and enhance security:

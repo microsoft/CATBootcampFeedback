@@ -11,6 +11,17 @@ const { success, error } = require('../shared/utils');
 
 module.exports = async function (context, req) {
     try {
+        // Auto-archive events that are 2 weeks past their end date
+        await query(`
+            UPDATE Events
+            SET IsActive = 0,
+                UpdatedAt = GETDATE(),
+                UpdatedBy = 'system-auto-archive'
+            WHERE IsActive = 1
+              AND EndDate IS NOT NULL
+              AND DATEDIFF(DAY, EndDate, GETDATE()) > 14
+        `);
+
         // Get all active events
         const events = await query(`
             SELECT
