@@ -14,201 +14,224 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            height: 100vh;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+            overflow: hidden;
         }
 
         .count-container {
             background: white;
-            border-radius: 20px;
-            padding: 60px 80px;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 900px;
             width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 30px 40px;
         }
 
-        .event-header {
-            margin-bottom: 40px;
+        /* Header section */
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .event-info {
+            flex: 1;
         }
 
         .event-code {
             font-size: 1.8rem;
             color: #333;
             font-weight: 600;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
 
+        .event-subtext {
+            font-size: 1.1rem;
+            color: #666;
+        }
+
+        .fullscreen-btn {
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+        }
+
+        .fullscreen-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        /* Main content area - split into left and right */
+        .main-content {
+            display: flex;
+            gap: 40px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .left-section {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+        }
+
+        .right-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9ff;
+            border-radius: 15px;
+            padding: 30px;
+        }
+
+        /* Total count styling */
         .total-count-section {
-            margin-bottom: 40px;
-            padding-bottom: 30px;
-            border-bottom: 2px solid #f0f0f0;
+            text-align: center;
+            margin-bottom: 20px;
         }
 
         .count-label {
-            font-size: 1.1rem;
+            font-size: 1rem;
             color: #999;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             text-transform: uppercase;
             letter-spacing: 2px;
         }
 
         .total-count {
-            font-size: 6rem;
+            font-size: 5rem;
             font-weight: 700;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin: 20px 0;
             line-height: 1;
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        .modules-section {
-            margin: 30px 0;
-        }
-
-        .module-card {
-            background: #f8f9ff;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 15px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: all 0.3s ease;
-        }
-
-        .module-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .module-info {
-            text-align: left;
-            flex: 1;
-        }
-
-        .module-name {
-            font-size: 1.2rem;
-            color: #333;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-
-        .module-speaker {
-            font-size: 0.95rem;
-            color: #666;
-        }
-
-        .module-count {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: #667eea;
-            min-width: 80px;
-            text-align: right;
         }
 
         @keyframes pulse {
-            0%, 100% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.05);
-            }
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
 
-        .feedback-icon {
-            font-size: 3rem;
+        /* Analytics grid */
+        .analytics-section {
+            flex: 1;
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
             margin-bottom: 20px;
-            animation: bounce 2s ease-in-out infinite;
         }
 
-        @keyframes bounce {
-            0%, 100% {
-                transform: translateY(0);
-            }
-            50% {
-                transform: translateY(-10px);
-            }
+        .metric-card {
+            background: #f8f9ff;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
         }
 
-        .status-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 20px;
-            background: #d4edda;
-            color: #155724;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            margin-top: 20px;
-        }
-
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            background: #28a745;
-            border-radius: 50%;
-            animation: blink 2s ease-in-out infinite;
-        }
-
-        @keyframes blink {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.3;
-            }
-        }
-
-        .last-updated {
+        .metric-label {
             font-size: 0.85rem;
-            color: #999;
-            margin-top: 20px;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        .error-message {
-            color: #e74c3c;
-            font-size: 1.1rem;
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .metric-value.excellent { color: #4CAF50; }
+        .metric-value.good { color: #FFC107; }
+        .metric-value.poor { color: #f44336; }
+
+        .metric-stars {
+            font-size: 1.2rem;
+            color: #FFC107;
+            letter-spacing: 2px;
+        }
+
+        /* Content depth chart */
+        .depth-section {
+            background: #f8f9ff;
+            border-radius: 12px;
             padding: 20px;
         }
 
-        .loading {
-            font-size: 1.5rem;
+        .depth-chart-title {
+            font-size: 0.9rem;
             color: #666;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-align: center;
         }
 
-        .spinner {
-            width: 50px;
-            height: 50px;
-            margin: 20px auto;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+        .depth-bar {
+            margin-bottom: 12px;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .depth-bar:last-child {
+            margin-bottom: 0;
         }
 
+        .depth-label {
+            font-size: 0.85rem;
+            color: #333;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .depth-bar-container {
+            background: #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            height: 30px;
+            position: relative;
+        }
+
+        .depth-bar-fill {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.8rem;
+            transition: width 0.8s ease;
+            min-width: 50px;
+        }
+
+        /* QR Code section */
         .qr-section {
-            margin-top: 40px;
-            padding-top: 40px;
-            border-top: 2px solid #f0f0f0;
+            text-align: center;
         }
 
         .qr-label {
-            font-size: 1rem;
+            font-size: 1.1rem;
             color: #666;
             margin-bottom: 15px;
+            font-weight: 600;
         }
 
         #qrCode {
@@ -219,41 +242,52 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
-        .instructions {
-            margin-top: 30px;
-            padding: 20px;
-            background: #f8f9ff;
-            border-radius: 10px;
-            font-size: 0.9rem;
+        .qr-instructions {
+            margin-top: 15px;
+            font-size: 0.85rem;
             color: #666;
+            line-height: 1.4;
         }
 
-        /* Full screen mode */
-        .fullscreen-btn {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: white;
-            border: 2px solid #667eea;
-            color: #667eea;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
+        /* Footer section */
+        .footer-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #d4edda;
+            color: #155724;
+            border-radius: 20px;
+            font-size: 0.85rem;
             font-weight: 600;
-            transition: all 0.3s ease;
         }
 
-        .fullscreen-btn:hover {
-            background: #667eea;
-            color: white;
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #28a745;
+            border-radius: 50%;
+            animation: blink 2s ease-in-out infinite;
         }
 
-        /* Refresh interval selector */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
         .refresh-controls {
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            margin-top: 10px;
             font-size: 0.85rem;
             color: #666;
         }
@@ -283,214 +317,209 @@
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
-        /* Analytics Section */
-        .analytics-section {
-            margin: 30px 0;
+        .last-updated {
+            font-size: 0.8rem;
+            color: #999;
         }
 
-        .analytics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 40px;
+        /* Loading and error states */
+        .spinner {
+            width: 50px;
+            height: 50px;
+            margin: 20px auto;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
         }
 
-        .metric-card {
-            background: #f8f9ff;
-            border-radius: 12px;
-            padding: 25px;
-            text-align: center;
-            transition: all 0.3s ease;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
-        .metric-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .metric-label {
-            font-size: 0.95rem;
-            color: #666;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .metric-value {
-            font-size: 3rem;
-            font-weight: 700;
-            color: #667eea;
-            margin-bottom: 10px;
-        }
-
-        .metric-value.excellent {
-            color: #4CAF50;
-        }
-
-        .metric-value.good {
-            color: #FFC107;
-        }
-
-        .metric-value.poor {
-            color: #f44336;
-        }
-
-        .metric-stars {
+        .loading {
             font-size: 1.5rem;
-            color: #FFC107;
-            letter-spacing: 2px;
+            color: #666;
+            text-align: center;
+            padding: 40px;
         }
 
-        .depth-section {
-            margin-top: 40px;
-            padding-top: 30px;
-            border-top: 2px solid #f0f0f0;
+        .error-message {
+            color: #e74c3c;
+            font-size: 1.1rem;
+            padding: 20px;
+            text-align: center;
         }
 
-        .depth-chart {
-            background: #f8f9ff;
-            border-radius: 12px;
-            padding: 25px;
+        /* Fullscreen mode adjustments */
+        .count-container:fullscreen {
+            padding: 40px 60px;
         }
 
-        .depth-bar {
+        .count-container:-webkit-full-screen {
+            padding: 40px 60px;
+        }
+
+        .count-container:-moz-full-screen {
+            padding: 40px 60px;
+        }
+
+        /* Event selection view */
+        #eventSelectionView {
+            text-align: left;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        #eventSelectionView h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        #eventSelectionView p {
+            margin-bottom: 20px;
+            color: #666;
+        }
+
+        #eventSelectionView select {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 2px solid #ddd;
             margin-bottom: 20px;
         }
 
-        .depth-bar:last-child {
-            margin-bottom: 0;
-        }
-
-        .depth-label {
-            font-size: 1rem;
-            color: #333;
-            margin-bottom: 8px;
-            font-weight: 600;
-        }
-
-        .depth-bar-container {
-            background: #e0e0e0;
-            border-radius: 8px;
-            overflow: hidden;
-            height: 40px;
-            position: relative;
-        }
-
-        .depth-bar-fill {
+        #eventSelectionView button {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
             font-weight: 600;
-            font-size: 0.95rem;
-            transition: width 0.8s ease;
-            min-width: 60px;
         }
 
-        @media (max-width: 768px) {
-            .count-container {
-                padding: 40px 30px;
-            }
+        #eventSelectionView button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
 
-            .count-display {
-                font-size: 5rem;
-            }
+        #viewModeSelection {
+            margin-bottom: 20px;
+        }
 
-            .module-name {
-                font-size: 1.2rem;
-            }
+        #viewModeSelection label {
+            display: block;
+            margin-bottom: 10px;
+            color: #666;
         }
     </style>
 </head>
 <body>
-    <button class="fullscreen-btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
-
     <div class="count-container">
         <div id="loadingState">
             <div class="spinner"></div>
             <p class="loading">Loading feedback count...</p>
         </div>
 
-        <div id="eventSelectionView" style="display: none; text-align: left;">
-            <h2 style="margin-bottom: 20px;">Select Event</h2>
-            <p style="margin-bottom: 20px; color: #666;">Choose the event to display feedback counts for:</p>
-            <select id="eventSelect" style="width: 100%; padding: 12px; font-size: 16px; border-radius: 8px; border: 2px solid #ddd; margin-bottom: 20px;">
+        <div id="eventSelectionView" style="display: none;">
+            <h2>Select Event</h2>
+            <p>Choose the event to display feedback counts for:</p>
+            <select id="eventSelect">
                 <option value="">-- Loading events... --</option>
             </select>
-            <div id="viewModeSelection" style="display: none; margin-bottom: 20px;">
+            <div id="viewModeSelection" style="display: none;">
                 <p style="margin-bottom: 10px; color: #666;">View mode:</p>
-                <label style="display: block; margin-bottom: 10px;">
+                <label>
                     <input type="radio" name="viewMode" value="event" checked> Event-level (all modules)
                 </label>
-                <label style="display: block; margin-bottom: 10px;">
+                <label>
                     <input type="radio" name="viewMode" value="module"> Module-specific
                 </label>
-                <select id="moduleSelect" style="width: 100%; padding: 12px; font-size: 16px; border-radius: 8px; border: 2px solid #ddd; display: none;">
+                <select id="moduleSelect" style="display: none; margin-top: 10px;">
                     <option value="">-- Select a module --</option>
                 </select>
             </div>
-            <button id="continueBtn" class="btn" style="width: 100%; padding: 15px; font-size: 18px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer;" disabled>
+            <button id="continueBtn" disabled>
                 Continue →
             </button>
         </div>
 
-        <div id="countDisplay" style="display: none;">
-            <div class="feedback-icon">💬</div>
-
-            <div class="event-header">
-                <div class="event-code" id="eventCodeDisplay">Event Code</div>
+        <div id="countDisplay" style="display: none; height: 100%; flex-direction: column;">
+            <!-- Header -->
+            <div class="header-section">
+                <div class="event-info">
+                    <div class="event-code" id="eventCodeDisplay">Event Code</div>
+                </div>
+                <button class="fullscreen-btn" id="fullscreenBtn">⛶ Fullscreen</button>
             </div>
 
-            <div class="total-count-section">
-                <div class="count-label">Total Feedback Submissions</div>
-                <div class="total-count" id="totalCount">0</div>
-                <div class="status-indicator">
-                    <div class="status-dot"></div>
-                    <span>Live Updates Active</span>
+            <!-- Main content area -->
+            <div class="main-content">
+                <!-- Left section: Count and Analytics -->
+                <div class="left-section">
+                    <div class="total-count-section">
+                        <div class="count-label">Total Feedback Submissions</div>
+                        <div class="total-count" id="totalCount">0</div>
+                    </div>
+
+                    <div class="analytics-section">
+                        <div class="analytics-grid">
+                            <div class="metric-card">
+                                <div class="metric-label">Average Satisfaction</div>
+                                <div class="metric-value" id="avgSatisfaction">-</div>
+                                <div class="metric-stars" id="satisfactionStars"></div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-label">Speaker Knowledge</div>
+                                <div class="metric-value" id="avgSpeakerKnowledge">-</div>
+                                <div class="metric-stars" id="knowledgeStars"></div>
+                            </div>
+                        </div>
+
+                        <div class="depth-section">
+                            <div class="depth-chart-title">Content Depth Distribution</div>
+                            <div id="depthChart" class="depth-chart">
+                                <!-- Depth bars will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="refresh-controls">
-                    <label for="refreshInterval">Refresh every:</label>
-                    <select id="refreshInterval">
-                        <option value="5000">5 seconds</option>
-                        <option value="10000">10 seconds</option>
-                        <option value="15000" selected>15 seconds</option>
-                        <option value="30000">30 seconds</option>
-                    </select>
+
+                <!-- Right section: QR Code -->
+                <div class="right-section">
+                    <div class="qr-section">
+                        <div class="qr-label">Scan to Submit Feedback</div>
+                        <canvas id="qrCode"></canvas>
+                        <div class="qr-instructions">
+                            Attendees can scan this QR code to submit their feedback
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer-section">
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <div class="status-indicator">
+                        <div class="status-dot"></div>
+                        <span>Live</span>
+                    </div>
+                    <div class="refresh-controls">
+                        <label for="refreshInterval">Refresh:</label>
+                        <select id="refreshInterval">
+                            <option value="5000">5s</option>
+                            <option value="10000">10s</option>
+                            <option value="15000" selected>15s</option>
+                            <option value="30000">30s</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="last-updated">Last updated: <span id="lastUpdated">-</span></div>
-            </div>
-
-            <div class="analytics-section">
-                <div class="analytics-grid">
-                    <div class="metric-card">
-                        <div class="metric-label">Average Satisfaction</div>
-                        <div class="metric-value" id="avgSatisfaction">-</div>
-                        <div class="metric-stars" id="satisfactionStars"></div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Average Speaker Knowledge</div>
-                        <div class="metric-value" id="avgSpeakerKnowledge">-</div>
-                        <div class="metric-stars" id="knowledgeStars"></div>
-                    </div>
-                </div>
-
-                <div class="depth-section">
-                    <div class="count-label" style="margin-bottom: 20px;">Content Depth Distribution</div>
-                    <div id="depthChart" class="depth-chart">
-                        <!-- Content depth bars will be inserted here -->
-                    </div>
-                </div>
-            </div>
-
-            <div class="qr-section">
-                <div class="qr-label">Scan to Submit Feedback</div>
-                <canvas id="qrCode"></canvas>
-                <div class="instructions">
-                    Attendees can scan this QR code or visit the feedback link to submit their responses.
-                    Analytics update automatically every 30 seconds.
-                </div>
             </div>
         </div>
 

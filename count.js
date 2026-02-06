@@ -102,6 +102,9 @@ async function initialize() {
         // Initialize refresh interval selector
         initializeRefreshIntervalSelector();
 
+        // Initialize fullscreen button
+        initializeFullscreenButton();
+
         console.log('Count page fully initialized');
 
     } catch (error) {
@@ -735,21 +738,57 @@ function showError(message) {
     errorMessage.textContent = message;
 }
 
+// Initialize fullscreen button
+function initializeFullscreenButton() {
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+    if (!fullscreenBtn) {
+        console.warn('Fullscreen button not found');
+        return;
+    }
+
+    fullscreenBtn.addEventListener('click', () => {
+        toggleFullscreen();
+    });
+
+    // Update button text based on fullscreen state
+    document.addEventListener('fullscreenchange', () => {
+        if (document.fullscreenElement) {
+            fullscreenBtn.textContent = '⛶ Exit Fullscreen';
+        } else {
+            fullscreenBtn.textContent = '⛶ Fullscreen';
+        }
+    });
+}
+
 // Toggle fullscreen
 function toggleFullscreen() {
+    const container = document.querySelector('.count-container');
+
     if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => {
-            console.error('Error attempting to enable fullscreen:', err);
-        });
+        if (container.requestFullscreen) {
+            container.requestFullscreen().catch(err => {
+                console.error('Error attempting to enable fullscreen:', err);
+            });
+        } else if (container.webkitRequestFullscreen) {
+            container.webkitRequestFullscreen();
+        } else if (container.mozRequestFullScreen) {
+            container.mozRequestFullScreen();
+        } else if (container.msRequestFullscreen) {
+            container.msRequestFullscreen();
+        }
     } else {
         if (document.exitFullscreen) {
             document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
         }
     }
 }
-
-// Make toggleFullscreen available globally
-window.toggleFullscreen = toggleFullscreen;
 
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {
