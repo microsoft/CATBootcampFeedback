@@ -87,9 +87,20 @@ if (typeof window !== 'undefined') {
     const isProduction = window.location.hostname !== 'localhost' &&
                         window.location.hostname !== '127.0.0.1';
 
-    if (isProduction || isAzure) {
+    // Get production Static Web App hostname
+    const PROD_HOSTNAME = 'lively-ocean-076d52c0f.2.azurestaticapps.net';
+
+    if (window.location.hostname === PROD_HOSTNAME ||
+        window.location.hostname === 'catbootcamp.yourdomain.com') {
+        // Production environment
         CONFIG.USE_MOCK_DATA = false;
-        CONFIG.API_BASE_URL = 'https://cat-bootcamp-api.azurewebsites.net/api'; // Separate Azure Functions app
+        CONFIG.API_BASE_URL = 'https://cat-bootcamp-api-prod.azurewebsites.net/api';
+        console.log('Environment: PRODUCTION');
+    } else if (isProduction || isAzure) {
+        // Development environment (existing)
+        CONFIG.USE_MOCK_DATA = false;
+        CONFIG.API_BASE_URL = 'https://cat-bootcamp-api.azurewebsites.net/api';
+        console.log('Environment: DEVELOPMENT');
     }
 
     console.log('Environment detected:', {
