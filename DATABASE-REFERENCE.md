@@ -1,5 +1,8 @@
 # CAT Bootcamp Feedback - Database Reference Guide
 
+⚠️ **SECURITY NOTE:** Database credentials have been redacted from this file for security.
+See `CATBOOTCAMP_CREDENTIALS_SECURE.md` on your local machine (NOT in repo) for actual credentials.
+
 ## Table of Contents
 - [Connection Information](#connection-information)
 - [Connection Examples](#connection-examples)
@@ -19,7 +22,7 @@
 | **Server** | `cat-bootcamp-sql-89082.database.windows.net` |
 | **Database** | `CATBootcampFeedback` |
 | **Username** | `sqladmin` |
-| **Password** | `CATBootcamp2026!SecurePass` |
+| **Password** | `[REDACTED]` |
 | **Port** | `1433` (default) |
 | **Resource Group** | `cat-bootcamp-rg` |
 | **Region** | East US 2 |
@@ -28,17 +31,17 @@
 
 #### ADO.NET
 ```
-Server=tcp:cat-bootcamp-sql-89082.database.windows.net,1433;Initial Catalog=CATBootcampFeedback;Persist Security Info=False;User ID=sqladmin;Password=CATBootcamp2026!SecurePass;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
+Server=tcp:cat-bootcamp-sql-89082.database.windows.net,1433;Initial Catalog=CATBootcampFeedback;Persist Security Info=False;User ID=sqladmin;Password=[REDACTED];MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
 ```
 
 #### ODBC
 ```
-Driver={ODBC Driver 17 for SQL Server};Server=tcp:cat-bootcamp-sql-89082.database.windows.net,1433;Database=CATBootcampFeedback;Uid=sqladmin;Pwd=CATBootcamp2026!SecurePass;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;
+Driver={ODBC Driver 17 for SQL Server};Server=tcp:cat-bootcamp-sql-89082.database.windows.net,1433;Database=CATBootcampFeedback;Uid=sqladmin;Pwd=[REDACTED];Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;
 ```
 
 #### JDBC
 ```
-jdbc:sqlserver://cat-bootcamp-sql-89082.database.windows.net:1433;database=CATBootcampFeedback;user=sqladmin;password=CATBootcamp2026!SecurePass;encrypt=true;trustServerCertificate=false;loginTimeout=30;
+jdbc:sqlserver://cat-bootcamp-sql-89082.database.windows.net:1433;database=CATBootcampFeedback;user=sqladmin;password=[REDACTED];encrypt=true;trustServerCertificate=false;loginTimeout=30;
 ```
 
 #### Node.js (mssql package)
@@ -47,7 +50,7 @@ const config = {
     server: 'cat-bootcamp-sql-89082.database.windows.net',
     database: 'CATBootcampFeedback',
     user: 'sqladmin',
-    password: 'CATBootcamp2026!SecurePass',
+    password: '[REDACTED]',
     port: 1433,
     options: {
         encrypt: true,
@@ -68,7 +71,7 @@ const config = {
    - **Server name**: `cat-bootcamp-sql-89082.database.windows.net`
    - **Authentication**: SQL Server Authentication
    - **Login**: `sqladmin`
-   - **Password**: `CATBootcamp2026!SecurePass`
+   - **Password**: `[REDACTED]`
 3. Click **Connect**
 
 ### 2. Azure Data Studio
@@ -80,7 +83,7 @@ const config = {
    - **Server**: `cat-bootcamp-sql-89082.database.windows.net`
    - **Authentication type**: SQL Login
    - **User name**: `sqladmin`
-   - **Password**: `CATBootcamp2026!SecurePass`
+   - **Password**: `[REDACTED]`
    - **Database**: `CATBootcampFeedback`
    - **Encrypt**: True
 4. Click **Connect**
@@ -88,7 +91,7 @@ const config = {
 ### 3. sqlcmd (Command Line)
 
 ```bash
-sqlcmd -S cat-bootcamp-sql-89082.database.windows.net -d CATBootcampFeedback -U sqladmin -P "CATBootcamp2026!SecurePass"
+sqlcmd -S cat-bootcamp-sql-89082.database.windows.net -d CATBootcampFeedback -U sqladmin -P "[REDACTED]"
 ```
 
 ### 4. PowerShell (SqlServer Module)
@@ -104,7 +107,7 @@ Import-Module SqlServer
 $ServerName = 'cat-bootcamp-sql-89082.database.windows.net'
 $DatabaseName = 'CATBootcampFeedback'
 $Username = 'sqladmin'
-$Password = 'CATBootcamp2026!SecurePass'
+$Password = '[REDACTED]'
 
 $Query = "SELECT TOP 10 * FROM Events"
 
@@ -138,7 +141,7 @@ import pyodbc
 server = 'cat-bootcamp-sql-89082.database.windows.net'
 database = 'CATBootcampFeedback'
 username = 'sqladmin'
-password = 'CATBootcamp2026!SecurePass'
+password = '[REDACTED]'
 
 # Connection string
 conn_str = (
