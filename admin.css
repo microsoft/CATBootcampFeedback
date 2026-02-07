@@ -635,6 +635,65 @@
     font-size: 1.1rem;
 }
 
+/* === Analytics Enhancements === */
+.performers-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.performer-item {
+    background: white;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    padding: 12px 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s;
+}
+
+.performer-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+.performer-info {
+    flex: 1;
+}
+
+.performer-name {
+    font-weight: 600;
+    color: #24292e;
+    margin-bottom: 4px;
+}
+
+.performer-speaker {
+    font-size: 0.85rem;
+    color: #586069;
+}
+
+.performer-stats {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.performer-rating {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #0366d6;
+}
+
+.performer-count {
+    font-size: 0.85rem;
+    color: #586069;
+}
+
+.chart-container canvas {
+    max-height: 100%;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .header-content {
