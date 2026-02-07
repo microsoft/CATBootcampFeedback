@@ -97,7 +97,7 @@ Don't forget to add the deployment token to GitHub:
 1. Go to: https://github.com/microsoft/CATBootcampFeedback/settings/secrets/actions
 2. Add new secret:
    - Name: `AZURE_STATIC_WEB_APPS_API_TOKEN`
-   - Value: `f44abd56dc214ccb0a6e2ab1508719cccd252122c698a711d47bdd714e027a3401-aa0139ad-4370-484b-855b-805f50844f4c00f02030b9be530f`
+   - Value: `[REDACTED - Get from Azure Portal]`
 
 ### Trigger Deployment
 

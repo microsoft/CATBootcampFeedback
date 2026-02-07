@@ -13,13 +13,16 @@ The admin login functionality has been created and deployed. You can now log int
 
 ## 🔑 Admin Login Credentials
 
+⚠️ **SECURITY NOTE:** Admin credentials have been moved to a secure location.
+See `CATBOOTCAMP_CREDENTIALS_SECURE.md` on your local machine (NOT in repo).
+
 ### Default Admin Account
 - **Username:** `admin`
-- **Password:** `CATBootcamp2026!`
+- **Password:** `[REDACTED - See secure credentials file]`
 
 ### Alternative Account (Dewain)
 - **Username:** `dewainr`
-- **Password:** `CATBootcamp2026!`
+- **Password:** `[REDACTED - See secure credentials file]`
 
 ### Login URL
 https://blue-sea-0b9be530f.1.azurestaticapps.net/admin.html
@@ -115,7 +118,7 @@ Once you've loaded the sample data, you can test with these event codes:
 1. Navigate to: https://blue-sea-0b9be530f.1.azurestaticapps.net/admin.html
 2. Enter credentials:
    - Username: `admin`
-   - Password: `CATBootcamp2026!`
+   - Password: `[REDACTED]`
 3. Click "Login"
 4. You should see the admin dashboard with events and feedback
 
@@ -155,7 +158,7 @@ Once you've loaded the sample data, you can test with these event codes:
 
 **Solution 2: Check credentials**
 - Username: `admin` (lowercase)
-- Password: `CATBootcamp2026!` (case-sensitive, with exclamation mark)
+- Password: `[REDACTED]` (case-sensitive, with exclamation mark)
 
 **Solution 3: Check browser console**
 - Press F12 to open Developer Tools
