@@ -87,11 +87,12 @@ if (typeof window !== 'undefined') {
     const isProduction = window.location.hostname !== 'localhost' &&
                         window.location.hostname !== '127.0.0.1';
 
-    // Get production Static Web App hostname
-    const PROD_HOSTNAME = 'lively-ocean-076d52c0f-2.azurestaticapps.net';
+    // Get production Static Web App hostname pattern (handles both . and - formats)
+    const isProdHostname = window.location.hostname.includes('lively-ocean-076d52c0f') &&
+                          !window.location.hostname.includes('blue-moss');
+    const isCustomDomain = window.location.hostname === 'catbootcamp.yourdomain.com';
 
-    if (window.location.hostname === PROD_HOSTNAME ||
-        window.location.hostname === 'catbootcamp.yourdomain.com') {
+    if (isProdHostname || isCustomDomain) {
         // Production environment
         CONFIG.USE_MOCK_DATA = false;
         CONFIG.API_BASE_URL = 'https://cat-bootcamp-api-prod.azurewebsites.net/api';
