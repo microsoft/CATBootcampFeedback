@@ -268,6 +268,66 @@ SQL_PASSWORD=*** (configured in Azure)
 NODE_ENV=production
 ```
 
+### 🔐 Azure Key Vault Integration
+
+The application uses **Azure Key Vault** to securely store sensitive configuration values like JWT secrets.
+
+#### Key Vault Resources
+
+**Development:**
+- Key Vault: `cat-bootcamp-kv-dev`
+- Function App: `cat-bootcamp-api`
+- Secret: `JWT-SECRET` (development value)
+
+**Production:**
+- Key Vault: `cat-bootcamp-kv-prod`
+- Function App: `cat-bootcamp-api-prod`
+- Secret: `JWT-SECRET` (production value)
+
+#### Setup Key Vault
+
+Run the provisioning script to create and configure Key Vault:
+
+**Linux/macOS:**
+```bash
+cd scripts
+chmod +x provision-keyvault.sh
+./provision-keyvault.sh
+```
+
+**Windows PowerShell:**
+```powershell
+cd scripts
+.\provision-keyvault.ps1
+```
+
+The script will:
+1. Create Azure Key Vault instances for dev and prod
+2. Store JWT secrets securely in Key Vault
+3. Enable managed identities on Function Apps
+4. Grant Function Apps access to Key Vault
+5. Configure Function Apps to use Key Vault references
+
+#### How It Works
+
+Azure Functions automatically resolves Key Vault references at runtime:
+
+```
+JWT_SECRET=@Microsoft.KeyVault(SecretUri=https://cat-bootcamp-kv-prod.vault.azure.net/secrets/JWT-SECRET)
+```
+
+No code changes required - the application reads from `process.env.JWT_SECRET` as usual, and Azure transparently fetches the value from Key Vault.
+
+#### Security Benefits
+
+- ✅ **Encryption at Rest** - All secrets encrypted in Key Vault
+- ✅ **Managed Identities** - No credentials stored in code or config
+- ✅ **Least Privilege** - Function Apps only have `get` and `list` permissions
+- ✅ **Audit Logs** - All secret access logged in Azure Monitor
+- ✅ **Separate Secrets** - Dev and prod environments fully isolated
+
+See [`scripts/README.md`](scripts/README.md) for complete Key Vault documentation.
+
 ### Database Initialization
 
 See [`docs/database-migration-strategy.md`](docs/database-migration-strategy.md) for complete database setup and migration procedures.
@@ -458,8 +518,10 @@ This application is designed with privacy as a core principle:
 - Anonymous feedback only
 
 ### Admin Endpoints
-- Authentication required
-- Session tokens with expiration
+- **JWT Authentication** required (bcrypt + HS256)
+- **Azure Key Vault** stores JWT secrets securely
+- Managed identities for Key Vault access (no credentials in code)
+- Session tokens with 8-hour expiration
 - HTTPS enforced
 - CORS configured for Static Web App only
 - Audit logging via Application Insights
@@ -482,6 +544,15 @@ This application is designed with privacy as a core principle:
 - ❌ IE11 (not supported)
 
 ## Version History
+
+**Version 3.5** (Feb 6, 2026)
+- **Azure Key Vault Integration for JWT Secrets**
+- Migrated JWT secrets from hardcoded values to Azure Key Vault
+- Added provisioning scripts (Bash and PowerShell) for Key Vault setup
+- Enabled managed identities on Azure Functions for secure Key Vault access
+- Separate Key Vaults for development and production environments
+- Enhanced security documentation with Key Vault best practices
+- No code changes required - secrets now managed infrastructure-side
 
 **Version 3.4** (Feb 6, 2026)
 - **Privacy Compliance - Backend Implementation Complete**
@@ -552,6 +623,6 @@ This is a demonstration project for the CAT Bootcamp.
 
 ---
 
-**Version:** 3.4
+**Version:** 3.5
 **Last Updated:** February 6, 2026
-**Status:** Production - Fully Privacy-Compliant Anonymous Feedback (GDPR/CCPA)
+**Status:** Production - Fully Privacy-Compliant Anonymous Feedback (GDPR/CCPA) + Azure Key Vault Security
