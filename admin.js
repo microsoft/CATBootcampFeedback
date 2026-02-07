@@ -625,7 +625,7 @@ window.addModuleToEvent = async function(moduleId) {
             <div class="modal-content">
                 <div class="modal-header">
                     <h3>Add "${module.moduleName}" to Event</h3>
-                    <button class="modal-close" onclick="document.getElementById('quickAddModuleModal').remove()">&times;</button>
+                    <button class="modal-close" id="quickAddModalClose">&times;</button>
                 </div>
                 <form id="quickAddModuleForm">
                     <div class="form-group">
@@ -645,7 +645,7 @@ window.addModuleToEvent = async function(moduleId) {
                         <small class="form-help">Order in which this module is delivered</small>
                     </div>
                     <div class="modal-actions">
-                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('quickAddModuleModal').remove()">Cancel</button>
+                        <button type="button" class="btn btn-secondary" id="quickAddModalCancel">Cancel</button>
                         <button type="submit" class="btn btn-primary">Add Module</button>
                     </div>
                 </form>
@@ -655,6 +655,35 @@ window.addModuleToEvent = async function(moduleId) {
 
     // Add modal to page
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Helper function to close modal
+    const closeModal = () => {
+        const modal = document.getElementById('quickAddModuleModal');
+        if (modal) {
+            modal.remove();
+        }
+    };
+
+    // Handle close button (X)
+    document.getElementById('quickAddModalClose').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        closeModal();
+    });
+
+    // Handle cancel button
+    document.getElementById('quickAddModalCancel').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        closeModal();
+    });
+
+    // Handle clicking outside the modal (on backdrop)
+    document.getElementById('quickAddModuleModal').addEventListener('click', (e) => {
+        if (e.target.id === 'quickAddModuleModal') {
+            closeModal();
+        }
+    });
 
     // Handle form submission
     document.getElementById('quickAddModuleForm').addEventListener('submit', async (e) => {
@@ -675,7 +704,7 @@ window.addModuleToEvent = async function(moduleId) {
             });
 
             if (result.success) {
-                document.getElementById('quickAddModuleModal').remove();
+                closeModal();
                 showNotification('Success', `Module added to event successfully!`, 'success');
                 await loadModules(); // Refresh to update event count
                 await loadEvents(); // Refresh events list
