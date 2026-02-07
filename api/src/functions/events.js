@@ -1,6 +1,7 @@
 /**
  * Get All Events with Module Details
- * GET /api/events
+ * GET /api/events - Public (used by feedback form)
+ * POST /api/events - Create event (REQUIRES AUTH)
  *
  * Returns all events with their associated modules and feedback counts
  */
@@ -8,6 +9,7 @@
 const { app } = require('@azure/functions');
 const { query } = require('../shared/database');
 const { success, error } = require('../shared/utils');
+const { requireAuth } = require('../shared/auth');
 
 app.http('events', {
     methods: ['GET', 'POST'],
@@ -16,6 +18,15 @@ app.http('events', {
     handler: async (request, context) => {
         try {
             if (request.method === 'POST') {
+                // Verify authentication for POST (create event)
+                const authError = requireAuth(request);
+                if (authError) {
+                    return {
+                        status: authError.status,
+                        headers: authError.headers,
+                        body: authError.body
+                    };
+                }
                 // Create new event
                 const bodyText = await request.text();
                 const body = JSON.parse(bodyText);
@@ -264,6 +275,16 @@ app.http('deleteEvent', {
     authLevel: 'anonymous',
     route: 'events/{eventId}',
     handler: async (request, context) => {
+        // Verify authentication
+        const authError = requireAuth(request);
+        if (authError) {
+            return {
+                status: authError.status,
+                headers: authError.headers,
+                body: authError.body
+            };
+        }
+
         try {
             const eventId = parseInt(request.params.eventId);
 
@@ -310,6 +331,16 @@ app.http('deleteEventsBulk', {
     authLevel: 'anonymous',
     route: 'events/bulk-delete',
     handler: async (request, context) => {
+        // Verify authentication
+        const authError = requireAuth(request);
+        if (authError) {
+            return {
+                status: authError.status,
+                headers: authError.headers,
+                body: authError.body
+            };
+        }
+
         try {
             const data = await request.json();
             const { eventIds } = data;

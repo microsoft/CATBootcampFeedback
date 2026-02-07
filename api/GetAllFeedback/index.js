@@ -4,12 +4,22 @@
  *
  * Returns all feedback with associated event and module information
  * Used by admin panel to display feedback
+ *
+ * REQUIRES AUTHENTICATION
  */
 
 const { query } = require('../shared/database');
 const { success, error } = require('../shared/utils');
+const { requireAuth } = require('../shared/auth');
 
 module.exports = async function (context, req) {
+    // Verify authentication
+    const authError = requireAuth(req);
+    if (authError) {
+        context.res = authError;
+        return;
+    }
+
     try {
         // Get all feedback with event and module details using the view
         // Note: IpAddress excluded to protect privacy (no PII returned)

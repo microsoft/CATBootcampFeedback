@@ -4,12 +4,22 @@
  *
  * Returns all training modules (timeless content)
  * Modules don't have dates - they are reusable training content
+ *
+ * REQUIRES AUTHENTICATION
  */
 
 const { query } = require('../shared/database');
 const { success, error } = require('../shared/utils');
+const { requireAuth } = require('../shared/auth');
 
 module.exports = async function (context, req) {
+    // Verify authentication
+    const authError = requireAuth(req);
+    if (authError) {
+        context.res = authError;
+        return;
+    }
+
     try {
         // Get all modules
         const modules = await query(`

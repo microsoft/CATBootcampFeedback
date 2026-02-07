@@ -1,6 +1,6 @@
 /**
  * Update Module API
- * PUT /api/modules/{moduleId}
+ * PUT /api/modules/{moduleId} (REQUIRES AUTH)
  *
  * Updates module details (name, description, active status)
  */
@@ -8,12 +8,23 @@
 const { app } = require('@azure/functions');
 const { query } = require('../shared/database');
 const { success, error } = require('../shared/utils');
+const { requireAuth } = require('../shared/auth');
 
 app.http('updateModule', {
     methods: ['PUT'],
     authLevel: 'anonymous',
     route: 'modules/{moduleId}',
     handler: async (request, context) => {
+        // Verify authentication
+        const authError = requireAuth(request);
+        if (authError) {
+            return {
+                status: authError.status,
+                headers: authError.headers,
+                body: authError.body
+            };
+        }
+
         try {
             const moduleId = request.params.moduleId;
 
