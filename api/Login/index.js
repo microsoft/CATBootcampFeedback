@@ -12,18 +12,18 @@ const bcrypt = require('bcryptjs');
 const { generateToken } = require('../shared/auth');
 
 // Admin credentials with bcrypt-hashed passwords
-// Password: CATBootcamp2026! (hashed with bcrypt rounds=10)
+// Passwords rotated: 2026-02-07 (stored securely on desktop, not in repo)
 // TODO: Move to Azure Key Vault or database with proper user management
 const ADMIN_USERS = [
     {
         username: 'admin',
-        passwordHash: '$2b$10$.QNiEI80R3baYb5/KxY.Z.O4Gsvp.FC1JXjcd0ycnqK9t10LdpgGG',
+        passwordHash: '$2b$10$uru.CX0QNH8RXgC4uTMvweTBEEHDUZgPCK5.C6i7qLdhGhInZhFKe',
         fullName: 'CAT Admin',
         email: 'admin@microsoft.com'
     },
     {
         username: 'dewainr',
-        passwordHash: '$2b$10$.QNiEI80R3baYb5/KxY.Z.O4Gsvp.FC1JXjcd0ycnqK9t10LdpgGG',
+        passwordHash: '$2b$10$T3QtTLVS1rVElKf3IUwDA.P3vl0dz4ELDDNicJ8vHDF.GRE6q3Q6G',
         fullName: 'Dewain Robinson',
         email: 'dewainr@microsoft.com'
     }
