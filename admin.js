@@ -168,6 +168,10 @@ function setupEventListeners() {
     document.getElementById('analyticsFilterModule').addEventListener('change', updateAnalyticsWithFilters);
     document.getElementById('analyticsFilterSpeaker').addEventListener('change', updateAnalyticsWithFilters);
     document.getElementById('resetAnalyticsFilters').addEventListener('click', resetAnalyticsFilters);
+
+    // Clickable stat cards
+    document.getElementById('totalEventsCard').addEventListener('click', navigateToEventsWithFilters);
+    document.getElementById('totalFeedbackCard').addEventListener('click', navigateToFeedbackWithFilters);
 }
 
 // Handle login
@@ -2246,6 +2250,49 @@ function resetAnalyticsFilters() {
     document.getElementById('analyticsFilterModule').value = '';
     document.getElementById('analyticsFilterSpeaker').value = '';
     updateAnalyticsUI();
+}
+
+// Navigate to Events tab with analytics filters applied
+function navigateToEventsWithFilters() {
+    // Get current analytics filter values
+    const eventFilter = document.getElementById('analyticsFilterEvent').value;
+
+    // Switch to events tab
+    switchTab('events');
+
+    // Apply event filter to search field if an event is selected
+    if (eventFilter) {
+        const eventSearchField = document.getElementById('eventSearch');
+        if (eventSearchField) {
+            eventSearchField.value = eventFilter;
+            filterEvents();
+        }
+    }
+}
+
+// Navigate to Feedback tab with analytics filters applied
+function navigateToFeedbackWithFilters() {
+    // Get current analytics filter values
+    const eventFilter = document.getElementById('analyticsFilterEvent').value;
+    const moduleFilter = document.getElementById('analyticsFilterModule').value;
+    const speakerFilter = document.getElementById('analyticsFilterSpeaker').value;
+
+    // Switch to feedback tab
+    switchTab('feedback');
+
+    // Apply filters to feedback tab dropdowns
+    if (eventFilter) {
+        document.getElementById('filterEvent').value = eventFilter;
+    }
+    if (moduleFilter) {
+        document.getElementById('filterModule').value = moduleFilter;
+    }
+    if (speakerFilter) {
+        document.getElementById('filterSpeaker').value = speakerFilter;
+    }
+
+    // Trigger filter update
+    filterAndSortFeedback();
 }
 
 // Export feedback to CSV (with proper escaping)
