@@ -47,8 +47,9 @@ function error(statusCode, message, code = 'ERROR') {
  * Validate event code format
  */
 function validateEventCode(code) {
-    const pattern = /^CS[A-Z0-9]{6}$/;
-    return pattern.test(code);
+    if (!code || typeof code !== 'string') return false;
+    const trimmed = code.trim();
+    return trimmed.length >= 3 && trimmed.length <= 50;
 }
 
 /**

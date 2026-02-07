@@ -16,8 +16,8 @@ app.http('getEventCount', {
         try {
             const eventCode = request.params.code;
 
-            // Validate event code format
-            if (!eventCode || !/^[A-Z0-9]{6,12}$/.test(eventCode)) {
+            // Validate event code length
+            if (!eventCode || eventCode.trim().length < 3 || eventCode.trim().length > 50) {
                 return {
                     status: 400,
                     jsonBody: {
@@ -182,8 +182,8 @@ app.http('getModuleCount', {
             const eventCode = request.params.code;
             const eventModuleId = parseInt(request.params.moduleId);
 
-            // Validate event code format
-            if (!eventCode || !/^[A-Z0-9]{6,12}$/.test(eventCode)) {
+            // Validate event code length
+            if (!eventCode || eventCode.trim().length < 3 || eventCode.trim().length > 50) {
                 return {
                     status: 400,
                     jsonBody: {

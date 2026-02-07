@@ -18,9 +18,9 @@ export const CONFIG = {
 
     // Validation Rules
     COMMENTS_MAX_LENGTH: 1000,
-    EVENT_CODE_LENGTH: 8,
-    EVENT_CODE_PREFIX: 'CS',
-    EVENT_CODE_PATTERN: /^CS[A-Z0-9]{6}$/,
+    EVENT_CODE_MIN_LENGTH: 3,
+    EVENT_CODE_MAX_LENGTH: 50,
+    EVENT_CODE_PREFIX: 'CS',  // Default prefix for auto-generated codes
     SPEAKER_NAME_MIN_LENGTH: 2,
     SPEAKER_NAME_MAX_LENGTH: 100,
     MODULE_NAME_MIN_LENGTH: 5,

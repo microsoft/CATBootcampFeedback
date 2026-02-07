@@ -42,9 +42,9 @@ app.http('events', {
                     };
                 }
 
-                // Validate event code format
-                if (!/^CS[A-Z0-9]{6}$/.test(eventCode)) {
-                    const errorResponse = error(400, 'Event code must be 8 characters starting with CS followed by 6 alphanumeric characters', 'INVALID_DATA');
+                // Validate event code is not empty and has reasonable length
+                if (eventCode.trim().length < 3 || eventCode.trim().length > 50) {
+                    const errorResponse = error(400, 'Event code must be between 3 and 50 characters', 'INVALID_DATA');
                     return {
                         status: errorResponse.status,
                         headers: errorResponse.headers,
@@ -198,7 +198,7 @@ app.http('getEventCount', {
         try {
             const eventCode = request.params.code;
 
-            if (!eventCode || !/^[A-Z0-9]{6,12}$/.test(eventCode)) {
+            if (!eventCode || eventCode.trim().length < 3 || eventCode.trim().length > 50) {
                 return { status: 400, jsonBody: { success: false, message: 'Invalid event code', error: 'INVALID_EVENT_CODE' } };
             }
 
@@ -243,7 +243,7 @@ app.http('getModuleCount', {
             const eventCode = request.params.code;
             const eventModuleId = parseInt(request.params.moduleId);
 
-            if (!eventCode || !/^[A-Z0-9]{6,12}$/.test(eventCode)) {
+            if (!eventCode || eventCode.trim().length < 3 || eventCode.trim().length > 50) {
                 return { status: 400, jsonBody: { success: false, message: 'Invalid event code', error: 'INVALID_EVENT_CODE' } };
             }
             if (!eventModuleId || isNaN(eventModuleId)) {
