@@ -1852,6 +1852,11 @@ function populateSpeakerFilter(feedback) {
         uniqueSpeakers.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
 }
 
+// Chart instances for cleanup
+let trendChartInstance = null;
+let speakerHistogramInstance = null;
+let satisfactionHistogramInstance = null;
+
 // Update analytics UI (optimized - doesn't reload data)
 function updateAnalyticsUI(feedbackData = null, eventsData = null) {
     // Use filtered data if provided, otherwise use all data
@@ -1900,6 +1905,291 @@ function updateAnalyticsUI(feedbackData = null, eventsData = null) {
             </div>
         `;
     }).join('');
+
+    // Render new enhanced analytics
+    renderTrendChart(feedback, events);
+    renderRatingHistograms(feedback);
+    renderTopBottomPerformers(feedback);
+}
+
+// Render trend analysis chart
+function renderTrendChart(feedback, events) {
+    // Group feedback by event and calculate averages
+    const eventData = events.map(event => {
+        const eventFeedback = feedback.filter(fb => fb.eventCode === event.eventCode);
+        const avgSatisfaction = eventFeedback.length > 0
+            ? eventFeedback.reduce((sum, fb) => sum + fb.moduleSatisfaction, 0) / eventFeedback.length
+            : 0;
+        const avgSpeakerKnowledge = eventFeedback.length > 0
+            ? eventFeedback.reduce((sum, fb) => sum + fb.speakerKnowledge, 0) / eventFeedback.length
+            : 0;
+
+        return {
+            eventName: event.eventName,
+            eventCode: event.eventCode,
+            startDate: new Date(event.startDate),
+            avgSatisfaction: parseFloat(avgSatisfaction.toFixed(2)),
+            avgSpeakerKnowledge: parseFloat(avgSpeakerKnowledge.toFixed(2)),
+            feedbackCount: eventFeedback.length
+        };
+    }).sort((a, b) => a.startDate - b.startDate);
+
+    // Destroy previous chart instance
+    if (trendChartInstance) {
+        trendChartInstance.destroy();
+    }
+
+    const ctx = document.getElementById('trendChart');
+    if (!ctx) return;
+
+    trendChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: eventData.map(e => `${e.eventCode}\n${e.startDate.toLocaleDateString()}`),
+            datasets: [
+                {
+                    label: 'Module Satisfaction',
+                    data: eventData.map(e => e.avgSatisfaction),
+                    borderColor: '#0366d6',
+                    backgroundColor: 'rgba(3, 102, 214, 0.1)',
+                    tension: 0.3,
+                    fill: true
+                },
+                {
+                    label: 'Speaker Knowledge',
+                    data: eventData.map(e => e.avgSpeakerKnowledge),
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.3,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        title: (items) => {
+                            const index = items[0].dataIndex;
+                            return eventData[index].eventName;
+                        },
+                        afterLabel: (item) => {
+                            const index = item.dataIndex;
+                            return `Feedback: ${eventData[index].feedbackCount} responses`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 5,
+                    title: {
+                        display: true,
+                        text: 'Average Rating (1-5)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Events (Chronological)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Render rating distribution histograms
+function renderRatingHistograms(feedback) {
+    // Count ratings for speaker knowledge (1-5)
+    const speakerCounts = [0, 0, 0, 0, 0];
+    const satisfactionCounts = [0, 0, 0, 0, 0];
+
+    feedback.forEach(fb => {
+        if (fb.speakerKnowledge >= 1 && fb.speakerKnowledge <= 5) {
+            speakerCounts[fb.speakerKnowledge - 1]++;
+        }
+        if (fb.moduleSatisfaction >= 1 && fb.moduleSatisfaction <= 5) {
+            satisfactionCounts[fb.moduleSatisfaction - 1]++;
+        }
+    });
+
+    // Destroy previous chart instances
+    if (speakerHistogramInstance) {
+        speakerHistogramInstance.destroy();
+    }
+    if (satisfactionHistogramInstance) {
+        satisfactionHistogramInstance.destroy();
+    }
+
+    // Speaker Knowledge Histogram
+    const speakerCtx = document.getElementById('speakerKnowledgeHistogram');
+    if (speakerCtx) {
+        speakerHistogramInstance = new Chart(speakerCtx, {
+            type: 'bar',
+            data: {
+                labels: ['1⭐', '2⭐', '3⭐', '4⭐', '5⭐'],
+                datasets: [{
+                    label: 'Count',
+                    data: speakerCounts,
+                    backgroundColor: [
+                        '#dc3545',
+                        '#fd7e14',
+                        '#ffc107',
+                        '#28a745',
+                        '#20c997'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        },
+                        title: {
+                            display: true,
+                            text: 'Number of Responses'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Module Satisfaction Histogram
+    const satisfactionCtx = document.getElementById('moduleSatisfactionHistogram');
+    if (satisfactionCtx) {
+        satisfactionHistogramInstance = new Chart(satisfactionCtx, {
+            type: 'bar',
+            data: {
+                labels: ['1⭐', '2⭐', '3⭐', '4⭐', '5⭐'],
+                datasets: [{
+                    label: 'Count',
+                    data: satisfactionCounts,
+                    backgroundColor: [
+                        '#dc3545',
+                        '#fd7e14',
+                        '#ffc107',
+                        '#28a745',
+                        '#20c997'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        },
+                        title: {
+                            display: true,
+                            text: 'Number of Responses'
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
+// Render top and bottom performers
+function renderTopBottomPerformers(feedback) {
+    // Group by event module and calculate averages
+    const moduleStats = {};
+
+    feedback.forEach(fb => {
+        const key = `${fb.eventModuleId}`;
+        if (!moduleStats[key]) {
+            moduleStats[key] = {
+                eventModuleId: fb.eventModuleId,
+                moduleName: fb.moduleName,
+                speakerName: fb.speakerName,
+                eventName: fb.eventName,
+                totalSatisfaction: 0,
+                count: 0
+            };
+        }
+        moduleStats[key].totalSatisfaction += fb.moduleSatisfaction;
+        moduleStats[key].count++;
+    });
+
+    // Calculate averages and filter
+    const modules = Object.values(moduleStats)
+        .map(m => ({
+            ...m,
+            avgRating: m.totalSatisfaction / m.count
+        }))
+        .filter(m => m.count >= 3); // Minimum 3 responses
+
+    // Sort and get top/bottom 3
+    const sortedModules = [...modules].sort((a, b) => b.avgRating - a.avgRating);
+    const topPerformers = sortedModules.slice(0, 3);
+    const bottomPerformers = sortedModules.slice(-3).reverse();
+
+    // Render top performers
+    const topContainer = document.getElementById('topPerformers');
+    if (topContainer) {
+        if (topPerformers.length === 0) {
+            topContainer.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">Not enough data (minimum 3 responses per module)</p>';
+        } else {
+            topContainer.innerHTML = topPerformers.map(m => `
+                <div class="performer-item">
+                    <div class="performer-info">
+                        <div class="performer-name">${escapeHtml(m.moduleName)}</div>
+                        <div class="performer-speaker">👤 ${escapeHtml(m.speakerName)}</div>
+                    </div>
+                    <div class="performer-stats">
+                        <div class="performer-rating">${m.avgRating.toFixed(1)}⭐</div>
+                        <div class="performer-count">${m.count} responses</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+
+    // Render bottom performers
+    const bottomContainer = document.getElementById('bottomPerformers');
+    if (bottomContainer) {
+        if (bottomPerformers.length === 0) {
+            bottomContainer.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">Not enough data (minimum 3 responses per module)</p>';
+        } else {
+            bottomContainer.innerHTML = bottomPerformers.map(m => `
+                <div class="performer-item">
+                    <div class="performer-info">
+                        <div class="performer-name">${escapeHtml(m.moduleName)}</div>
+                        <div class="performer-speaker">👤 ${escapeHtml(m.speakerName)}</div>
+                    </div>
+                    <div class="performer-stats">
+                        <div class="performer-rating">${m.avgRating.toFixed(1)}⭐</div>
+                        <div class="performer-count">${m.count} responses</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
 }
 
 // Populate analytics filters

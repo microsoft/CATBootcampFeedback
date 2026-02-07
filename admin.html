@@ -237,6 +237,52 @@
                         <!-- Chart will be rendered here -->
                     </div>
                 </div>
+
+                <!-- Trend Analysis Chart -->
+                <div class="chart-section">
+                    <h3>📈 Satisfaction Trends Over Time</h3>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Rating Distribution Histograms -->
+                <div class="chart-section">
+                    <h3>📊 Rating Distribution</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <h4 style="text-align: center; margin-bottom: 10px;">Speaker Knowledge</h4>
+                            <div class="chart-container" style="height: 250px;">
+                                <canvas id="speakerKnowledgeHistogram"></canvas>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 style="text-align: center; margin-bottom: 10px;">Module Satisfaction</h4>
+                            <div class="chart-container" style="height: 250px;">
+                                <canvas id="moduleSatisfactionHistogram"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top/Bottom Performers -->
+                <div class="chart-section">
+                    <h3>🏆 Performance Highlights</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <h4 style="color: #28a745; margin-bottom: 10px;">✅ Top Rated Modules</h4>
+                            <div id="topPerformers" class="performers-list">
+                                <!-- Top performers will be rendered here -->
+                            </div>
+                        </div>
+                        <div>
+                            <h4 style="color: #dc3545; margin-bottom: 10px;">⚠️ Needs Attention</h4>
+                            <div id="bottomPerformers" class="performers-list">
+                                <!-- Bottom performers will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -395,6 +441,8 @@
 
     <!-- Include QR Code library (local copy to avoid CDN blocking) -->
     <script src="qrcode.min.js"></script>
+    <!-- Include Chart.js for analytics visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="admin.js"></script>
 </body>
 </html>
