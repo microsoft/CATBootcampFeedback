@@ -11,6 +11,7 @@
 const { app } = require('@azure/functions');
 const bcrypt = require('bcryptjs');
 const { generateToken } = require('../shared/auth');
+const { rateLimit } = require('../shared/rate-limiter');
 
 // Admin credentials with bcrypt-hashed passwords
 // Password: CATBootcamp2026! (hashed with bcrypt rounds=10)
@@ -37,6 +38,13 @@ app.http('login', {
     handler: async (request, context) => {
         try {
             context.log('JWT Login request received');
+
+            // Apply rate limiting (5 attempts per 15 minutes)
+            const rateLimitError = rateLimit(request, 'login');
+            if (rateLimitError) {
+                context.log('Rate limit exceeded for login');
+                return rateLimitError;
+            }
 
             // Parse request body
             const bodyText = await request.text();

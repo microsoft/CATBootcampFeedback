@@ -9,6 +9,7 @@
 const { app } = require('@azure/functions');
 const { query } = require('../shared/database');
 const { success, error } = require('../shared/utils');
+const { rateLimit } = require('../shared/rate-limiter');
 
 app.http('feedback', {
     methods: ['GET'],
@@ -84,26 +85,17 @@ app.http('submitFeedback', {
     route: 'feedback',
     handler: async (request, context) => {
         try {
+            // Apply rate limiting (3 submissions per minute)
+            const rateLimitError = rateLimit(request, 'feedback');
+            if (rateLimitError) {
+                context.log('Rate limit exceeded for feedback submission');
+                return rateLimitError;
+            }
+
             const data = await request.json();
 
             // Import required utilities
-            const { sanitize, getClientIP, checkRateLimit } = require('../shared/utils');
-
-            // Rate limiting
-            const clientIP = getClientIP(request);
-            const rateLimitKey = `feedback_${clientIP}_${data.eventCode}`;
-            const rateLimit = checkRateLimit(rateLimitKey, 5, 3600000); // 5 per hour
-
-            if (!rateLimit.allowed) {
-                return {
-                    status: 429,
-                    jsonBody: {
-                        success: false,
-                        message: `Too many submissions. Please try again in ${Math.ceil(rateLimit.retryAfter / 60)} minutes.`,
-                        error: 'RATE_LIMIT_EXCEEDED'
-                    }
-                };
-            }
+            const { sanitize, getClientIP } = require('../shared/utils');
 
             // Validate required fields
             if (!data.eventCode || !data.eventModuleId || !data.speakerKnowledge || !data.contentDepth || !data.moduleSatisfaction) {
