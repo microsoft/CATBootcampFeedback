@@ -88,7 +88,7 @@ if (typeof window !== 'undefined') {
                         window.location.hostname !== '127.0.0.1';
 
     // Get production Static Web App hostname
-    const PROD_HOSTNAME = 'lively-ocean-076d52c0f.2.azurestaticapps.net';
+    const PROD_HOSTNAME = 'lively-ocean-076d52c0f-2.azurestaticapps.net';
 
     if (window.location.hostname === PROD_HOSTNAME ||
         window.location.hostname === 'catbootcamp.yourdomain.com') {
