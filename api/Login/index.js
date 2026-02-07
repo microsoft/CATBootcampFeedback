@@ -17,13 +17,13 @@ const { generateToken } = require('../shared/auth');
 const ADMIN_USERS = [
     {
         username: 'admin',
-        passwordHash: '$2b$10$uru.CX0QNH8RXgC4uTMvweTBEEHDUZgPCK5.C6i7qLdhGhInZhFKe',
+        passwordHash: '$2b$10$NNRgGRdeOidgtSPFAZ3nxup221ffdtrF7Yd90h6KjnIDXlUQGJTPK',
         fullName: 'CAT Admin',
         email: 'admin@microsoft.com'
     },
     {
         username: 'dewainr',
-        passwordHash: '$2b$10$T3QtTLVS1rVElKf3IUwDA.P3vl0dz4ELDDNicJ8vHDF.GRE6q3Q6G',
+        passwordHash: '$2b$10$GtaRhBketPlI2dws2tDbCOjCesPnco.s9c/W.N9LS9f7eV.cufkgW',
         fullName: 'Dewain Robinson',
         email: 'dewainr@microsoft.com'
     }
