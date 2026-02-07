@@ -34,7 +34,6 @@ const errorMessage = document.getElementById('errorMessage');
 const feedbackForm = document.getElementById('feedbackForm');
 const submitBtn = document.getElementById('submitBtn');
 const clearBtn = document.getElementById('clearBtn');
-const submitAnotherBtn = document.getElementById('submitAnotherBtn');
 const successMessage = document.getElementById('successMessage');
 const additionalComments = document.getElementById('additionalComments');
 const charCount = document.getElementById('charCount');
@@ -474,7 +473,6 @@ function showError(message) {
 function setupFormListeners() {
     feedbackForm.addEventListener('submit', handleSubmit);
     clearBtn.addEventListener('click', handleClear);
-    submitAnotherBtn.addEventListener('click', handleSubmitAnother);
     additionalComments.addEventListener('input', updateCharCount);
     addRealTimeValidation();
 }
@@ -734,21 +732,6 @@ function handleClear() {
 }
 
 // Submit another response
-function handleSubmitAnother() {
-    successMessage.classList.add('hidden');
-    feedbackForm.style.display = 'block';
-
-    // Clear feedback fields
-    document.querySelectorAll('input[name="speakerKnowledge"]').forEach(input => input.checked = false);
-    document.querySelectorAll('input[name="contentDepth"]').forEach(input => input.checked = false);
-    document.querySelectorAll('input[name="moduleSatisfaction"]').forEach(input => input.checked = false);
-    document.getElementById('additionalComments').value = '';
-
-    clearErrors();
-    charCount.textContent = '0';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
 // Add real-time validation
 function addRealTimeValidation() {
     const inputs = document.querySelectorAll('input, textarea');
