@@ -228,9 +228,10 @@ Each feedback submission should be associated with:
 - **Module Management**: Create, edit, and manage bootcamp modules (training sessions)
   - Module details: name, date, speaker, cohort
   - Admin provides a unique event code for each module
-- **Event Code Input**: Admin specifies event code when creating a module (e.g., "CSA1B2C3")
-  - Format validation: Typically 8 characters, starts with "CS"
-  - Event codes are admin-provided, not auto-generated
+- **Event Code Input**: Admin specifies event code when creating a module (e.g., "CSA1B2C3", "CAT-2024-Spring")
+  - Format validation: 3-50 characters, any format accepted (unique codes are required)
+  - Event codes are admin-provided or can be auto-generated with "CS" prefix
+  - Common formats: "CS" prefix codes, date-based codes, or custom identifiers
 - **Event Actions**: Each event card provides action buttons:
   - **View Details & QR**: Opens modal showing:
     - Complete event information (dates, cohort, status)

@@ -53,7 +53,9 @@ export const InputSanitizer = {
      */
     validateEventCode(code) {
         if (!code || typeof code !== 'string') return false;
-        return CONFIG.EVENT_CODE_PATTERN.test(code);
+        const trimmed = code.trim();
+        return trimmed.length >= CONFIG.EVENT_CODE_MIN_LENGTH &&
+               trimmed.length <= CONFIG.EVENT_CODE_MAX_LENGTH;
     },
 
     /**

@@ -19,10 +19,9 @@ module.exports = async function (context, req) {
             return;
         }
 
-        // Validate event code format
-        const eventCodePattern = /^CS[A-Z0-9]{6}$/;
-        if (!eventCodePattern.test(eventCode)) {
-            context.res = error(400, 'Event code must match pattern: CS followed by 6 alphanumeric characters', 'INVALID_DATA');
+        // Validate event code length
+        if (eventCode.trim().length < 3 || eventCode.trim().length > 50) {
+            context.res = error(400, 'Event code must be between 3 and 50 characters', 'INVALID_DATA');
             return;
         }
 

@@ -227,7 +227,7 @@ Stores information about training events/bootcamps.
 |--------|------|-------------|-------------|
 | `EventId` | INT | PRIMARY KEY, IDENTITY | Unique event identifier |
 | `EventName` | NVARCHAR(200) | NOT NULL | Descriptive name for the event |
-| `EventCode` | NVARCHAR(20) | UNIQUE, NOT NULL | Unique code (e.g., CSA1B2C3) |
+| `EventCode` | NVARCHAR(20) | UNIQUE, NOT NULL | Unique code (e.g., CSA1B2C3, CAT-2024-Spring, etc.) |
 | `StartDate` | DATE | NOT NULL | Event start date |
 | `EndDate` | DATE | NULL | Event end date (optional) |
 | `CohortId` | NVARCHAR(50) | NULL | Cohort/batch identifier |
