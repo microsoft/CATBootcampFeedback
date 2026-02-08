@@ -12,6 +12,7 @@ const { app } = require('@azure/functions');
 const bcrypt = require('bcryptjs');
 const { generateToken } = require('../shared/auth');
 const { rateLimit } = require('../shared/rate-limiter');
+const { addSecurityHeaders } = require('../shared/utils');
 
 // Admin credentials with bcrypt-hashed passwords
 // Passwords rotated: 2026-02-07 (stored securely on desktop, not in repo)
@@ -53,13 +54,13 @@ app.http('login', {
 
             if (!username || !password) {
                 context.log('Missing credentials');
-                return {
+                return addSecurityHeaders({
                     status: 400,
                     jsonBody: {
                         success: false,
                         message: 'Username and password are required'
                     }
-                };
+                });
             }
 
             // Find user by username
@@ -69,13 +70,13 @@ app.http('login', {
 
             if (!user) {
                 context.log('User not found:', username);
-                return {
+                return addSecurityHeaders({
                     status: 401,
                     jsonBody: {
                         success: false,
                         message: 'Invalid username or password'
                     }
-                };
+                });
             }
 
             // Verify password with bcrypt
@@ -83,13 +84,13 @@ app.http('login', {
 
             if (!isPasswordValid) {
                 context.log('Invalid password for user:', username);
-                return {
+                return addSecurityHeaders({
                     status: 401,
                     jsonBody: {
                         success: false,
                         message: 'Invalid username or password'
                     }
-                };
+                });
             }
 
             // Generate JWT token
@@ -101,7 +102,7 @@ app.http('login', {
 
             context.log('JWT Login successful for:', username);
 
-            return {
+            return addSecurityHeaders({
                 status: 200,
                 jsonBody: {
                     success: true,
@@ -113,18 +114,18 @@ app.http('login', {
                     },
                     expiresIn: '8h'
                 }
-            };
+            });
 
         } catch (err) {
             context.log('Login error:', err.message);
             context.log('Error stack:', err.stack);
-            return {
+            return addSecurityHeaders({
                 status: 500,
                 jsonBody: {
                     success: false,
                     message: 'Login failed: ' + err.message
                 }
-            };
+            });
         }
     }
 });
