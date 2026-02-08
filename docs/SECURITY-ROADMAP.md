@@ -14,6 +14,22 @@ This document outlines recommended security enhancements for the CAT Bootcamp Fe
 - ✅ Separate dev/prod environments with isolated secrets
 - ✅ Input validation and sanitization
 - ✅ CORS configuration
+- ✅ All credentials rotated (Feb 2026)
+- ✅ Credentials removed from documentation
+- ✅ Demo credentials removed from UI
+
+## Recent Security Actions Completed (Feb 2026) 🎉
+
+**Credential Rotation & Cleanup:**
+- ✅ **Feb 7, 2026:** Deployment token rotated and GitHub secret updated
+- ✅ **Feb 7, 2026:** SQL Server password rotated (stored in Function App settings)
+- ✅ **Feb 7-8, 2026:** Admin passwords rotated with bcrypt (rounds=10)
+- ✅ **Feb 7, 2026:** All credentials removed from repository documentation
+- ✅ **Feb 7, 2026:** Secure credentials file created on desktop (not in repo)
+- ✅ **Feb 8, 2026:** Demo credentials removed from admin login screen
+- ✅ **Feb 8, 2026:** Deployed to both development and production environments
+
+**Impact:** Eliminated credential exposure risk from documentation and UI
 
 ## Recommended Security Improvements
 
@@ -36,8 +52,8 @@ Without rate limiting, attackers can:
 
 #### 2. Move SQL Credentials to Key Vault ⭐ HIGH IMPACT
 
-**Current State:** Plain text in Function App settings
-**Risk:** Credential exposure
+**Current State:** ✅ Password rotated (Feb 2026), but still stored in Function App settings
+**Risk:** Credential exposure (medium - rotated but not in Key Vault)
 **Effort:** 1-2 hours
 
 **Why This Matters:**
@@ -45,6 +61,12 @@ Without rate limiting, attackers can:
 - Centralized secret rotation
 - Audit trail for database access
 - Current best practice for Azure
+
+**Next Steps:**
+1. Create Key Vault secret for SQL password
+2. Update Function App to read from Key Vault
+3. Remove plain text password from Function App settings
+4. Test database connectivity
 
 #### 3. Content Security Policy (CSP) Headers ⭐ MEDIUM IMPACT
 
@@ -197,11 +219,12 @@ Automate monthly rotation of:
 ## Recommended Implementation Plan
 
 ### Phase 1: Quick Wins (Week 1-2) - 9-13 hours
-1. ✅ Move SQL credentials to Key Vault (1-2h)
-2. ✅ Add CSP headers (2-3h)
-3. ✅ Implement rate limiting (4-6h)
-4. ✅ Add dependency scanning (4-6h)
+1. ⏳ **Move SQL credentials to Key Vault (1-2h)** - Password rotated, needs Key Vault migration
+2. ❌ Add CSP headers (2-3h)
+3. ❌ Implement rate limiting (4-6h)
+4. ❌ Add dependency scanning (4-6h)
 
+**Status:** Credential rotation completed (Feb 2026), remaining items in progress
 **Total Investment:** ~10-13 hours
 **Security Improvement:** ~40%
 
@@ -250,28 +273,33 @@ Automate monthly rotation of:
 **Investment:** ~$15,000-25,000 in development + $420-1800/year operational
 **Protection:** Potentially millions in avoided costs
 
-## My Top 3 Recommendations
+## Top 3 Priority Items (Updated Feb 2026)
 
-If you can only do three things right now, do these:
+Based on recent credential rotation work, here are the next critical steps:
 
-### 1. 🔥 Rate Limiting (4-6 hours)
-**Why:** Immediate protection against brute force and API abuse
-**Impact:** Prevents 80% of automated attacks
+### 1. 🔥 Rate Limiting (4-6 hours) - HIGHEST PRIORITY
+**Why:** Now that credentials are rotated, protect them from brute force
+**Impact:** Prevents 80% of automated attacks on login endpoints
 **Cost:** Free
+**Status:** ❌ Not implemented
 
-### 2. 🔐 SQL Credentials to Key Vault (1-2 hours)
-**Why:** Quick win, consistent with current architecture
-**Impact:** Closes a credential exposure gap
+### 2. 🔐 Complete SQL Credentials Migration to Key Vault (1-2 hours)
+**Why:** Finish the credential security work already started
+**Impact:** Moves last hardcoded credential to secure vault
 **Cost:** Free
+**Status:** ⏳ Password rotated, needs Key Vault migration
+**Progress:** 50% complete
 
 ### 3. 🛡️ Content Security Policy Headers (2-3 hours)
 **Why:** Industry-standard XSS protection
 **Impact:** Prevents entire class of attacks
 **Cost:** Free
+**Status:** ❌ Not implemented
 
 **Total Time:** 7-11 hours
 **Total Cost:** $0
 **Security Improvement:** ~40%
+**Current Progress:** ~10% (credential rotation completed)
 
 ## Questions to Consider
 
@@ -292,5 +320,31 @@ Would you like me to:
 
 ---
 
-**Last Updated:** February 7, 2026
-**Next Review:** May 7, 2026
+## Summary of Progress
+
+### ✅ Completed (Feb 2026)
+- Deployment token rotation
+- SQL Server password rotation
+- Admin password rotation with bcrypt
+- Credential removal from all documentation
+- Demo credential removal from UI
+- Secure desktop credentials file setup
+- Deployed to dev and production
+
+### 🚧 In Progress
+- SQL credentials migration to Key Vault (50% - rotated, not in vault)
+
+### 📋 Next Up (Priority Order)
+1. Rate limiting implementation (4-6h)
+2. Complete SQL Key Vault migration (1-2h)
+3. Content Security Policy headers (2-3h)
+4. Enhanced audit logging (6-8h)
+5. Input validation improvements (8-10h)
+
+**Estimated Time to Phase 1 Completion:** 7-11 hours remaining
+
+---
+
+**Last Updated:** February 8, 2026
+**Next Review:** May 8, 2026
+**Status:** Phase 1 credential rotation complete, additional quick wins recommended
