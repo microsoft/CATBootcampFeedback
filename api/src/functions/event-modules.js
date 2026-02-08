@@ -119,7 +119,23 @@ app.http('addEventModule', {
                 };
             }
 
-            // Insert event module
+            const requestedOrder = parseInt(deliveryOrder) || 1;
+
+            // Shift existing modules to make room for the new module at the requested position
+            // All modules with DeliveryOrder >= requestedOrder should be incremented by 1
+            await query(`
+                UPDATE EventModules
+                SET DeliveryOrder = DeliveryOrder + 1
+                WHERE EventId = @eventId
+                  AND DeliveryOrder >= @requestedOrder
+            `, {
+                eventId: parseInt(eventId),
+                requestedOrder: requestedOrder
+            });
+
+            context.log(`Shifted modules at order >= ${requestedOrder} to make room for new module`);
+
+            // Insert event module at the requested position
             const result = await query(`
                 INSERT INTO EventModules (EventId, ModuleId, SpeakerName, DeliveryOrder, DeliveryDate, Notes, CreatedAt)
                 OUTPUT INSERTED.EventModuleId, INSERTED.EventId, INSERTED.ModuleId,
@@ -129,7 +145,7 @@ app.http('addEventModule', {
                 eventId: parseInt(eventId),
                 moduleId: parseInt(moduleId),
                 speakerName: speakerName.trim(),
-                deliveryOrder: deliveryOrder || 1,
+                deliveryOrder: requestedOrder,
                 deliveryDate: deliveryDate || null,
                 notes: notes ? notes.trim() : null
             });
