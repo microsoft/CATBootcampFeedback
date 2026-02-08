@@ -14,7 +14,7 @@ The SQL Server password needs to be reset before we can initialize the database.
 
 2. **Reset Password**
    - In the left menu, click "Reset password"
-   - Enter new password: `CATBootcamp2026!SecurePass`
+   - Enter new password: `[REDACTED - See Desktop/Secure_CAT_Files/CREDENTIALS_MASTER.md]`
    - Click "Save"
 
 3. **Initialize Database**
@@ -22,7 +22,7 @@ The SQL Server password needs to be reset before we can initialize the database.
    - Click "Query editor" in the left menu
    - Login with:
      - Login: `sqladmin`
-     - Password: `CATBootcamp2026!SecurePass`
+     - Password: `[REDACTED - See secure documentation]`
 
 4. **Run Initialization Script**
    - Copy the entire contents of: `C:\Users\dewainr\AppData\Local\Temp\claude\C--Users-dewainr\5f379f37-53bd-4f68-8872-f1441347fa15\scratchpad\init-database.sql`
@@ -55,7 +55,9 @@ The SQL Server password needs to be reset before we can initialize the database.
 az sql server update \
   --resource-group cat-bootcamp-rg \
   --name cat-bootcamp-sql-89082 \
-  --admin-password 'CATBootcamp2026!SecurePass'
+  --admin-password '[YOUR_SECURE_PASSWORD]'
+
+# See Desktop/Secure_CAT_Files/CREDENTIALS_MASTER.md for actual password
 ```
 
 ---

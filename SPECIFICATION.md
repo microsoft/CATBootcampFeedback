@@ -586,7 +586,7 @@ POST   /api/login
        - Admin authentication
        - Body: { username: string, password: string }
        - Returns: { success: true, token: string, user: { ... } }
-       - Demo credentials: username=admin, password=CATBootcamp2026!
+       - Demo credentials: username=admin, password=[REDACTED - See Desktop/Secure_CAT_Files/CREDENTIALS_MASTER.md]
 
 POST   /api/events
        - Create new event

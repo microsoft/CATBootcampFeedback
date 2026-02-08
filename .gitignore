@@ -52,8 +52,12 @@ Desktop.ini
 # Debug files
 *.stackdump
 
-# Security - Credentials file (kept on desktop only)
+# Security - Credentials and sensitive files (kept on desktop only)
 CATBOOTCAMP_CREDENTIALS_SECURE.md
+CREDENTIALS_MASTER.md
 *CREDENTIALS*.md
 *credentials*.txt
 *secrets*.md
+*_SECURE.md
+*_COMPLETE.md
+Secure_CAT_Files/

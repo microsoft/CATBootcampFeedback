@@ -434,9 +434,10 @@ API_BASE_URL: 'http://localhost:7071/api'
 ### Admin Panel Issues
 
 **Cannot Login**
-- Demo credentials: `admin` / `CATBootcamp2026!`
+- Demo credentials: `admin` / `[REDACTED - See Desktop/Secure_CAT_Files/CREDENTIALS_MASTER.md]`
 - Check that Functions app is accessible
 - Verify CORS is configured correctly
+- **Note:** Actual credentials stored in secure location, not in repository
 
 **QR Codes Not Generating**
 - Check browser console for errors
