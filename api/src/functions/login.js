@@ -14,18 +14,18 @@ const { generateToken } = require('../shared/auth');
 const { rateLimit } = require('../shared/rate-limiter');
 
 // Admin credentials with bcrypt-hashed passwords
-// Password: CATBootcamp2026! (hashed with bcrypt rounds=10)
+// Passwords rotated: 2026-02-07 (stored securely on desktop, not in repo)
 // TODO: Move to Azure Key Vault or database with proper user management
 const ADMIN_USERS = [
     {
         username: 'admin',
-        passwordHash: '$2b$10$.QNiEI80R3baYb5/KxY.Z.O4Gsvp.FC1JXjcd0ycnqK9t10LdpgGG',
+        passwordHash: '$2b$10$NNRgGRdeOidgtSPFAZ3nxup221ffdtrF7Yd90h6KjnIDXlUQGJTPK',
         fullName: 'CAT Admin',
         email: 'admin@microsoft.com'
     },
     {
         username: 'dewainr',
-        passwordHash: '$2b$10$.QNiEI80R3baYb5/KxY.Z.O4Gsvp.FC1JXjcd0ycnqK9t10LdpgGG',
+        passwordHash: '$2b$10$GtaRhBketPlI2dws2tDbCOjCesPnco.s9c/W.N9LS9f7eV.cufkgW',
         fullName: 'Dewain Robinson',
         email: 'dewainr@microsoft.com'
     }
