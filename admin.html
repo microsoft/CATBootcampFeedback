@@ -402,6 +402,15 @@
                                placeholder="e.g., John Doe">
                         <small class="form-help">Who is delivering this module at this event?</small>
                     </div>
+                    <!-- Current Module Order Display -->
+                    <div id="currentModuleOrderDisplay" class="form-group" style="display: none;">
+                        <label>Current Module Order</label>
+                        <div id="currentModuleOrderList" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 12px; max-height: 200px; overflow-y: auto;">
+                            <!-- Populated dynamically -->
+                        </div>
+                        <small class="form-help">New module will be inserted at your selected position, and existing modules will shift accordingly.</small>
+                    </div>
+
                     <div class="form-group">
                         <label for="deliveryOrder">Insert Position <span class="required">*</span></label>
                         <select id="deliveryOrder" name="deliveryOrder" required>
