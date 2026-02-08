@@ -644,9 +644,11 @@ window.addModuleToEvent = async function(moduleId) {
                         <input type="text" id="quickSpeakerName" required placeholder="e.g., John Doe">
                     </div>
                     <div class="form-group">
-                        <label for="quickDeliveryOrder">Delivery Order</label>
-                        <input type="number" id="quickDeliveryOrder" value="1" min="1">
-                        <small class="form-help">Order in which this module is delivered</small>
+                        <label for="quickDeliveryOrder">Insert Position</label>
+                        <select id="quickDeliveryOrder">
+                            <option value="1">At the beginning (Position 1)</option>
+                        </select>
+                        <small class="form-help">Choose where to insert this module. Existing modules will shift to make room.</small>
                     </div>
                     <div class="modal-actions">
                         <button type="button" class="btn btn-secondary" id="quickAddModalCancel">Cancel</button>
@@ -686,6 +688,14 @@ window.addModuleToEvent = async function(moduleId) {
     document.getElementById('quickAddModuleModal').addEventListener('click', (e) => {
         if (e.target.id === 'quickAddModuleModal') {
             closeModal();
+        }
+    });
+
+    // Update insertion positions when event is selected
+    document.getElementById('quickEventSelect').addEventListener('change', async (e) => {
+        const eventId = e.target.value;
+        if (eventId) {
+            await updateQuickInsertionPositions(parseInt(eventId));
         }
     });
 
@@ -1534,11 +1544,96 @@ window.openAddModuleModal = async function() {
     // Populate module dropdown
     await populateModuleSelectForEvent();
 
-    // Set default delivery order to next available
-    document.getElementById('deliveryOrder').value = currentEventModules.length + 1;
+    // Populate insertion position dropdown
+    populateInsertionPositions();
 
     modal.classList.remove('hidden');
 };
+
+// Populate insertion position dropdown with intuitive options
+function populateInsertionPositions() {
+    const select = document.getElementById('deliveryOrder');
+    select.innerHTML = ''; // Clear existing options
+
+    // Sort modules by delivery order
+    const sortedModules = [...currentEventModules].sort((a, b) => a.deliveryOrder - b.deliveryOrder);
+
+    if (sortedModules.length === 0) {
+        // No modules yet - only option is position 1
+        const option = document.createElement('option');
+        option.value = '1';
+        option.textContent = 'At the beginning (Position 1)';
+        option.selected = true;
+        select.appendChild(option);
+    } else {
+        // Add option for beginning
+        const beginOption = document.createElement('option');
+        beginOption.value = '1';
+        beginOption.textContent = 'At the beginning (Position 1)';
+        select.appendChild(beginOption);
+
+        // Add "After [Module Name]" options
+        sortedModules.forEach((module, index) => {
+            const option = document.createElement('option');
+            option.value = (index + 2).toString(); // Position after this module
+            option.textContent = `After "${module.moduleName}" (Position ${index + 2})`;
+            select.appendChild(option);
+        });
+
+        // Select the last position (append to end) by default
+        select.value = (sortedModules.length + 1).toString();
+    }
+}
+
+// Update insertion positions for quick add modal
+async function updateQuickInsertionPositions(eventId) {
+    const select = document.getElementById('quickDeliveryOrder');
+    if (!select) return;
+
+    select.innerHTML = ''; // Clear existing options
+
+    try {
+        // Fetch modules for this event
+        const response = await apiGet(`/events/${eventId}/modules`);
+
+        if (response.success && response.data) {
+            const modules = response.data;
+            const sortedModules = [...modules].sort((a, b) => a.deliveryOrder - b.deliveryOrder);
+
+            if (sortedModules.length === 0) {
+                // No modules yet
+                const option = document.createElement('option');
+                option.value = '1';
+                option.textContent = 'At the beginning (Position 1)';
+                select.appendChild(option);
+            } else {
+                // Add option for beginning
+                const beginOption = document.createElement('option');
+                beginOption.value = '1';
+                beginOption.textContent = 'At the beginning (Position 1)';
+                select.appendChild(beginOption);
+
+                // Add "After [Module Name]" options
+                sortedModules.forEach((module, index) => {
+                    const option = document.createElement('option');
+                    option.value = (index + 2).toString();
+                    option.textContent = `After "${module.moduleName}" (Position ${index + 2})`;
+                    select.appendChild(option);
+                });
+
+                // Select the last position by default
+                select.value = (sortedModules.length + 1).toString();
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching event modules:', error);
+        // Default to position 1 on error
+        const option = document.createElement('option');
+        option.value = '1';
+        option.textContent = 'Position 1';
+        select.appendChild(option);
+    }
+}
 
 // Close add module modal
 function closeAddModuleModal() {
