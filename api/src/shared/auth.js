@@ -5,6 +5,7 @@
  */
 
 const jwt = require('jsonwebtoken');
+const { SECURITY_HEADERS } = require('./utils');
 
 // JWT secret - should be in environment variables in production
 const JWT_SECRET = process.env.JWT_SECRET || 'CAT-Bootcamp-Secret-Key-Change-In-Production-2026';
@@ -56,7 +57,8 @@ function requireAuth(req) {
             status: 401,
             headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                'Access-Control-Allow-Origin': '*',
+                ...SECURITY_HEADERS
             },
             body: {
                 success: false,
@@ -79,7 +81,8 @@ function requireAuth(req) {
             status: 401,
             headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                'Access-Control-Allow-Origin': '*',
+                ...SECURITY_HEADERS
             },
             body: {
                 success: false,

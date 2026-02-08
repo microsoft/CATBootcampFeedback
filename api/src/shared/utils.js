@@ -8,7 +8,21 @@ const NodeCache = require('node-cache');
 const cache = new NodeCache({ stdTTL: 300 });
 
 /**
- * Create HTTP response
+ * Security headers for all API responses
+ * Protects against XSS, clickjacking, MIME sniffing, and other attacks
+ */
+const SECURITY_HEADERS = {
+    'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.azurestaticapps.net https://*.azurewebsites.net; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
+};
+
+/**
+ * Create HTTP response with security headers
  */
 function createResponse(statusCode, body, headers = {}) {
     return {
@@ -16,6 +30,7 @@ function createResponse(statusCode, body, headers = {}) {
         headers: {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-cache',
+            ...SECURITY_HEADERS,
             ...headers
         },
         body: JSON.stringify(body)
@@ -142,6 +157,20 @@ function cacheSet(key, value, ttl = 300) {
     return cache.set(key, value, ttl);
 }
 
+/**
+ * Add security headers to Azure Functions v4 response object
+ * Usage: return addSecurityHeaders({ status: 200, jsonBody: {...} })
+ */
+function addSecurityHeaders(response) {
+    return {
+        ...response,
+        headers: {
+            ...SECURITY_HEADERS,
+            ...(response.headers || {})
+        }
+    };
+}
+
 module.exports = {
     createResponse,
     success,
@@ -152,5 +181,7 @@ module.exports = {
     getClientIP,
     checkRateLimit,
     cacheGet,
-    cacheSet
+    cacheSet,
+    addSecurityHeaders,
+    SECURITY_HEADERS
 };
