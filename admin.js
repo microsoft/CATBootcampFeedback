@@ -112,7 +112,7 @@ function setupEventListeners() {
 
         // Handle module buttons
         const moduleId = parseInt(target.dataset.moduleId);
-        if (moduleId) {
+        if (!isNaN(moduleId)) {
             if (target.classList.contains('btn-add-module-to-event')) {
                 addModuleToEvent(moduleId);
             } else if (target.classList.contains('btn-edit-module')) {
@@ -125,7 +125,7 @@ function setupEventListeners() {
 
         // Handle event buttons
         const eventId = parseInt(target.dataset.eventId);
-        if (eventId) {
+        if (!isNaN(eventId)) {
             if (target.classList.contains('btn-view-details')) {
                 viewEventDetails(eventId);
             } else if (target.classList.contains('btn-edit-event')) {
@@ -138,7 +138,7 @@ function setupEventListeners() {
 
         // Handle module reorder and remove buttons
         const eventModuleId = parseInt(target.dataset.eventModuleId);
-        if (eventModuleId) {
+        if (!isNaN(eventModuleId)) {
             // Don't handle disabled buttons
             if (target.disabled || target.hasAttribute('disabled')) {
                 return;
@@ -475,7 +475,7 @@ function openModuleModal(moduleId = null) {
 
     form.reset();
 
-    if (moduleId) {
+    if (moduleId != null) {
         const module = allModules.find(m => m.moduleId === moduleId);
         if (module) {
             modalTitle.textContent = 'Edit Module';
@@ -1306,7 +1306,7 @@ async function openEventModal(eventId = null, preSelectedModuleId = null) {
 
     form.reset();
 
-    if (eventId) {
+    if (eventId != null) {
         const event = allEvents.find(e => e.eventId === eventId);
         if (event) {
             modalTitle.textContent = 'Edit Event';
