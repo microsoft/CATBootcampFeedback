@@ -2022,6 +2022,7 @@ function populateSpeakerFilter(feedback) {
 }
 
 // Chart instances for cleanup
+// ApexCharts instances
 let trendChartInstance = null;
 let speakerHistogramInstance = null;
 let satisfactionHistogramInstance = null;
@@ -2081,7 +2082,7 @@ function updateAnalyticsUI(feedbackData = null, eventsData = null) {
     renderTopBottomPerformers(feedback);
 }
 
-// Render trend analysis chart
+// Render trend analysis chart (ApexCharts)
 function renderTrendChart(feedback, events) {
     // Group feedback by event and calculate averages
     const eventData = events.map(event => {
@@ -2108,73 +2109,90 @@ function renderTrendChart(feedback, events) {
         trendChartInstance.destroy();
     }
 
-    const ctx = document.getElementById('trendChart');
-    if (!ctx) return;
+    const chartElement = document.getElementById('trendChart');
+    if (!chartElement) return;
 
-    trendChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: eventData.map(e => `${e.eventCode}\n${e.startDate.toLocaleDateString()}`),
-            datasets: [
-                {
-                    label: 'Module Satisfaction',
-                    data: eventData.map(e => e.avgSatisfaction),
-                    borderColor: '#0366d6',
-                    backgroundColor: 'rgba(3, 102, 214, 0.1)',
-                    tension: 0.3,
-                    fill: true
-                },
-                {
-                    label: 'Speaker Knowledge',
-                    data: eventData.map(e => e.avgSpeakerKnowledge),
-                    borderColor: '#28a745',
-                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                    tension: 0.3,
-                    fill: true
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'top',
-                },
-                tooltip: {
-                    callbacks: {
-                        title: (items) => {
-                            const index = items[0].dataIndex;
-                            return eventData[index].eventName;
-                        },
-                        afterLabel: (item) => {
-                            const index = item.dataIndex;
-                            return `Feedback: ${eventData[index].feedbackCount} responses`;
-                        }
-                    }
+    // ApexCharts configuration
+    const options = {
+        series: [
+            {
+                name: 'Module Satisfaction',
+                data: eventData.map(e => e.avgSatisfaction)
+            },
+            {
+                name: 'Speaker Knowledge',
+                data: eventData.map(e => e.avgSpeakerKnowledge)
+            }
+        ],
+        chart: {
+            type: 'line',
+            height: 300,
+            toolbar: {
+                show: true,
+                tools: {
+                    download: true,
+                    zoom: true,
+                    pan: true
                 }
             },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 5,
-                    title: {
-                        display: true,
-                        text: 'Average Rating (1-5)'
-                    }
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Events (Chronological)'
-                    }
-                }
+            animations: {
+                enabled: true,
+                speed: 800
+            }
+        },
+        colors: ['#0366d6', '#28a745'],
+        stroke: {
+            curve: 'smooth',
+            width: 3
+        },
+        fill: {
+            type: 'gradient',
+            gradient: {
+                shadeIntensity: 1,
+                opacityFrom: 0.4,
+                opacityTo: 0.1,
+            }
+        },
+        xaxis: {
+            categories: eventData.map(e => `${e.eventCode}\n${e.startDate.toLocaleDateString()}`),
+            title: {
+                text: 'Events (Chronological)'
+            }
+        },
+        yaxis: {
+            min: 0,
+            max: 5,
+            title: {
+                text: 'Average Rating (1-5)'
+            }
+        },
+        legend: {
+            position: 'top'
+        },
+        tooltip: {
+            shared: true,
+            intersect: false,
+            custom: function({series, seriesIndex, dataPointIndex, w}) {
+                const event = eventData[dataPointIndex];
+                const satisfaction = series[0][dataPointIndex];
+                const knowledge = series[1][dataPointIndex];
+                return `
+                    <div class="apexcharts-tooltip-custom" style="padding: 10px; background: white; border: 1px solid #e3e3e3; border-radius: 4px;">
+                        <div style="font-weight: bold; margin-bottom: 5px;">${event.eventName}</div>
+                        <div style="color: #0366d6;">Module Satisfaction: ${satisfaction}</div>
+                        <div style="color: #28a745;">Speaker Knowledge: ${knowledge}</div>
+                        <div style="color: #666; font-size: 12px; margin-top: 5px;">Feedback: ${event.feedbackCount} responses</div>
+                    </div>
+                `;
             }
         }
-    });
+    };
+
+    trendChartInstance = new ApexCharts(chartElement, options);
+    trendChartInstance.render();
 }
 
-// Render rating distribution histograms
+// Render rating distribution histograms (ApexCharts)
 function renderRatingHistograms(feedback) {
     // Count ratings for speaker knowledge (1-5)
     const speakerCounts = [0, 0, 0, 0, 0];
@@ -2198,89 +2216,95 @@ function renderRatingHistograms(feedback) {
     }
 
     // Speaker Knowledge Histogram
-    const speakerCtx = document.getElementById('speakerKnowledgeHistogram');
-    if (speakerCtx) {
-        speakerHistogramInstance = new Chart(speakerCtx, {
-            type: 'bar',
-            data: {
-                labels: ['1⭐', '2⭐', '3⭐', '4⭐', '5⭐'],
-                datasets: [{
-                    label: 'Count',
-                    data: speakerCounts,
-                    backgroundColor: [
-                        '#dc3545',
-                        '#fd7e14',
-                        '#ffc107',
-                        '#28a745',
-                        '#20c997'
-                    ]
-                }]
+    const speakerElement = document.getElementById('speakerKnowledgeHistogram');
+    if (speakerElement) {
+        const speakerOptions = {
+            series: [{
+                name: 'Count',
+                data: speakerCounts
+            }],
+            chart: {
+                type: 'bar',
+                height: 300,
+                toolbar: { show: false }
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
+            plotOptions: {
+                bar: {
+                    distributed: true,
+                    borderRadius: 4
+                }
+            },
+            colors: ['#dc3545', '#fd7e14', '#ffc107', '#28a745', '#20c997'],
+            xaxis: {
+                categories: ['1⭐', '2⭐', '3⭐', '4⭐', '5⭐']
+            },
+            yaxis: {
+                title: {
+                    text: 'Number of Responses'
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        },
-                        title: {
-                            display: true,
-                            text: 'Number of Responses'
-                        }
+                tickAmount: Math.max(...speakerCounts) + 1,
+                labels: {
+                    formatter: function(value) {
+                        return Math.floor(value);
                     }
                 }
+            },
+            legend: {
+                show: false
+            },
+            dataLabels: {
+                enabled: true
             }
-        });
+        };
+
+        speakerHistogramInstance = new ApexCharts(speakerElement, speakerOptions);
+        speakerHistogramInstance.render();
     }
 
     // Module Satisfaction Histogram
-    const satisfactionCtx = document.getElementById('moduleSatisfactionHistogram');
-    if (satisfactionCtx) {
-        satisfactionHistogramInstance = new Chart(satisfactionCtx, {
-            type: 'bar',
-            data: {
-                labels: ['1⭐', '2⭐', '3⭐', '4⭐', '5⭐'],
-                datasets: [{
-                    label: 'Count',
-                    data: satisfactionCounts,
-                    backgroundColor: [
-                        '#dc3545',
-                        '#fd7e14',
-                        '#ffc107',
-                        '#28a745',
-                        '#20c997'
-                    ]
-                }]
+    const satisfactionElement = document.getElementById('moduleSatisfactionHistogram');
+    if (satisfactionElement) {
+        const satisfactionOptions = {
+            series: [{
+                name: 'Count',
+                data: satisfactionCounts
+            }],
+            chart: {
+                type: 'bar',
+                height: 300,
+                toolbar: { show: false }
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
+            plotOptions: {
+                bar: {
+                    distributed: true,
+                    borderRadius: 4
+                }
+            },
+            colors: ['#dc3545', '#fd7e14', '#ffc107', '#28a745', '#20c997'],
+            xaxis: {
+                categories: ['1⭐', '2⭐', '3⭐', '4⭐', '5⭐']
+            },
+            yaxis: {
+                title: {
+                    text: 'Number of Responses'
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        },
-                        title: {
-                            display: true,
-                            text: 'Number of Responses'
-                        }
+                tickAmount: Math.max(...satisfactionCounts) + 1,
+                labels: {
+                    formatter: function(value) {
+                        return Math.floor(value);
                     }
                 }
+            },
+            legend: {
+                show: false
+            },
+            dataLabels: {
+                enabled: true
             }
-        });
+        };
+
+        satisfactionHistogramInstance = new ApexCharts(satisfactionElement, satisfactionOptions);
+        satisfactionHistogramInstance.render();
     }
 }
 

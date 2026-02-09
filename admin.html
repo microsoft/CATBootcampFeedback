@@ -241,7 +241,7 @@
                 <div class="chart-section">
                     <h3>📈 Satisfaction Trends Over Time</h3>
                     <div class="chart-container" style="height: 300px;">
-                        <canvas id="trendChart"></canvas>
+                        <div id="trendChart"></div>
                     </div>
                 </div>
 
@@ -252,13 +252,13 @@
                         <div>
                             <h4 style="text-align: center; margin-bottom: 10px;">Speaker Knowledge</h4>
                             <div class="chart-container" style="height: 250px;">
-                                <canvas id="speakerKnowledgeHistogram"></canvas>
+                                <div id="speakerKnowledgeHistogram"></div>
                             </div>
                         </div>
                         <div>
                             <h4 style="text-align: center; margin-bottom: 10px;">Module Satisfaction</h4>
                             <div class="chart-container" style="height: 250px;">
-                                <canvas id="moduleSatisfactionHistogram"></canvas>
+                                <div id="moduleSatisfactionHistogram"></div>
                             </div>
                         </div>
                     </div>
@@ -451,8 +451,8 @@
 
     <!-- Include QR Code library (local copy to avoid CDN blocking) -->
     <script src="qrcode.min.js"></script>
-    <!-- Include Chart.js for analytics visualizations -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Include ApexCharts for analytics visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.1/dist/apexcharts.min.js"></script>
     <script type="module" src="admin.js"></script>
 </body>
 </html>
