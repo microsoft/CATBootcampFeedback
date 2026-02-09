@@ -5,18 +5,34 @@
 ### Static Web App (cat-bootcamp-feedback)
 No environment variables needed - configuration in `config.js`
 
-### Functions App (cat-bootcamp-api)
+### Functions App (cat-bootcamp-api-win)
 
-**App Settings:**
+**App Settings (Key Vault References):**
+
+All secrets are stored in Azure Key Vault (`cat-bootcamp-kv-dev`) and referenced via Key Vault references. The Function App's system-assigned managed identity (PrincipalId: `40f89a16-1607-4443-8653-63bbdc020113`) has `get` and `list` secret permissions.
+
 ```bash
-SQL_SERVER=cat-bootcamp-sql-89082.database.windows.net
-SQL_DATABASE=CATBootcampFeedback
-SQL_USER=sqladmin
-SQL_PASSWORD=<dev-password>
+SQL_SERVER=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-SERVER)
+SQL_DATABASE=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-DATABASE)
+SQL_USER=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-USER)
+SQL_PASSWORD=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-PASSWORD)
+JWT_SECRET=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=JWT-SECRET)
+ADMIN_USERS_JSON=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=ADMIN-USERS-JSON)
 NODE_ENV=development
 FUNCTIONS_WORKER_RUNTIME=node
 WEBSITE_NODE_DEFAULT_VERSION=~20
 ```
+
+**Key Vault Secrets (`cat-bootcamp-kv-dev`):**
+
+| Secret Name | Description |
+|---|---|
+| `SQL-SERVER` | Azure SQL server hostname |
+| `SQL-DATABASE` | Database name |
+| `SQL-USER` | SQL login username |
+| `SQL-PASSWORD` | SQL login password |
+| `JWT-SECRET` | JWT signing secret for admin auth |
+| `ADMIN-USERS-JSON` | JSON array of admin users with bcrypt password hashes |
 
 ## Production Environment
 

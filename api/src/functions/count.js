@@ -36,7 +36,7 @@ app.http('getEventCount', {
                     e.EventName,
                     e.StartDate,
                     e.EndDate,
-                    e.CohortId
+                    e.TrainingTrack
                 FROM Events e
                 WHERE e.EventCode = @eventCode AND e.IsActive = 1
             `, { eventCode });
@@ -147,7 +147,7 @@ app.http('getEventCount', {
                         eventName: event.EventName,
                         startDate: event.StartDate,
                         endDate: event.EndDate,
-                        cohortId: event.CohortId,
+                        trainingTrack: event.TrainingTrack,
                         totalCount: totalCount,
                         averages: {
                             speakerKnowledge: avgSpeakerKnowledge,
@@ -212,7 +212,7 @@ app.http('getModuleCount', {
                     e.EventId,
                     e.EventCode,
                     e.EventName,
-                    e.CohortId,
+                    e.TrainingTrack,
                     em.EventModuleId,
                     em.ModuleId,
                     m.ModuleName,
@@ -231,7 +231,7 @@ app.http('getModuleCount', {
                   AND em.EventModuleId = @eventModuleId
                   AND e.IsActive = 1
                   AND m.IsActive = 1
-                GROUP BY e.EventId, e.EventCode, e.EventName, e.CohortId,
+                GROUP BY e.EventId, e.EventCode, e.EventName, e.TrainingTrack,
                          em.EventModuleId, em.ModuleId, m.ModuleName,
                          em.SpeakerName, em.DeliveryOrder, em.DeliveryDate
             `, { eventCode, eventModuleId });
@@ -280,7 +280,7 @@ app.http('getModuleCount', {
                         eventCode: data.EventCode,
                         eventId: data.EventId,
                         eventName: data.EventName,
-                        cohortId: data.CohortId,
+                        trainingTrack: data.TrainingTrack,
                         eventModuleId: data.EventModuleId,
                         moduleId: data.ModuleId,
                         moduleName: data.ModuleName,

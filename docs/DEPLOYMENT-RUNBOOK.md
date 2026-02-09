@@ -146,6 +146,16 @@ curl https://cat-bootcamp-api-prod.azurewebsites.net/api/health
 
 #### Step 2C: Manual Configuration Update
 
+**Development** (uses Key Vault references - update secrets in Key Vault, not app settings):
+```bash
+# Update a secret in dev Key Vault
+az keyvault secret set --vault-name cat-bootcamp-kv-dev --name SECRET-NAME --value "new-value"
+
+# Restart to pick up new secret values
+az functionapp restart --name cat-bootcamp-api-win --resource-group cat-bootcamp-rg
+```
+
+**Production** (still uses plain-text settings - TODO: migrate to Key Vault):
 ```bash
 # Update production Functions App settings
 az functionapp config appsettings set \

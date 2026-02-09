@@ -14,23 +14,13 @@ const { generateToken } = require('../shared/auth');
 const { rateLimit } = require('../shared/rate-limiter');
 const { addSecurityHeaders } = require('../shared/utils');
 
-// Admin credentials with bcrypt-hashed passwords
-// Passwords rotated: 2026-02-07 (stored securely on desktop, not in repo)
-// TODO: Move to Azure Key Vault or database with proper user management
-const ADMIN_USERS = [
-    {
-        username: 'admin',
-        passwordHash: '$2b$10$NNRgGRdeOidgtSPFAZ3nxup221ffdtrF7Yd90h6KjnIDXlUQGJTPK',
-        fullName: 'CAT Admin',
-        email: 'admin@microsoft.com'
-    },
-    {
-        username: 'dewainr',
-        passwordHash: '$2b$10$GtaRhBketPlI2dws2tDbCOjCesPnco.s9c/W.N9LS9f7eV.cufkgW',
-        fullName: 'Dewain Robinson',
-        email: 'dewainr@microsoft.com'
+function getAdminUsers() {
+    const adminUsersJson = process.env.ADMIN_USERS_JSON;
+    if (!adminUsersJson) {
+        throw new Error('ADMIN_USERS_JSON environment variable is not configured');
     }
-];
+    return JSON.parse(adminUsersJson);
+}
 
 app.http('login', {
     methods: ['POST'],
@@ -64,7 +54,8 @@ app.http('login', {
             }
 
             // Find user by username
-            const user = ADMIN_USERS.find(u =>
+            const adminUsers = getAdminUsers();
+            const user = adminUsers.find(u =>
                 u.username.toLowerCase() === username.toLowerCase()
             );
 

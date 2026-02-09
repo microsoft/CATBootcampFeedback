@@ -203,17 +203,23 @@ You need to manually load the sample data:
 ## 🔒 Security Notes
 
 ### Admin Credentials
-- The current credentials are **hardcoded for demo purposes**
-- **IMPORTANT:** Change these passwords before production use!
-- Passwords are stored in: `api/AdminLogin/index.js`
+- Admin credentials are stored in **Azure Key Vault** (`cat-bootcamp-kv-dev`) as the `ADMIN-USERS-JSON` secret
+- Passwords are bcrypt-hashed (not stored in plaintext)
+- JWT signing secret is also stored in Key Vault (`JWT-SECRET`)
+- All SQL connection details are Key Vault references
+- No secrets are hardcoded in the application code
+
+### To Update Admin Users
+1. Update the `ADMIN-USERS-JSON` secret in `cat-bootcamp-kv-dev` Key Vault
+2. Restart the Function App: `az functionapp restart --name cat-bootcamp-api-win --resource-group cat-bootcamp-rg`
 
 ### Production Recommendations
-1. **Use Azure Key Vault** for storing credentials
-2. **Implement proper password hashing** (bcrypt, scrypt)
+1. ~~**Use Azure Key Vault** for storing credentials~~ ✅ Done (dev environment)
+2. ~~**Implement proper password hashing** (bcrypt, scrypt)~~ ✅ Done
 3. **Add Azure AD authentication** for enterprise security
 4. **Enable MFA** for admin accounts
-5. **Use proper JWT tokens** instead of simple base64
-6. **Implement session timeout** and token expiration
+5. ~~**Use proper JWT tokens** instead of simple base64~~ ✅ Done
+6. ~~**Implement session timeout** and token expiration~~ ✅ Done (8h expiry)
 7. **Add audit logging** for admin actions
 
 ---

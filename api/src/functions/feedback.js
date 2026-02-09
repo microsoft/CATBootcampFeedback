@@ -95,7 +95,7 @@ app.http('submitFeedback', {
             const data = await request.json();
 
             // Import required utilities
-            const { sanitize, getClientIP } = require('../shared/utils');
+            const { sanitize } = require('../shared/utils');
 
             // Validate required fields
             if (!data.eventCode || !data.eventModuleId || !data.speakerKnowledge || !data.contentDepth || !data.moduleSatisfaction) {
@@ -167,17 +167,15 @@ app.http('submitFeedback', {
             // Sanitize comments
             const sanitizedComments = data.additionalComments ? sanitize(data.additionalComments) : null;
 
-            // Insert feedback
-            const result = await query(`INSERT INTO Feedback (EventId, EventCode, EventModuleId, SpeakerKnowledge, ContentDepth, ModuleSatisfaction, AdditionalComments, IpAddress, UserAgent, SubmittedAt) OUTPUT INSERTED.FeedbackId VALUES (@eventId, @eventCode, @eventModuleId, @speakerKnowledge, @contentDepth, @moduleSatisfaction, @additionalComments, @ipAddress, @userAgent, GETDATE())`, {
+            // Insert feedback (no IP or UserAgent collected - PII policy)
+            const result = await query(`INSERT INTO Feedback (EventId, EventCode, EventModuleId, SpeakerKnowledge, ContentDepth, ModuleSatisfaction, AdditionalComments, SubmittedAt) OUTPUT INSERTED.FeedbackId VALUES (@eventId, @eventCode, @eventModuleId, @speakerKnowledge, @contentDepth, @moduleSatisfaction, @additionalComments, GETDATE())`, {
                 eventId,
                 eventCode: data.eventCode,
                 eventModuleId: data.eventModuleId,
                 speakerKnowledge: data.speakerKnowledge,
                 contentDepth: data.contentDepth,
                 moduleSatisfaction: data.moduleSatisfaction,
-                additionalComments: sanitizedComments,
-                ipAddress: clientIP,
-                userAgent: request.headers.get('user-agent') || 'unknown'
+                additionalComments: sanitizedComments
             });
 
             const feedbackId = result[0].FeedbackId;
