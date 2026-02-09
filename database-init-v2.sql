@@ -13,7 +13,7 @@ CREATE TABLE Events (
     EventCode NVARCHAR(8) NOT NULL UNIQUE,
     StartDate DATETIME NOT NULL,
     EndDate DATETIME NULL,
-    CohortId NVARCHAR(50) NULL,
+    TrainingTrack NVARCHAR(50) NULL,
     IsActive BIT NOT NULL DEFAULT 1,
     CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
     CreatedBy NVARCHAR(100) NULL,
@@ -97,7 +97,7 @@ SELECT
     e.EventCode,
     e.StartDate,
     e.EndDate,
-    e.CohortId,
+    e.TrainingTrack,
     e.IsActive AS EventIsActive,
     e.CreatedAt AS EventCreatedAt,
     e.IsDeleted,
@@ -128,7 +128,7 @@ SELECT
     e.EventName,
     e.StartDate,
     e.EndDate,
-    e.CohortId,
+    e.TrainingTrack,
     em.DeliveryOrder,
     f.SpeakerKnowledge,
     f.ContentDepth,
@@ -150,7 +150,7 @@ SELECT
     e.EventCode,
     e.StartDate,
     e.EndDate,
-    e.CohortId,
+    e.TrainingTrack,
     COUNT(DISTINCT em.EventModuleId) AS ModuleCount,
     COUNT(f.FeedbackId) AS TotalFeedbackCount,
     AVG(CAST(f.SpeakerKnowledge AS FLOAT)) AS AvgSpeakerKnowledge,
@@ -160,7 +160,7 @@ FROM Events e
 LEFT JOIN EventModules em ON e.EventId = em.EventId
 LEFT JOIN Feedback f ON em.EventModuleId = f.EventModuleId
 WHERE e.IsDeleted = 0
-GROUP BY e.EventId, e.EventName, e.EventCode, e.StartDate, e.EndDate, e.CohortId;
+GROUP BY e.EventId, e.EventName, e.EventCode, e.StartDate, e.EndDate, e.TrainingTrack;
 GO
 
 -- ============================================
@@ -178,7 +178,7 @@ BEGIN
         e.EventCode,
         e.StartDate,
         e.EndDate,
-        e.CohortId,
+        e.TrainingTrack,
         e.IsActive AS EventIsActive,
         e.CreatedAt
     FROM Events e
@@ -213,7 +213,7 @@ BEGIN
         EventCode,
         StartDate,
         EndDate,
-        CohortId,
+        TrainingTrack,
         ModuleCount,
         TotalFeedbackCount,
         AvgSpeakerKnowledge,

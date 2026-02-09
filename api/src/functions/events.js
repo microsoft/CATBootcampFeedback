@@ -30,7 +30,7 @@ app.http('events', {
                 // Create new event
                 const bodyText = await request.text();
                 const body = JSON.parse(bodyText);
-                const { eventName, eventCode, startDate, endDate, cohortId, isActive = true } = body;
+                const { eventName, eventCode, startDate, endDate, trainingTrack, isActive = true } = body;
 
                 // Validate required fields
                 if (!eventName || !eventCode || !startDate) {
@@ -69,17 +69,17 @@ app.http('events', {
 
                 // Insert event
                 const result = await query(`
-                    INSERT INTO Events (EventName, EventCode, StartDate, EndDate, CohortId, IsActive, CreatedAt, CreatedBy)
+                    INSERT INTO Events (EventName, EventCode, StartDate, EndDate, TrainingTrack, IsActive, CreatedAt, CreatedBy)
                     OUTPUT INSERTED.EventId, INSERTED.EventName, INSERTED.EventCode,
-                           INSERTED.StartDate, INSERTED.EndDate, INSERTED.CohortId,
+                           INSERTED.StartDate, INSERTED.EndDate, INSERTED.TrainingTrack,
                            INSERTED.IsActive, INSERTED.CreatedAt
-                    VALUES (@eventName, @eventCode, @startDate, @endDate, @cohortId, @isActive, GETDATE(), @createdBy)
+                    VALUES (@eventName, @eventCode, @startDate, @endDate, @trainingTrack, @isActive, GETDATE(), @createdBy)
                 `, {
                     eventName: eventName.trim(),
                     eventCode: eventCode.trim().toUpperCase(),
                     startDate: startDate,
                     endDate: endDate || null,
-                    cohortId: cohortId ? cohortId.trim() : null,
+                    trainingTrack: trainingTrack ? trainingTrack.trim() : null,
                     isActive: isActive ? 1 : 0,
                     createdBy: 'admin'
                 });
@@ -93,7 +93,7 @@ app.http('events', {
                     eventCode: createdEvent.EventCode,
                     startDate: createdEvent.StartDate,
                     endDate: createdEvent.EndDate,
-                    cohortId: createdEvent.CohortId,
+                    trainingTrack: createdEvent.TrainingTrack,
                     isActive: createdEvent.IsActive,
                     createdAt: createdEvent.CreatedAt
                 }, 201);
@@ -113,7 +113,7 @@ app.http('events', {
                     e.EventCode,
                     e.StartDate,
                     e.EndDate,
-                    e.CohortId,
+                    e.TrainingTrack,
                     e.IsActive,
                     e.CreatedAt,
                     e.CreatedBy,
@@ -121,7 +121,7 @@ app.http('events', {
                 FROM Events e
                 LEFT JOIN Feedback f ON e.EventId = f.EventId
                 GROUP BY
-                    e.EventId, e.EventName, e.EventCode, e.StartDate, e.EndDate, e.CohortId,
+                    e.EventId, e.EventName, e.EventCode, e.StartDate, e.EndDate, e.TrainingTrack,
                     e.IsActive, e.CreatedAt, e.CreatedBy
                 ORDER BY e.CreatedAt DESC
             `);
@@ -151,7 +151,7 @@ app.http('events', {
                         eventCode: event.EventCode,
                         startDate: event.StartDate,
                         endDate: event.EndDate,
-                        cohortId: event.CohortId,
+                        trainingTrack: event.TrainingTrack,
                         isActive: event.IsActive,
                         createdAt: event.CreatedAt,
                         createdBy: event.CreatedBy,
@@ -202,7 +202,7 @@ app.http('getEventCount', {
                 return { status: 400, jsonBody: { success: false, message: 'Invalid event code', error: 'INVALID_EVENT_CODE' } };
             }
 
-            const eventResult = await query(`SELECT EventId, EventCode, EventName, StartDate, EndDate, CohortId FROM Events WHERE EventCode = @eventCode AND IsActive = 1`, { eventCode });
+            const eventResult = await query(`SELECT EventId, EventCode, EventName, StartDate, EndDate, TrainingTrack FROM Events WHERE EventCode = @eventCode AND IsActive = 1`, { eventCode });
             if (!eventResult || eventResult.length === 0) {
                 return { status: 404, jsonBody: { success: false, message: 'Event not found', error: 'EVENT_NOT_FOUND' } };
             }
@@ -225,7 +225,7 @@ app.http('getEventCount', {
                 avgModuleSatisfaction = parseFloat((validModules.reduce((sum, m) => sum + (m.averages.moduleSatisfaction || 0) * m.feedbackCount, 0) / totalFeedback).toFixed(2));
             }
 
-            return { status: 200, jsonBody: { success: true, message: 'Event count retrieved', data: { eventCode: event.EventCode, eventId: event.EventId, eventName: event.EventName, startDate: event.StartDate, endDate: event.EndDate, cohortId: event.CohortId, totalCount, averages: { speakerKnowledge: avgSpeakerKnowledge, moduleSatisfaction: avgModuleSatisfaction }, contentDepth, modules } } };
+            return { status: 200, jsonBody: { success: true, message: 'Event count retrieved', data: { eventCode: event.EventCode, eventId: event.EventId, eventName: event.EventName, startDate: event.StartDate, endDate: event.EndDate, trainingTrack: event.TrainingTrack, totalCount, averages: { speakerKnowledge: avgSpeakerKnowledge, moduleSatisfaction: avgModuleSatisfaction }, contentDepth, modules } } };
         } catch (err) {
             context.error('Error in getEventCount:', err);
             return { status: 500, jsonBody: { success: false, message: 'Server error', error: 'SERVER_ERROR' } };
@@ -250,7 +250,7 @@ app.http('getModuleCount', {
                 return { status: 400, jsonBody: { success: false, message: 'Invalid module ID', error: 'INVALID_MODULE_ID' } };
             }
 
-            const result = await query(`SELECT e.EventId, e.EventCode, e.EventName, e.CohortId, em.EventModuleId, em.ModuleId, m.ModuleName, em.SpeakerName, em.DeliveryOrder, em.DeliveryDate, COUNT(f.FeedbackId) AS FeedbackCount, AVG(CAST(f.SpeakerKnowledge AS FLOAT)) AS AvgSpeakerKnowledge, AVG(CAST(f.ModuleSatisfaction AS FLOAT)) AS AvgModuleSatisfaction, MAX(f.SubmittedAt) AS LastSubmittedAt FROM Events e INNER JOIN EventModules em ON e.EventId = em.EventId INNER JOIN Modules m ON em.ModuleId = m.ModuleId LEFT JOIN Feedback f ON em.EventModuleId = f.EventModuleId WHERE e.EventCode = @eventCode AND em.EventModuleId = @eventModuleId AND e.IsActive = 1 AND m.IsActive = 1 GROUP BY e.EventId, e.EventCode, e.EventName, e.CohortId, em.EventModuleId, em.ModuleId, m.ModuleName, em.SpeakerName, em.DeliveryOrder, em.DeliveryDate`, { eventCode, eventModuleId });
+            const result = await query(`SELECT e.EventId, e.EventCode, e.EventName, e.TrainingTrack, em.EventModuleId, em.ModuleId, m.ModuleName, em.SpeakerName, em.DeliveryOrder, em.DeliveryDate, COUNT(f.FeedbackId) AS FeedbackCount, AVG(CAST(f.SpeakerKnowledge AS FLOAT)) AS AvgSpeakerKnowledge, AVG(CAST(f.ModuleSatisfaction AS FLOAT)) AS AvgModuleSatisfaction, MAX(f.SubmittedAt) AS LastSubmittedAt FROM Events e INNER JOIN EventModules em ON e.EventId = em.EventId INNER JOIN Modules m ON em.ModuleId = m.ModuleId LEFT JOIN Feedback f ON em.EventModuleId = f.EventModuleId WHERE e.EventCode = @eventCode AND em.EventModuleId = @eventModuleId AND e.IsActive = 1 AND m.IsActive = 1 GROUP BY e.EventId, e.EventCode, e.EventName, e.TrainingTrack, em.EventModuleId, em.ModuleId, m.ModuleName, em.SpeakerName, em.DeliveryOrder, em.DeliveryDate`, { eventCode, eventModuleId });
 
             if (!result || result.length === 0) {
                 return { status: 404, jsonBody: { success: false, message: 'Not found', error: 'NOT_FOUND' } };
@@ -261,7 +261,7 @@ app.http('getModuleCount', {
             const contentDepth = { 'Too Technical': 0, 'Just Right': 0, 'Too Low Level': 0 };
             depthResult.forEach(d => { if (contentDepth.hasOwnProperty(d.ContentDepth)) contentDepth[d.ContentDepth] = d.Count; });
 
-            return { status: 200, jsonBody: { success: true, message: 'Module count retrieved', data: { eventCode: data.EventCode, eventId: data.EventId, eventName: data.EventName, cohortId: data.CohortId, eventModuleId: data.EventModuleId, moduleId: data.ModuleId, moduleName: data.ModuleName, speakerName: data.SpeakerName, deliveryOrder: data.DeliveryOrder, deliveryDate: data.DeliveryDate, count: data.FeedbackCount || 0, averages: { speakerKnowledge: data.AvgSpeakerKnowledge ? parseFloat(data.AvgSpeakerKnowledge.toFixed(2)) : null, moduleSatisfaction: data.AvgModuleSatisfaction ? parseFloat(data.AvgModuleSatisfaction.toFixed(2)) : null }, contentDepth, lastSubmittedAt: data.LastSubmittedAt } } };
+            return { status: 200, jsonBody: { success: true, message: 'Module count retrieved', data: { eventCode: data.EventCode, eventId: data.EventId, eventName: data.EventName, trainingTrack: data.TrainingTrack, eventModuleId: data.EventModuleId, moduleId: data.ModuleId, moduleName: data.ModuleName, speakerName: data.SpeakerName, deliveryOrder: data.DeliveryOrder, deliveryDate: data.DeliveryDate, count: data.FeedbackCount || 0, averages: { speakerKnowledge: data.AvgSpeakerKnowledge ? parseFloat(data.AvgSpeakerKnowledge.toFixed(2)) : null, moduleSatisfaction: data.AvgModuleSatisfaction ? parseFloat(data.AvgModuleSatisfaction.toFixed(2)) : null }, contentDepth, lastSubmittedAt: data.LastSubmittedAt } } };
         } catch (err) {
             context.error('Error in getModuleCount:', err);
             return { status: 500, jsonBody: { success: false, message: 'Server error', error: 'SERVER_ERROR' } };

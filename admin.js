@@ -802,7 +802,7 @@ function mockFetchEvents() {
                     eventCode: 'CSA1B2C3',
                     startDate: '2026-02-15T09:00:00',
                     endDate: '2026-02-15T17:00:00',
-                    cohortId: 'Q1-2026',
+                    trainingTrack: 'Q1-2026',
                     isActive: true,
                     createdAt: '2026-02-01T10:00:00Z',
                     feedbackCount: 5,
@@ -815,7 +815,7 @@ function mockFetchEvents() {
                     eventCode: 'CSXYZ789',
                     startDate: '2026-02-16T09:00:00',
                     endDate: '2026-02-16T17:00:00',
-                    cohortId: 'Q1-2026',
+                    trainingTrack: 'Q1-2026',
                     isActive: true,
                     createdAt: '2026-02-01T11:00:00Z',
                     feedbackCount: 3,
@@ -828,7 +828,7 @@ function mockFetchEvents() {
                     eventCode: 'CSABC456',
                     startDate: '2026-02-17T09:00:00',
                     endDate: '2026-02-17T17:00:00',
-                    cohortId: 'Q1-2026',
+                    trainingTrack: 'Q1-2026',
                     isActive: true,
                     createdAt: '2026-02-01T12:00:00Z',
                     feedbackCount: 0,
@@ -888,10 +888,10 @@ function renderEvents(events) {
                     <span>📅</span>
                     <span>${displayDate}</span>
                 </div>
-                ${event.cohortId ? `
+                ${event.trainingTrack ? `
                 <div class="event-meta-item">
                     <span>🎓</span>
-                    <span>${escapeHtml(event.cohortId)}</span>
+                    <span>${escapeHtml(event.trainingTrack)}</span>
                 </div>
                 ` : ''}
                 <div class="event-meta-item">
@@ -927,8 +927,8 @@ function filterEvents() {
         // Search in event code
         if (event.eventCode.toLowerCase().includes(searchTerm)) return true;
 
-        // Search in cohort ID
-        if (event.cohortId && event.cohortId.toLowerCase().includes(searchTerm)) return true;
+        // Search in training track
+        if (event.trainingTrack && event.trainingTrack.toLowerCase().includes(searchTerm)) return true;
 
         // Search in modules
         if (event.modules && event.modules.some(m =>
@@ -1049,9 +1049,9 @@ async function viewEventDetails(eventId) {
                         <strong>End Date:</strong> ${formatDate(event.endDate)}
                     </div>
                     ` : ''}
-                    ${event.cohortId ? `
+                    ${event.trainingTrack ? `
                     <div style="margin-bottom: 8px;">
-                        <strong>Cohort:</strong> ${escapeHtml(event.cohortId)}
+                        <strong>Training Track:</strong> ${escapeHtml(event.trainingTrack)}
                     </div>
                     ` : ''}
                     <div style="margin-bottom: 8px;">
@@ -1315,7 +1315,7 @@ async function openEventModal(eventId = null, preSelectedModuleId = null) {
             document.getElementById('eventCode').value = event.eventCode;
             document.getElementById('startDate').value = formatDateForInput(event.startDate);
             document.getElementById('endDate').value = event.endDate ? formatDateForInput(event.endDate) : '';
-            document.getElementById('cohortId').value = event.cohortId || '';
+            document.getElementById('trainingTrack').value = event.trainingTrack || '';
             document.getElementById('eventIsActive').checked = event.isActive;
 
             // Show modules section and load modules for this event
@@ -1383,7 +1383,7 @@ async function handleSaveEvent(e) {
         eventCode: document.getElementById('eventCode').value,
         startDate: document.getElementById('startDate').value,
         endDate: document.getElementById('endDate').value || null,
-        cohortId: document.getElementById('cohortId').value || null,
+        trainingTrack: document.getElementById('trainingTrack').value || null,
         isActive: document.getElementById('eventIsActive').checked
     };
 
