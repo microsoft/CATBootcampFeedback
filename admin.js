@@ -112,7 +112,10 @@ function setupEventListeners() {
 
         // Handle module buttons
         const moduleId = parseInt(target.dataset.moduleId);
-        if (moduleId) {
+        if (moduleId && !isNaN(moduleId)) {
+            e.preventDefault();
+            e.stopPropagation();
+
             if (target.classList.contains('btn-add-module-to-event')) {
                 addModuleToEvent(moduleId);
             } else if (target.classList.contains('btn-edit-module')) {
@@ -125,12 +128,18 @@ function setupEventListeners() {
 
         // Handle event buttons
         const eventId = parseInt(target.dataset.eventId);
-        if (eventId) {
+        if (eventId && !isNaN(eventId)) {
+            e.preventDefault();
+            e.stopPropagation();
+
             if (target.classList.contains('btn-view-details')) {
+                console.log('View details clicked for event:', eventId);
                 viewEventDetails(eventId);
             } else if (target.classList.contains('btn-edit-event')) {
+                console.log('Edit event clicked for event:', eventId);
                 editEvent(eventId);
             } else if (target.classList.contains('btn-toggle-status')) {
+                console.log('Toggle status clicked for event:', eventId);
                 toggleEventStatus(eventId);
             }
             return;
