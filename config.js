@@ -10,7 +10,7 @@ export const CONFIG = {
     USE_MOCK_DATA: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
 
     // Timeouts & Intervals
-    API_TIMEOUT: 30000,                 // 30 seconds
+    API_TIMEOUT: 60000,                 // 60 seconds (handles cold starts on Consumption plan)
     MOCK_API_DELAY: 1000,               // 1 second
     COUNT_REFRESH_INTERVAL: 15000,      // 15 seconds (default, user-configurable)
     AUTO_LOGOUT_TIMEOUT: 28800000,      // 8 hours

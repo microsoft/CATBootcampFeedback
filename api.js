@@ -16,58 +16,59 @@ import { getCSRFToken, sleep } from './utils.js';
 export async function fetchWithRetry(url, options = {}, maxRetries = CONFIG.MAX_RETRIES) {
     let lastError;
 
-    // Add timeout to fetch
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), CONFIG.API_TIMEOUT);
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        // Create a fresh AbortController for each attempt so retries get a new timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), CONFIG.API_TIMEOUT);
 
-    try {
-        options.signal = controller.signal;
+        try {
+            const attemptOptions = { ...options, signal: controller.signal };
+            const response = await fetch(url, attemptOptions);
 
-        for (let attempt = 0; attempt < maxRetries; attempt++) {
-            try {
-                const response = await fetch(url, options);
+            clearTimeout(timeoutId);
 
-                // Don't retry client errors (4xx) except 429
-                if (response.status >= 400 && response.status < 500 && response.status !== 429) {
-                    return response;
-                }
-
-                // Return successful responses or last attempt
-                if (response.ok || attempt === maxRetries - 1) {
-                    return response;
-                }
-
-                // Retry server errors (5xx) and 429
-                lastError = new Error(`HTTP ${response.status}`);
-
-            } catch (error) {
-                lastError = error;
-
-                // Don't retry if request was aborted (timeout)
-                if (error.name === 'AbortError') {
-                    throw new NetworkError('Request timeout. Please try again.');
-                }
-
-                // Don't retry on last attempt
-                if (attempt === maxRetries - 1) {
-                    break;
-                }
+            // Don't retry client errors (4xx) except 429
+            if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+                return response;
             }
 
-            // Exponential backoff: 1s, 2s, 4s
-            const delay = Math.min(
-                CONFIG.RETRY_BASE_DELAY * Math.pow(2, attempt),
-                CONFIG.RETRY_MAX_DELAY
-            );
+            // Return successful responses or last attempt
+            if (response.ok || attempt === maxRetries - 1) {
+                return response;
+            }
 
-            console.log(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`);
-            await sleep(delay);
+            // Retry server errors (5xx) and 429
+            lastError = new Error(`HTTP ${response.status}`);
+
+        } catch (error) {
+            clearTimeout(timeoutId);
+            lastError = error;
+
+            // On last attempt, break out to throw
+            if (attempt === maxRetries - 1) {
+                break;
+            }
+
+            // Log timeout vs other errors
+            if (error.name === 'AbortError') {
+                console.log(`Request timeout on attempt ${attempt + 1}/${maxRetries}, retrying...`);
+            }
         }
-    } finally {
-        clearTimeout(timeoutId);
+
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = Math.min(
+            CONFIG.RETRY_BASE_DELAY * Math.pow(2, attempt),
+            CONFIG.RETRY_MAX_DELAY
+        );
+
+        console.log(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`);
+        await sleep(delay);
     }
 
     // All retries failed
+    if (lastError?.name === 'AbortError') {
+        throw new NetworkError('Request timeout. Please try again.');
+    }
     throw new NetworkError();
 }
 
