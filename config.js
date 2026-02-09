@@ -100,7 +100,7 @@ if (typeof window !== 'undefined') {
     } else if (isProduction || isAzure) {
         // Development environment (existing)
         CONFIG.USE_MOCK_DATA = false;
-        CONFIG.API_BASE_URL = 'https://cat-bootcamp-api.azurewebsites.net/api';
+        CONFIG.API_BASE_URL = 'https://cat-bootcamp-api-win.azurewebsites.net/api';
         console.log('Environment: DEVELOPMENT');
     }
 
