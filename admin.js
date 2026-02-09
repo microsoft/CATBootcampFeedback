@@ -2162,7 +2162,8 @@ function renderTrendChart(feedback, events) {
         stroke: {
             curve: 'smooth',
             width: 4,
-            lineCap: 'round'
+            lineCap: 'round',
+            colors: ['#667eea', '#f6ad55']
         },
         markers: {
             size: 6,
