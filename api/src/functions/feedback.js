@@ -31,7 +31,7 @@ app.http('feedback', {
                     f.SubmittedAt,
                     e.EventCode AS EventCodeFromEvent,
                     e.StartDate,
-                    e.CohortId,
+                    e.TrainingTrack,
                     em.ModuleId,
                     m.ModuleName,
                     em.SpeakerName
@@ -54,7 +54,7 @@ app.http('feedback', {
                 additionalComments: fb.AdditionalComments,
                 submittedAt: fb.SubmittedAt,
                 startDate: fb.StartDate,
-                cohortId: fb.CohortId,
+                trainingTrack: fb.TrainingTrack,
                 moduleId: fb.ModuleId,
                 moduleName: fb.ModuleName,
                 speakerName: fb.SpeakerName
