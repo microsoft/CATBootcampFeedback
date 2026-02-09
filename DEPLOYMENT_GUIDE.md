@@ -1,6 +1,6 @@
 # CAT Bootcamp Feedback - Deployment Guide
 
-**Last Updated:** February 6, 2026
+**Last Updated:** February 9, 2026
 **Architecture:** Separate Azure Functions App (v3.0)
 
 ## Overview
@@ -141,17 +141,24 @@ export const CONFIG = {
 
 **Application Settings** (Azure Portal or CLI):
 
+Secrets are managed via Azure Key Vault references. The dev Function App (`cat-bootcamp-api-win`) uses Key Vault `cat-bootcamp-kv-dev`:
+
 ```bash
-az functionapp config appsettings set \
-  --name cat-bootcamp-api \
-  --resource-group cat-bootcamp-rg \
-  --settings \
-    "SQL_SERVER=cat-bootcamp-sql-89082.database.windows.net" \
-    "SQL_DATABASE=CATBootcampFeedback" \
-    "SQL_USER=sqladmin" \
-    "SQL_PASSWORD=***" \
-    "NODE_ENV=production" \
-    "FUNCTIONS_WORKER_RUNTIME=node"
+# Dev environment settings use Key Vault references:
+SQL_SERVER=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-SERVER)
+SQL_DATABASE=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-DATABASE)
+SQL_USER=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-USER)
+SQL_PASSWORD=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-PASSWORD)
+JWT_SECRET=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=JWT-SECRET)
+ADMIN_USERS_JSON=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=ADMIN-USERS-JSON)
+NODE_ENV=development
+FUNCTIONS_WORKER_RUNTIME=node
+```
+
+To update a secret value, update it in Key Vault and restart the Function App:
+```bash
+az keyvault secret set --vault-name cat-bootcamp-kv-dev --name SECRET-NAME --value "new-value"
+az functionapp restart --name cat-bootcamp-api-win --resource-group cat-bootcamp-rg
 ```
 
 ### CORS Configuration
@@ -203,7 +210,9 @@ cat > local.settings.json << EOF
     "SQL_SERVER": "cat-bootcamp-sql-89082.database.windows.net",
     "SQL_DATABASE": "CATBootcampFeedback",
     "SQL_USER": "sqladmin",
-    "SQL_PASSWORD": "***"
+    "SQL_PASSWORD": "***",
+    "JWT_SECRET": "***",
+    "ADMIN_USERS_JSON": "[{\"username\":\"admin\",\"passwordHash\":\"...\",\"fullName\":\"CAT Admin\",\"email\":\"admin@microsoft.com\"}]"
   }
 }
 EOF
@@ -316,7 +325,7 @@ curl https://cat-bootcamp-api.azurewebsites.net/api/health
 
 ## Security Checklist
 
-- [ ] SQL credentials stored in Azure Key Vault or App Settings (not in code)
+- [x] SQL credentials stored in Azure Key Vault (dev: `cat-bootcamp-kv-dev`)
 - [ ] CORS configured to allow only Static Web App URL
 - [ ] HTTPS enforced (automatic in Azure)
 - [ ] SQL firewall rules configured
@@ -420,6 +429,6 @@ az sql db export \
 
 ---
 
-**Document Version:** 1.0
-**Last Reviewed:** February 6, 2026
+**Document Version:** 1.1
+**Last Reviewed:** February 9, 2026
 **Next Review:** March 2026 (or when making architectural changes)

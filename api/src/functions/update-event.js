@@ -29,7 +29,7 @@ app.http('updateEvent', {
             // Parse request body
             const bodyText = await request.text();
             const body = JSON.parse(bodyText);
-            const { eventName, eventCode, startDate, endDate, cohortId, isActive } = body;
+            const { eventName, eventCode, startDate, endDate, trainingTrack, isActive } = body;
 
             // Validate required fields
             if (!eventName || !eventCode || !startDate) {
@@ -78,7 +78,7 @@ app.http('updateEvent', {
                     EventCode = @eventCode,
                     StartDate = @startDate,
                     EndDate = @endDate,
-                    CohortId = @cohortId,
+                    TrainingTrack = @trainingTrack,
                     IsActive = @isActive
                 WHERE EventId = @eventId
             `, {
@@ -87,7 +87,7 @@ app.http('updateEvent', {
                 eventCode: eventCode.trim(),
                 startDate: startDate,
                 endDate: endDate || null,
-                cohortId: cohortId ? cohortId.trim() : null,
+                trainingTrack: trainingTrack ? trainingTrack.trim() : null,
                 isActive: isActive ? 1 : 0
             });
 

@@ -69,7 +69,7 @@ async function initialize() {
                 eventId: moduleData.eventId,
                 eventCode: moduleData.eventCode,
                 eventName: moduleData.eventName,
-                cohortId: moduleData.cohortId
+                trainingTrack: moduleData.trainingTrack
             };
             console.log('Module mode - current module set:', currentModule);
         } else {
@@ -156,7 +156,7 @@ function mockLoadModuleDetails(code, modId) {
                     eventId: 1,
                     eventCode: 'CSA1B2C3',
                     eventName: 'CAT Bootcamp Q1-2026',
-                    cohortId: 'Q1-2026',
+                    trainingTrack: 'Q1-2026',
                     eventModuleId: 1,
                     moduleId: 1,
                     moduleName: 'Introduction to CAT Bootcamp',
@@ -178,7 +178,7 @@ function mockLoadModuleDetails(code, modId) {
                     eventId: 2,
                     eventCode: 'TEST123',
                     eventName: 'Test Event',
-                    cohortId: 'Q1-2026',
+                    trainingTrack: 'Q1-2026',
                     eventModuleId: 2,
                     moduleId: 2,
                     moduleName: 'Building Your First Copilot',
@@ -214,7 +214,7 @@ function mockLoadEventDetails(code) {
                     eventCode: 'CSA1B2C3',
                     eventName: 'CAT Bootcamp Q1-2026',
                     startDate: '2026-02-15',
-                    cohortId: 'Q1-2026',
+                    trainingTrack: 'Q1-2026',
                     totalCount: 12,
                     averages: {
                         speakerKnowledge: 4.3,
@@ -241,7 +241,7 @@ function mockLoadEventDetails(code) {
                     eventCode: 'TEST123',
                     eventName: 'Test Event',
                     startDate: '2026-02-16',
-                    cohortId: 'Q1-2026',
+                    trainingTrack: 'Q1-2026',
                     totalCount: 18,
                     averages: {
                         speakerKnowledge: 3.9,
@@ -681,7 +681,7 @@ function initializeRefreshIntervalSelector() {
     });
 }
 
-// Generate QR code
+// Generate QR code sized to fill the available space
 function generateQRCode() {
     // Generate URL with module ID if in module-specific mode
     let feedbackUrl = `${FEEDBACK_BASE_URL}?code=${eventCode}`;
@@ -689,10 +689,17 @@ function generateQRCode() {
         feedbackUrl += `&module=${moduleId}`;
     }
     const canvas = document.getElementById('qrCode');
+    const qrSection = canvas.closest('.qr-section');
+    const rightSection = canvas.closest('.right-section');
+
+    // Size QR code to fill the right panel, leaving room for label and instructions
+    const availableWidth = rightSection.clientWidth - 60;  // padding
+    const availableHeight = rightSection.clientHeight - 120; // label + instructions
+    const qrSize = Math.max(200, Math.min(availableWidth, availableHeight));
 
     if (typeof QRCode !== 'undefined') {
         QRCode.toCanvas(canvas, feedbackUrl, {
-            width: 200,
+            width: qrSize,
             margin: CONFIG.QR_CODE_MARGIN,
             color: {
                 dark: CONFIG.QR_CODE_COLOR_DARK,
@@ -755,13 +762,21 @@ function initializeFullscreenButton() {
         toggleFullscreen();
     });
 
-    // Update button text based on fullscreen state
+    // Update button text and regenerate QR code on fullscreen change
     document.addEventListener('fullscreenchange', () => {
         if (document.fullscreenElement) {
             fullscreenBtn.textContent = '⛶ Exit Fullscreen';
         } else {
             fullscreenBtn.textContent = '⛶ Fullscreen';
         }
+        // Re-generate QR code after layout settles at new size
+        setTimeout(generateQRCode, 300);
+    });
+
+    // Regenerate QR code on window resize so it always fills the panel
+    window.addEventListener('resize', () => {
+        clearTimeout(window._qrResizeTimer);
+        window._qrResizeTimer = setTimeout(generateQRCode, 300);
     });
 }
 

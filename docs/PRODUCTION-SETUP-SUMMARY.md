@@ -235,7 +235,8 @@ $ curl https://cat-bootcamp-api-prod.azurewebsites.net/api/health
 - CORS configured for frontend domain only
 
 ### 🔄 Recommended Future Enhancements
-- Migrate secrets to Azure Key Vault
+- ~~Migrate secrets to Azure Key Vault~~ ✅ Done (dev: `cat-bootcamp-kv-dev`, Feb 9 2026)
+- Migrate production secrets to Azure Key Vault (`cat-bootcamp-kv-prod`)
 - Implement Azure AD authentication
 - Set up Azure Monitor alerts
 - Configure backup retention policies
@@ -285,11 +286,12 @@ The production Static Web App is ready for custom domain configuration:
 
 ### Optional Enhancements
 1. [ ] Configure custom domain
-2. [ ] Migrate secrets to Azure Key Vault
-3. [ ] Set up automated backups
-4. [ ] Configure monitoring alerts
-5. [ ] Implement rate limiting
-6. [ ] Add WAF protection
+2. [x] Migrate secrets to Azure Key Vault (dev: completed Feb 9, 2026)
+3. [ ] Migrate production secrets to Azure Key Vault
+4. [ ] Set up automated backups
+5. [ ] Configure monitoring alerts
+6. [ ] Implement rate limiting
+7. [ ] Add WAF protection
 
 ## Support Resources
 
@@ -317,6 +319,7 @@ The production Static Web App is ready for custom domain configuration:
 | 2026-02-06 | Database schema initialized | System Admin |
 | 2026-02-06 | CI/CD pipeline configured | System Admin |
 | 2026-02-06 | Documentation completed | System Admin |
+| 2026-02-09 | Dev Key Vault migration (all secrets) | Claude Code |
 
 ## Sign-Off
 

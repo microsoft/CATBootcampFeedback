@@ -7,8 +7,10 @@
 const jwt = require('jsonwebtoken');
 const { SECURITY_HEADERS } = require('./utils');
 
-// JWT secret - should be in environment variables in production
-const JWT_SECRET = process.env.JWT_SECRET || 'CAT-Bootcamp-Secret-Key-Change-In-Production-2026';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is not configured');
+}
 const JWT_EXPIRY = process.env.JWT_EXPIRY || '8h'; // Default 8 hour expiration
 
 /**

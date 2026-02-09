@@ -75,7 +75,7 @@ async function initializeForm() {
                     eventName: moduleData.eventName,
                     startDate: moduleData.startDate,
                     endDate: moduleData.endDate,
-                    cohortId: moduleData.cohortId,
+                    trainingTrack: moduleData.trainingTrack,
                     isActive: moduleData.isActive
                 };
                 selectedEventModule = {
@@ -179,7 +179,7 @@ async function loadModuleDetails(code, moduleId) {
             eventName: event.eventName,
             startDate: event.startDate,
             endDate: event.endDate,
-            cohortId: event.cohortId,
+            trainingTrack: event.trainingTrack,
             isActive: event.isActive,
             eventModuleId: module.eventModuleId,
             moduleId: module.moduleId,
@@ -216,7 +216,7 @@ function mockLoadModuleDetails(code, moduleId) {
                     eventName: 'CAT Bootcamp Q1-2026',
                     startDate: '2026-02-15',
                     endDate: '2026-02-20',
-                    cohortId: 'Q1-2026',
+                    trainingTrack: 'Q1-2026',
                     isActive: true,
                     eventModuleId: 1,
                     moduleId: 1,
@@ -231,7 +231,7 @@ function mockLoadModuleDetails(code, moduleId) {
                     eventName: 'Test Event',
                     startDate: '2026-02-16',
                     endDate: '2026-02-17',
-                    cohortId: 'Q1-2026',
+                    trainingTrack: 'Q1-2026',
                     isActive: true,
                     eventModuleId: 2,
                     moduleId: 2,
@@ -259,7 +259,7 @@ function mockLoadEventDetails(code) {
                     eventId: 1,
                     eventCode: 'CSA1B2C3',
                     startDate: '2026-02-15',
-                    cohortId: 'Q1-2026',
+                    trainingTrack: 'Q1-2026',
                     isActive: true,
                     modules: [
                         {
@@ -276,7 +276,7 @@ function mockLoadEventDetails(code) {
                     eventId: 2,
                     eventCode: 'TEST123',
                     startDate: '2026-02-16',
-                    cohortId: 'Q1-2026',
+                    trainingTrack: 'Q1-2026',
                     isActive: true,
                     modules: [
                         {

@@ -80,7 +80,12 @@ $2b$10$.QNiEI80R3baYb5/KxY.Z.O4Gsvp.FC1JXjcd0ycnqK9t10LdpgGG
            ↓
 ┌─────────────────────────────┐
 │   Azure Key Vault           │
-│   - JWT-SECRET             │
+│   - JWT-SECRET              │
+│   - SQL-SERVER              │
+│   - SQL-DATABASE            │
+│   - SQL-USER                │
+│   - SQL-PASSWORD            │
+│   - ADMIN-USERS-JSON        │
 │   - Encrypted at rest       │
 │   - Audit logs enabled      │
 └─────────────────────────────┘
@@ -88,10 +93,10 @@ $2b$10$.QNiEI80R3baYb5/KxY.Z.O4Gsvp.FC1JXjcd0ycnqK9t10LdpgGG
 
 ### Key Vault Resources
 
-| Environment | Key Vault Name | Function App | Secret Name |
-|------------|---------------|--------------|-------------|
-| Development | `cat-bootcamp-kv-dev` | `cat-bootcamp-api` | `JWT-SECRET` |
-| Production | `cat-bootcamp-kv-prod` | `cat-bootcamp-api-prod` | `JWT-SECRET` |
+| Environment | Key Vault Name | Function App | Secrets |
+|------------|---------------|--------------|---------|
+| Development | `cat-bootcamp-kv-dev` | `cat-bootcamp-api-win` | `JWT-SECRET`, `SQL-SERVER`, `SQL-DATABASE`, `SQL-USER`, `SQL-PASSWORD`, `ADMIN-USERS-JSON` |
+| Production | `cat-bootcamp-kv-prod` | `cat-bootcamp-api-prod` | `JWT-SECRET` (TODO: migrate remaining secrets) |
 
 ### How It Works
 
@@ -99,10 +104,11 @@ $2b$10$.QNiEI80R3baYb5/KxY.Z.O4Gsvp.FC1JXjcd0ycnqK9t10LdpgGG
 2. **Access Policy**: Key Vault grants the identity `get` and `list` permissions
 3. **Key Vault Reference**: Function App settings use special syntax:
    ```
-   JWT_SECRET=@Microsoft.KeyVault(SecretUri=https://cat-bootcamp-kv-prod.vault.azure.net/secrets/JWT-SECRET)
+   JWT_SECRET=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=JWT-SECRET)
    ```
 4. **Automatic Resolution**: Azure Functions runtime automatically fetches the secret value at startup
 5. **Application Access**: Code reads from `process.env.JWT_SECRET` as usual
+6. **Admin Users**: The `ADMIN_USERS_JSON` env var contains a JSON array of admin users with bcrypt password hashes, loaded from Key Vault
 
 ### Security Benefits
 
@@ -278,13 +284,14 @@ trustServerCertificate=false;
 - `AZURE_STATIC_WEB_APPS_API_TOKEN` - Dev Static Web App deployment
 - `AZURE_STATIC_WEB_APPS_API_TOKEN_PROD` - Prod Static Web App deployment
 
-**Azure Function App Settings (resolved from Key Vault):**
-- `JWT_SECRET` - Key Vault reference
-- `JWT_EXPIRY` - Token expiration time
-- `SQL_SERVER` - Database server
-- `SQL_DATABASE` - Database name
-- `SQL_USER` - Database user
-- `SQL_PASSWORD` - Database password
+**Azure Function App Settings (resolved from Key Vault in dev):**
+- `JWT_SECRET` - Key Vault reference → `JWT-SECRET`
+- `JWT_EXPIRY` - Token expiration time (plain text, not secret)
+- `SQL_SERVER` - Key Vault reference → `SQL-SERVER`
+- `SQL_DATABASE` - Key Vault reference → `SQL-DATABASE`
+- `SQL_USER` - Key Vault reference → `SQL-USER`
+- `SQL_PASSWORD` - Key Vault reference → `SQL-PASSWORD`
+- `ADMIN_USERS_JSON` - Key Vault reference → `ADMIN-USERS-JSON`
 
 ### Environment Isolation
 
@@ -436,5 +443,5 @@ All security-relevant events logged to **Azure Application Insights**:
 
 ---
 
-**Last Updated:** February 6, 2026
-**Version:** 3.5
+**Last Updated:** February 9, 2026
+**Version:** 4.0
