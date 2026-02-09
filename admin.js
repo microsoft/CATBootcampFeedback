@@ -2112,76 +2112,207 @@ function renderTrendChart(feedback, events) {
     const chartElement = document.getElementById('trendChart');
     if (!chartElement) return;
 
-    // ApexCharts configuration
+    // Enhanced ApexCharts configuration with better visuals
     const options = {
         series: [
             {
-                name: 'Module Satisfaction',
+                name: '📊 Module Satisfaction',
                 data: eventData.map(e => e.avgSatisfaction)
             },
             {
-                name: 'Speaker Knowledge',
+                name: '🎤 Speaker Knowledge',
                 data: eventData.map(e => e.avgSpeakerKnowledge)
             }
         ],
         chart: {
             type: 'line',
-            height: 300,
+            height: 350,
             toolbar: {
                 show: true,
                 tools: {
                     download: true,
                     zoom: true,
-                    pan: true
+                    pan: true,
+                    reset: true
                 }
             },
             animations: {
                 enabled: true,
-                speed: 800
+                easing: 'easeinout',
+                speed: 1000,
+                animateGradually: {
+                    enabled: true,
+                    delay: 150
+                },
+                dynamicAnimation: {
+                    enabled: true,
+                    speed: 350
+                }
+            },
+            background: 'transparent',
+            dropShadow: {
+                enabled: true,
+                top: 3,
+                left: 0,
+                blur: 4,
+                opacity: 0.15
             }
         },
-        colors: ['#0366d6', '#28a745'],
+        colors: ['#667eea', '#f6ad55'],
         stroke: {
             curve: 'smooth',
-            width: 3
+            width: 4,
+            lineCap: 'round'
+        },
+        markers: {
+            size: 6,
+            colors: ['#667eea', '#f6ad55'],
+            strokeColors: '#fff',
+            strokeWidth: 2,
+            hover: {
+                size: 8,
+                sizeOffset: 2
+            }
         },
         fill: {
             type: 'gradient',
             gradient: {
-                shadeIntensity: 1,
-                opacityFrom: 0.4,
+                shade: 'light',
+                type: 'vertical',
+                shadeIntensity: 0.5,
+                gradientToColors: ['#764ba2', '#ed8936'],
+                inverseColors: false,
+                opacityFrom: 0.6,
                 opacityTo: 0.1,
+                stops: [0, 100]
+            }
+        },
+        dataLabels: {
+            enabled: true,
+            enabledOnSeries: undefined,
+            formatter: function (val) {
+                return val.toFixed(1);
+            },
+            style: {
+                fontSize: '11px',
+                fontWeight: 'bold',
+                colors: ['#304758']
+            },
+            background: {
+                enabled: true,
+                foreColor: '#fff',
+                padding: 4,
+                borderRadius: 4,
+                borderWidth: 1,
+                borderColor: '#ddd',
+                opacity: 0.9
+            }
+        },
+        grid: {
+            show: true,
+            borderColor: '#e0e0e0',
+            strokeDashArray: 4,
+            position: 'back',
+            xaxis: {
+                lines: {
+                    show: true
+                }
+            },
+            yaxis: {
+                lines: {
+                    show: true
+                }
+            },
+            padding: {
+                top: 0,
+                right: 10,
+                bottom: 0,
+                left: 10
             }
         },
         xaxis: {
             categories: eventData.map(e => `${e.eventCode}\n${e.startDate.toLocaleDateString()}`),
             title: {
-                text: 'Events (Chronological)'
+                text: 'Events (Chronological)',
+                style: {
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: '#444'
+                }
+            },
+            labels: {
+                style: {
+                    fontSize: '11px',
+                    fontWeight: 500
+                }
             }
         },
         yaxis: {
             min: 0,
             max: 5,
+            tickAmount: 5,
             title: {
-                text: 'Average Rating (1-5)'
+                text: 'Average Rating (1-5 ⭐)',
+                style: {
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: '#444'
+                }
+            },
+            labels: {
+                formatter: function(value) {
+                    return value.toFixed(1) + ' ⭐';
+                },
+                style: {
+                    fontSize: '11px',
+                    fontWeight: 500
+                }
             }
         },
         legend: {
-            position: 'top'
+            position: 'top',
+            horizontalAlign: 'center',
+            floating: false,
+            fontSize: '13px',
+            fontWeight: 600,
+            markers: {
+                width: 12,
+                height: 12,
+                radius: 6
+            },
+            itemMargin: {
+                horizontal: 15,
+                vertical: 5
+            }
         },
         tooltip: {
             shared: true,
             intersect: false,
+            theme: 'light',
+            x: {
+                show: true
+            },
+            y: {
+                formatter: function(value) {
+                    return value.toFixed(2) + ' ⭐';
+                }
+            },
             custom: function({series, seriesIndex, dataPointIndex, w}) {
                 const event = eventData[dataPointIndex];
                 const satisfaction = series[0][dataPointIndex];
                 const knowledge = series[1][dataPointIndex];
                 return `
-                    <div class="apexcharts-tooltip-custom" style="padding: 10px; background: white; border: 1px solid #e3e3e3; border-radius: 4px;">
-                        <div style="font-weight: bold; margin-bottom: 5px;">${event.eventName}</div>
-                        <div style="color: #0366d6;">Module Satisfaction: ${satisfaction}</div>
-                        <div style="color: #28a745;">Speaker Knowledge: ${knowledge}</div>
-                        <div style="color: #666; font-size: 12px; margin-top: 5px;">Feedback: ${event.feedbackCount} responses</div>
+                    <div style="padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <div style="font-weight: bold; margin-bottom: 8px; color: white; font-size: 14px;">📅 ${event.eventName}</div>
+                        <div style="background: rgba(255,255,255,0.95); padding: 8px; border-radius: 4px; margin-bottom: 4px;">
+                            <div style="color: #667eea; font-weight: 600; font-size: 13px;">📊 Module Satisfaction: ${satisfaction} ⭐</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.95); padding: 8px; border-radius: 4px; margin-bottom: 4px;">
+                            <div style="color: #f6ad55; font-weight: 600; font-size: 13px;">🎤 Speaker Knowledge: ${knowledge} ⭐</div>
+                        </div>
+                        <div style="color: rgba(255,255,255,0.9); font-size: 11px; margin-top: 6px; text-align: center;">
+                            💬 ${event.feedbackCount} responses
+                        </div>
                     </div>
                 `;
             }
