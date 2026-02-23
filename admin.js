@@ -102,6 +102,11 @@ function setupEventListeners() {
     document.getElementById('cancelAddModuleBtn').addEventListener('click', closeAddModuleModal);
     document.getElementById('addModuleForm').addEventListener('submit', handleAddModule);
 
+    // Edit speaker modal
+    document.getElementById('closeEditSpeakerModal').addEventListener('click', closeEditSpeakerModal);
+    document.getElementById('cancelEditSpeakerBtn').addEventListener('click', closeEditSpeakerModal);
+    document.getElementById('editSpeakerForm').addEventListener('submit', handleEditSpeaker);
+
     // Event details modal
     document.getElementById('closeDetailsModal').addEventListener('click', closeEventDetailsModal);
 
@@ -158,6 +163,9 @@ function setupEventListeners() {
                 reorderModule(eventModuleId, currentOrder + 1);
             } else if (target.classList.contains('btn-remove-event-module')) {
                 window.removeEventModule(eventModuleId);
+            } else if (target.classList.contains('btn-edit-speaker')) {
+                const module = currentEventModules.find(m => m.eventModuleId === eventModuleId);
+                openEditSpeakerModal(eventModuleId, module?.speakerName);
             }
         }
     });
@@ -1534,6 +1542,12 @@ function renderEventModules() {
                         </button>
                     </div>
                     <button type="button"
+                            class="btn btn-secondary btn-sm btn-edit-speaker"
+                            data-event-module-id="${em.eventModuleId}"
+                            style="padding: 8px 16px;">
+                        Edit Speaker
+                    </button>
+                    <button type="button"
                             class="btn btn-secondary btn-sm btn-remove-event-module"
                             data-event-module-id="${em.eventModuleId}"
                             style="padding: 8px 16px;">
@@ -1715,6 +1729,56 @@ async function updateQuickInsertionPositions(eventId) {
 // Close add module modal
 function closeAddModuleModal() {
     document.getElementById('addModuleModal').classList.add('hidden');
+}
+
+// Open edit speaker modal
+function openEditSpeakerModal(eventModuleId, currentSpeakerName) {
+    if (!eventModuleId) return;
+    document.getElementById('editSpeakerEventModuleId').value = eventModuleId;
+    document.getElementById('editSpeakerName').value = currentSpeakerName || '';
+    document.getElementById('editSpeakerModal').classList.remove('hidden');
+}
+
+// Close edit speaker modal
+function closeEditSpeakerModal() {
+    document.getElementById('editSpeakerModal').classList.add('hidden');
+}
+
+// Handle edit speaker form submission
+async function handleEditSpeaker(e) {
+    e.preventDefault();
+
+    const eventModuleId = document.getElementById('editSpeakerEventModuleId').value;
+    const speakerName = document.getElementById('editSpeakerName').value.trim();
+
+    if (!speakerName) {
+        showNotification('Error', 'Please enter a speaker name', 'error');
+        return;
+    }
+
+    try {
+        const result = await apiPut(`/event-modules/${eventModuleId}/speaker`, {
+            speakerName: speakerName
+        });
+
+        if (result.success) {
+            closeEditSpeakerModal();
+
+            // Refresh modules in the event edit modal
+            const eventIdField = document.getElementById('eventId');
+            if (eventIdField && eventIdField.value) {
+                await loadEventModules(eventIdField.value);
+            }
+
+            showNotification('Success', 'Speaker updated successfully!', 'success');
+        } else {
+            showNotification('Error', result.message || 'Error updating speaker', 'error');
+        }
+    } catch (error) {
+        console.error('Error updating speaker:', error);
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showNotification('Error', friendlyError.message, 'error');
+    }
 }
 
 // Handle add module to event

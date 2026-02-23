@@ -3,6 +3,7 @@
  * GET /api/events/{eventId}/modules - Get modules for an event
  * POST /api/event-modules - Add a module to an event
  * DELETE /api/event-modules/{eventModuleId} - Remove a module from an event
+ * PUT /api/event-modules/{eventModuleId}/speaker - Update speaker for an event module
  */
 
 const { app } = require('@azure/functions');
@@ -374,6 +375,88 @@ app.http('updateModuleOrder', {
         } catch (err) {
             context.log('Error updating module order:', err);
             const errorResponse = error(500, `Error updating module order: ${err.message}`, 'SERVER_ERROR');
+            return {
+                status: errorResponse.status,
+                headers: errorResponse.headers,
+                body: errorResponse.body
+            };
+        }
+    }
+});
+
+// PUT - Update speaker for an event module
+app.http('updateEventModuleSpeaker', {
+    methods: ['PUT'],
+    authLevel: 'anonymous',
+    route: 'event-modules/{eventModuleId}/speaker',
+    handler: async (request, context) => {
+        try {
+            const eventModuleId = request.params.eventModuleId;
+
+            if (!eventModuleId) {
+                const errorResponse = error(400, 'Event Module ID is required', 'INVALID_REQUEST');
+                return {
+                    status: errorResponse.status,
+                    headers: errorResponse.headers,
+                    body: errorResponse.body
+                };
+            }
+
+            // Parse request body
+            const bodyText = await request.text();
+            const body = JSON.parse(bodyText);
+            const { speakerName } = body;
+
+            if (!speakerName || !speakerName.trim()) {
+                const errorResponse = error(400, 'Speaker name is required', 'INVALID_DATA');
+                return {
+                    status: errorResponse.status,
+                    headers: errorResponse.headers,
+                    body: errorResponse.body
+                };
+            }
+
+            // Check if event module exists
+            const existing = await query(
+                'SELECT EventModuleId, SpeakerName FROM EventModules WHERE EventModuleId = @eventModuleId',
+                { eventModuleId: parseInt(eventModuleId) }
+            );
+
+            if (existing.length === 0) {
+                const errorResponse = error(404, 'Event module not found', 'NOT_FOUND');
+                return {
+                    status: errorResponse.status,
+                    headers: errorResponse.headers,
+                    body: errorResponse.body
+                };
+            }
+
+            // Update the speaker name
+            await query(
+                'UPDATE EventModules SET SpeakerName = @speakerName WHERE EventModuleId = @eventModuleId',
+                {
+                    eventModuleId: parseInt(eventModuleId),
+                    speakerName: speakerName.trim()
+                }
+            );
+
+            context.log(`Event module ${eventModuleId} speaker updated to "${speakerName.trim()}"`);
+
+            const response = success({
+                message: 'Speaker updated successfully',
+                eventModuleId: parseInt(eventModuleId),
+                speakerName: speakerName.trim()
+            });
+
+            return {
+                status: response.status,
+                headers: response.headers,
+                body: response.body
+            };
+
+        } catch (err) {
+            context.log('Error updating event module speaker:', err);
+            const errorResponse = error(500, `Error updating speaker: ${err.message}`, 'SERVER_ERROR');
             return {
                 status: errorResponse.status,
                 headers: errorResponse.headers,
