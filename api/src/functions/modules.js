@@ -5,7 +5,7 @@
  */
 
 const { app } = require('@azure/functions');
-const { query } = require('../shared/database');
+const { query, mutate } = require('../shared/database');
 const { success, error } = require('../shared/utils');
 const { requireAuth } = require('../shared/auth');
 
@@ -193,7 +193,7 @@ app.http('deleteModule', {
             }
 
             // Delete the module (this will fail if there are foreign key constraints)
-            const result = await query('DELETE FROM Modules WHERE ModuleId = @moduleId', { moduleId });
+            const result = await mutate('DELETE FROM Modules WHERE ModuleId = @moduleId', { moduleId });
 
             if (result.rowsAffected[0] === 0) {
                 return { status: 404, jsonBody: { success: false, message: 'Module not found', error: 'NOT_FOUND' } };
@@ -265,7 +265,7 @@ app.http('deleteModulesBulk', {
                 }
 
                 // Delete the module
-                const result = await query('DELETE FROM Modules WHERE ModuleId = @moduleId', { moduleId });
+                const result = await mutate('DELETE FROM Modules WHERE ModuleId = @moduleId', { moduleId });
                 if (result.rowsAffected[0] > 0) {
                     deletedCount++;
                 }

@@ -7,7 +7,7 @@
  */
 
 const { app } = require('@azure/functions');
-const { query } = require('../shared/database');
+const { query, mutate } = require('../shared/database');
 const { success, error } = require('../shared/utils');
 const { rateLimit } = require('../shared/rate-limiter');
 
@@ -216,7 +216,7 @@ app.http('deleteFeedback', {
             }
 
             // Delete feedback
-            const result = await query('DELETE FROM Feedback WHERE FeedbackId = @feedbackId', { feedbackId });
+            const result = await mutate('DELETE FROM Feedback WHERE FeedbackId = @feedbackId', { feedbackId });
 
             if (result.rowsAffected[0] === 0) {
                 return { status: 404, jsonBody: { success: false, message: 'Feedback not found', error: 'NOT_FOUND' } };
@@ -255,7 +255,7 @@ app.http('deleteFeedbackBulk', {
             let deletedCount = 0;
 
             for (const feedbackId of feedbackIds) {
-                const result = await query('DELETE FROM Feedback WHERE FeedbackId = @feedbackId', { feedbackId });
+                const result = await mutate('DELETE FROM Feedback WHERE FeedbackId = @feedbackId', { feedbackId });
                 if (result.rowsAffected[0] > 0) {
                     deletedCount++;
                 }
