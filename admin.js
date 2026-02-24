@@ -2932,25 +2932,13 @@ async function performBulkDelete(type) {
             'feedback': Array.from(selectedFeedback)
         };
 
-        const endpoints = {
-            'modules': `${CONFIG.API_BASE_URL}/modules/bulk-delete`,
-            'events': `${CONFIG.API_BASE_URL}/events/bulk-delete`,
-            'feedback': `${CONFIG.API_BASE_URL}/feedback/bulk-delete`
-        };
-
         const bodies = {
             'modules': { moduleIds: ids.modules },
             'events': { eventIds: ids.events },
             'feedback': { feedbackIds: ids.feedback }
         };
 
-        const response = await fetch(endpoints[type], {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(bodies[type])
-        });
-
-        const data = await response.json();
+        const data = await apiPost(`/${type}/bulk-delete`, bodies[type]);
 
         if (data.success) {
             showNotification('Success', data.message, 'success');

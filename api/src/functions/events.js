@@ -20,13 +20,7 @@ app.http('events', {
             if (request.method === 'POST') {
                 // Verify authentication for POST (create event)
                 const authError = requireAuth(request);
-                if (authError) {
-                    return {
-                        status: authError.status,
-                        headers: authError.headers,
-                        body: authError.body
-                    };
-                }
+                if (authError) return authError;
                 // Create new event
                 const bodyText = await request.text();
                 const body = JSON.parse(bodyText);
@@ -277,13 +271,7 @@ app.http('deleteEvent', {
     handler: async (request, context) => {
         // Verify authentication
         const authError = requireAuth(request);
-        if (authError) {
-            return {
-                status: authError.status,
-                headers: authError.headers,
-                body: authError.body
-            };
-        }
+        if (authError) return authError;
 
         try {
             const eventId = parseInt(request.params.eventId);
@@ -333,13 +321,7 @@ app.http('deleteEventsBulk', {
     handler: async (request, context) => {
         // Verify authentication
         const authError = requireAuth(request);
-        if (authError) {
-            return {
-                status: authError.status,
-                headers: authError.headers,
-                body: authError.body
-            };
-        }
+        if (authError) return authError;
 
         try {
             const data = await request.json();

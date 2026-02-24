@@ -17,13 +17,7 @@ app.http('updateModule', {
     handler: async (request, context) => {
         // Verify authentication
         const authError = requireAuth(request);
-        if (authError) {
-            return {
-                status: authError.status,
-                headers: authError.headers,
-                body: authError.body
-            };
-        }
+        if (authError) return authError;
 
         try {
             const moduleId = request.params.moduleId;
