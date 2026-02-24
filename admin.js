@@ -2961,7 +2961,7 @@ async function performBulkDelete(type) {
             if (type === 'feedback') selectedFeedback.clear();
 
             // Uncheck select-all
-            document.getElementById(`selectAll${type.charAt(0).toUpperCase() + type.slice(0, -1)}`).checked = false;
+            document.getElementById(`selectAll${type.charAt(0).toUpperCase() + type.slice(1)}`).checked = false;
 
             // Reload data
             if (type === 'modules') await loadModules();
