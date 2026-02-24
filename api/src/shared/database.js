@@ -41,7 +41,7 @@ async function getPool() {
 }
 
 /**
- * Execute a query
+ * Execute a query (returns recordset — use for SELECT)
  */
 async function query(queryString, params = {}) {
     try {
@@ -57,6 +57,25 @@ async function query(queryString, params = {}) {
         return result.recordset;
     } catch (error) {
         console.error('Database query error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Execute a write operation (returns full result with rowsAffected — use for INSERT/UPDATE/DELETE)
+ */
+async function mutate(queryString, params = {}) {
+    try {
+        const pool = await getPool();
+        const request = pool.request();
+
+        for (const [key, value] of Object.entries(params)) {
+            request.input(key, value);
+        }
+
+        return await request.query(queryString);
+    } catch (error) {
+        console.error('Database mutate error:', error);
         throw error;
     }
 }
@@ -94,6 +113,7 @@ async function close() {
 
 module.exports = {
     query,
+    mutate,
     execute,
     close,
     sql

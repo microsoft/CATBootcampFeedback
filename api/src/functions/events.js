@@ -7,7 +7,7 @@
  */
 
 const { app } = require('@azure/functions');
-const { query } = require('../shared/database');
+const { query, mutate } = require('../shared/database');
 const { success, error } = require('../shared/utils');
 const { requireAuth } = require('../shared/auth');
 
@@ -359,7 +359,7 @@ app.http('deleteEventsBulk', {
                 `, { eventId });
 
                 // Delete event (cascade will delete EventModules and Feedback)
-                const result = await query('DELETE FROM Events WHERE EventId = @eventId', { eventId });
+                const result = await mutate('DELETE FROM Events WHERE EventId = @eventId', { eventId });
 
                 if (result.rowsAffected[0] > 0) {
                     deletedCount++;
