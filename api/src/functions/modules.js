@@ -16,13 +16,7 @@ app.http('modules', {
     handler: async (request, context) => {
         // Verify authentication for all methods
         const authError = requireAuth(request);
-        if (authError) {
-            return {
-                status: authError.status,
-                headers: authError.headers,
-                body: authError.body
-            };
-        }
+        if (authError) return authError;
 
         try {
             if (request.method === 'GET') {
@@ -158,13 +152,7 @@ app.http('deleteModule', {
     handler: async (request, context) => {
         // Verify authentication
         const authError = requireAuth(request);
-        if (authError) {
-            return {
-                status: authError.status,
-                headers: authError.headers,
-                body: authError.body
-            };
-        }
+        if (authError) return authError;
 
         try {
             const moduleId = parseInt(request.params.moduleId);
@@ -223,13 +211,7 @@ app.http('deleteModulesBulk', {
     handler: async (request, context) => {
         // Verify authentication
         const authError = requireAuth(request);
-        if (authError) {
-            return {
-                status: authError.status,
-                headers: authError.headers,
-                body: authError.body
-            };
-        }
+        if (authError) return authError;
 
         try {
             const data = await request.json();

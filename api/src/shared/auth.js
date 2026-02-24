@@ -62,7 +62,7 @@ function requireAuth(req) {
                 'Access-Control-Allow-Origin': '*',
                 ...SECURITY_HEADERS
             },
-            body: {
+            jsonBody: {
                 success: false,
                 message: 'Authentication required',
                 code: 'AUTH_REQUIRED'
@@ -86,7 +86,7 @@ function requireAuth(req) {
                 'Access-Control-Allow-Origin': '*',
                 ...SECURITY_HEADERS
             },
-            body: {
+            jsonBody: {
                 success: false,
                 message: 'Invalid or expired token',
                 code: 'INVALID_TOKEN'
