@@ -10,6 +10,7 @@ const { app } = require('@azure/functions');
 const { query, mutate } = require('../shared/database');
 const { success, error } = require('../shared/utils');
 const { rateLimit } = require('../shared/rate-limiter');
+const { requireAuth } = require('../shared/auth');
 
 app.http('feedback', {
     methods: ['GET'],
@@ -17,6 +18,10 @@ app.http('feedback', {
     route: 'feedback',
     handler: async (request, context) => {
         try {
+            // Require authentication for reading all feedback
+            const authError = requireAuth(request);
+            if (authError) return authError;
+
             // Get all feedback with event details
             const feedback = await query(`
                 SELECT
@@ -209,6 +214,10 @@ app.http('deleteFeedback', {
     route: 'feedback/{feedbackId}',
     handler: async (request, context) => {
         try {
+            // Require authentication for deleting feedback
+            const authError = requireAuth(request);
+            if (authError) return authError;
+
             const feedbackId = parseInt(request.params.feedbackId);
 
             if (!feedbackId || isNaN(feedbackId)) {
@@ -245,6 +254,10 @@ app.http('deleteFeedbackBulk', {
     route: 'feedback/bulk-delete',
     handler: async (request, context) => {
         try {
+            // Require authentication for bulk deleting feedback
+            const authError = requireAuth(request);
+            if (authError) return authError;
+
             const data = await request.json();
             const { feedbackIds } = data;
 

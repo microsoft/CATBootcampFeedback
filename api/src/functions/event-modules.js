@@ -9,6 +9,7 @@
 const { app } = require('@azure/functions');
 const { query } = require('../shared/database');
 const { success, error } = require('../shared/utils');
+const { requireAuth } = require('../shared/auth');
 
 // GET modules for a specific event
 app.http('getEventModules', {
@@ -86,6 +87,10 @@ app.http('addEventModule', {
     route: 'event-modules',
     handler: async (request, context) => {
         try {
+            // Require authentication for adding modules to events
+            const authError = requireAuth(request);
+            if (authError) return authError;
+
             // Parse request body
             const bodyText = await request.text();
             const body = JSON.parse(bodyText);
@@ -193,6 +198,10 @@ app.http('removeEventModule', {
     route: 'event-modules/{eventModuleId}',
     handler: async (request, context) => {
         try {
+            // Require authentication for removing modules from events
+            const authError = requireAuth(request);
+            if (authError) return authError;
+
             const eventModuleId = request.params.eventModuleId;
 
             if (!eventModuleId) {
@@ -257,6 +266,10 @@ app.http('updateModuleOrder', {
     route: 'event-modules/{eventModuleId}/order',
     handler: async (request, context) => {
         try {
+            // Require authentication for reordering modules
+            const authError = requireAuth(request);
+            if (authError) return authError;
+
             const eventModuleId = request.params.eventModuleId;
 
             if (!eventModuleId) {
@@ -391,6 +404,10 @@ app.http('updateEventModuleSpeaker', {
     route: 'event-modules/{eventModuleId}/speaker',
     handler: async (request, context) => {
         try {
+            // Require authentication for updating speaker
+            const authError = requireAuth(request);
+            if (authError) return authError;
+
             const eventModuleId = request.params.eventModuleId;
 
             if (!eventModuleId) {

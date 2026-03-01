@@ -9,7 +9,7 @@ require('./functions/update-module');
 require('./functions/events');
 require('./functions/feedback');
 require('./functions/login');
-require('./functions/load-test-data');
+
 require('./functions/update-event-status');
 require('./functions/update-event');
 require('./functions/event-modules');

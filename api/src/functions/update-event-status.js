@@ -8,6 +8,7 @@
 const { app } = require('@azure/functions');
 const { query } = require('../shared/database');
 const { success, error } = require('../shared/utils');
+const { requireAuth } = require('../shared/auth');
 
 app.http('updateEventStatus', {
     methods: ['PUT'],
@@ -15,6 +16,10 @@ app.http('updateEventStatus', {
     route: 'events/{eventId}/status',
     handler: async (request, context) => {
         try {
+            // Require authentication for changing event status
+            const authError = requireAuth(request);
+            if (authError) return authError;
+
             const eventId = request.params.eventId;
 
             if (!eventId) {

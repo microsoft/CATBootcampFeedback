@@ -7,6 +7,8 @@
  * - DDoS attacks
  */
 
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGINS || '*';
+
 // In-memory store for rate limiting
 // Note: This is per-instance. For production scale, consider Redis or Azure Cache
 const requestCounts = new Map();
@@ -134,7 +136,7 @@ function rateLimit(req, limitType = 'public') {
             status: 429,
             headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
                 'Retry-After': retryAfter.toString(),
                 'X-RateLimit-Limit': config.max.toString(),
                 'X-RateLimit-Remaining': '0',

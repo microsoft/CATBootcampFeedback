@@ -232,11 +232,12 @@ async function authenticateUser(username, password) {
     if (CONFIG.USE_MOCK_DATA) {
         return new Promise((resolve) => {
             setTimeout(() => {
-                if (username === 'admin' && password === 'CATBootcamp2026!') {
+                // Mock login accepts any non-empty credentials in local dev
+                if (username && password) {
                     resolve({
                         success: true,
                         token: 'mock-token-' + Date.now(),
-                        user: { username: 'admin', fullName: 'Admin User' }
+                        user: { username: username, fullName: 'Mock User' }
                     });
                 } else {
                     resolve({ success: false });

@@ -12,6 +12,7 @@ if (!JWT_SECRET) {
     throw new Error('JWT_SECRET environment variable is not configured');
 }
 const JWT_EXPIRY = process.env.JWT_EXPIRY || '8h'; // Default 8 hour expiration
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGINS || '*';
 
 /**
  * Generate JWT token for authenticated user
@@ -59,7 +60,7 @@ function requireAuth(req) {
             status: 401,
             headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
                 ...SECURITY_HEADERS
             },
             jsonBody: {
@@ -83,7 +84,7 @@ function requireAuth(req) {
             status: 401,
             headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
                 ...SECURITY_HEADERS
             },
             jsonBody: {
@@ -120,7 +121,5 @@ module.exports = {
     generateToken,
     verifyToken,
     requireAuth,
-    getAuthenticatedUser,
-    JWT_SECRET,
-    JWT_EXPIRY
+    getAuthenticatedUser
 };
