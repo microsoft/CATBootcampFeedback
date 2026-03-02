@@ -22,7 +22,8 @@
     "x-frame-options": "DENY",
     "x-xss-protection": "1; mode=block",
     "referrer-policy": "strict-origin-when-cross-origin",
-    "permissions-policy": "geolocation=(), microphone=(), camera=()"
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "strict-transport-security": "max-age=31536000; includeSubDomains"
   },
   "mimeTypes": {
     ".json": "application/json",
