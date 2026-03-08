@@ -89,19 +89,22 @@ Azure Static Web Apps' managed functions have **limited support for custom route
 
 ### Live Count Display (count.html)
 
-- **Real-time feedback count** with configurable auto-refresh (5, 10, 15, or 30 seconds)
-- **Live analytics dashboard** showing:
-  - Total feedback submissions
-  - Average module satisfaction (1-5 scale)
-  - Average speaker knowledge rating (1-5 scale)
-  - Content depth breakdown (Too Technical / Just Right / Too Low Level)
+- **Real-time feedback count** with configurable auto-refresh (5, 10, 15, or 30 seconds; default: 5 seconds)
+- **3 Celebration Levels** — selectable from the footer:
+  - **Chill** (default): Small confetti burst + floating cat emoji + gentle chime
+  - **Party**: Medium confetti + cat parade + duck waddling across screen + screen glow + fanfare
+  - **Chaos**: Massive confetti + cat army + duck squad + bonus emojis + screen shake + wild sounds
+- **Fireworks at milestones** (10, 25, 50, 75, 100, 150, 200, 300, 500) — scaled by celebration level
+- **Cat-themed encouragement messages** — rotating puns displayed in large, room-readable font
+- **Cat-themed milestone messages** — celebratory cat puns at each threshold
+- **Sound effects** — toggle on/off from footer; includes chimes, fanfares, firework launches and explosions
 - **Module or Event view modes:**
   - Module-specific: Stats for a single module delivery
   - Event-level: Aggregate stats across all modules in an event
-- **Configurable refresh interval** - Select update frequency from dropdown (default: 15 seconds)
+- **Configurable refresh interval** - Select update frequency from dropdown (default: 5 seconds)
 - **Fullscreen mode** for projection during presentations
 - **Visual indicators** for live update status
-- **QR code display** for easy attendee access
+- **QR code display** for easy attendee access (fireworks constrained to left panel to keep QR scannable)
 
 ## Database Schema (V2 - Many-to-Many)
 
@@ -546,6 +549,28 @@ This application is designed with privacy as a core principle:
 
 ## Version History
 
+**Version 4.1** (Mar 8, 2026)
+- **Gamified Celebration Levels for Live Counter**
+- 3 selectable celebration levels: Chill, Party, and Chaos
+- Emoji character animations: tuxedo cats, ducks, bonus characters walking across screen
+- Fireworks system with rockets, explosions, and colored sparks at milestones
+- Sound effects: chimes, fanfares, firework launch/boom sounds (toggleable)
+- Cat-themed encouragement messages and milestone messages
+- Larger message font for room-projected presentations
+- Default refresh interval changed to 5 seconds
+- Fireworks constrained to left panel to keep QR code scannable
+
+**Version 4.0** (Mar 1, 2026)
+- **Security Phase 1 Hardening**
+- Deleted legacy login endpoint with hardcoded password hashes
+- Added authentication to 9 previously unprotected admin endpoints
+- Replaced wildcard CORS with configurable ALLOWED_ORIGINS environment variable
+- Removed JWT_SECRET from module exports
+- Removed unauthenticated test data endpoint
+- Removed hardcoded mock credentials from client-side code
+- Added HSTS security header
+- Removed unused express-rate-limit dependency
+
 **Version 3.5** (Feb 6, 2026)
 - **Azure Key Vault Integration for JWT Secrets**
 - Migrated JWT secrets from hardcoded values to Azure Key Vault
@@ -626,6 +651,6 @@ This is a demonstration project for the CAT Bootcamp.
 
 ---
 
-**Version:** 3.5
-**Last Updated:** February 6, 2026
-**Status:** Production - Fully Privacy-Compliant Anonymous Feedback (GDPR/CCPA) + Azure Key Vault Security
+**Version:** 4.1
+**Last Updated:** March 8, 2026
+**Status:** Production - Privacy-Compliant Anonymous Feedback + Security Hardened + Gamified Celebrations

@@ -67,6 +67,244 @@ const ENCOURAGING_MESSAGES = [
 ];
 
 // ══════════════════════════════════════════════════════════════════════════════
+// SOUND SYSTEM (generates WAV in memory — no external files, no autoplay issues)
+// ══════════════════════════════════════════════════════════════════════════════
+
+let soundEnabled = true;
+let audioUnlocked = false;
+
+// Browsers block programmatic audio until a user gesture occurs on the page.
+// We unlock by playing a silent buffer on the first click/touch/keydown,
+// which grants the page permission for all future Audio.play() calls.
+function unlockAudio() {
+    if (audioUnlocked) return;
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const buf = ctx.createBuffer(1, 1, 22050);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(ctx.destination);
+        src.start(0);
+        // Also warm up an Audio element so the browser marks this page as audio-allowed
+        const silence = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
+        silence.volume = 0;
+        silence.play().catch(() => {});
+        audioUnlocked = true;
+        console.log('Audio unlocked via user gesture');
+    } catch (e) {
+        console.warn('Audio unlock failed:', e);
+    }
+}
+
+['click', 'touchstart', 'keydown'].forEach(evt => {
+    document.addEventListener(evt, unlockAudio, { capture: true });
+});
+
+/**
+ * Generate a WAV blob from an array of {freq, start, duration, type, volume} notes
+ */
+function generateWav(notes, totalDuration, sampleRate = 22050) {
+    const numSamples = Math.floor(sampleRate * totalDuration);
+    const buffer = new Float32Array(numSamples);
+
+    notes.forEach(({ freq, start, duration, type = 'sine', volume = 0.15 }) => {
+        const startSample = Math.floor(start * sampleRate);
+        const endSample = Math.min(numSamples, Math.floor((start + duration) * sampleRate));
+
+        for (let i = startSample; i < endSample; i++) {
+            const t = (i - startSample) / sampleRate;
+            const phase = 2 * Math.PI * freq * t;
+
+            // Oscillator waveform
+            let sample;
+            if (type === 'sine') {
+                sample = Math.sin(phase);
+            } else if (type === 'triangle') {
+                sample = 2 * Math.abs(2 * (t * freq - Math.floor(t * freq + 0.5))) - 1;
+            } else if (type === 'square') {
+                sample = Math.sin(phase) >= 0 ? 1 : -1;
+            } else {
+                sample = 2 * (t * freq - Math.floor(t * freq + 0.5)); // sawtooth
+            }
+
+            // Envelope: quick attack, sustain, then fade in last 30%
+            const progress = (i - startSample) / (endSample - startSample);
+            const attack = Math.min(1, progress * 20);  // fast attack
+            const release = progress > 0.7 ? 1 - ((progress - 0.7) / 0.3) : 1;
+            const envelope = attack * release;
+
+            buffer[i] += sample * volume * envelope;
+        }
+    });
+
+    // Clamp
+    for (let i = 0; i < numSamples; i++) {
+        buffer[i] = Math.max(-1, Math.min(1, buffer[i]));
+    }
+
+    // Encode to 16-bit PCM WAV
+    const dataLength = numSamples * 2;
+    const wavBuffer = new ArrayBuffer(44 + dataLength);
+    const view = new DataView(wavBuffer);
+
+    // WAV header
+    const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + dataLength, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);       // PCM
+    view.setUint16(22, 1, true);       // Mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, 'data');
+    view.setUint32(40, dataLength, true);
+
+    for (let i = 0; i < numSamples; i++) {
+        const s = Math.max(-1, Math.min(1, buffer[i]));
+        view.setInt16(44 + i * 2, s * 0x7FFF, true);
+    }
+
+    return new Blob([wavBuffer], { type: 'audio/wav' });
+}
+
+// Pre-generate all sound effects as blob URLs on load
+const SOUNDS = {};
+
+function initSounds() {
+    // Chime: rising C-E-G
+    SOUNDS.chime = URL.createObjectURL(generateWav([
+        { freq: 523, start: 0, duration: 0.25, type: 'sine', volume: 0.2 },
+        { freq: 659, start: 0.1, duration: 0.25, type: 'sine', volume: 0.2 },
+        { freq: 784, start: 0.2, duration: 0.3, type: 'sine', volume: 0.18 }
+    ], 0.55));
+
+    // Fanfare: C-E-G-C ascending
+    SOUNDS.fanfare = URL.createObjectURL(generateWav([
+        { freq: 523, start: 0, duration: 0.25, type: 'triangle', volume: 0.22 },
+        { freq: 659, start: 0.12, duration: 0.25, type: 'triangle', volume: 0.22 },
+        { freq: 784, start: 0.24, duration: 0.25, type: 'triangle', volume: 0.22 },
+        { freq: 1047, start: 0.36, duration: 0.35, type: 'triangle', volume: 0.2 }
+    ], 0.75));
+
+    // Chaos: rapid ascending arpeggio with mixed tones
+    SOUNDS.chaos = URL.createObjectURL(generateWav([
+        { freq: 262, start: 0, duration: 0.15, type: 'square', volume: 0.12 },
+        { freq: 330, start: 0.06, duration: 0.15, type: 'sawtooth', volume: 0.12 },
+        { freq: 392, start: 0.12, duration: 0.15, type: 'square', volume: 0.12 },
+        { freq: 523, start: 0.18, duration: 0.15, type: 'sawtooth', volume: 0.12 },
+        { freq: 659, start: 0.24, duration: 0.15, type: 'square', volume: 0.12 },
+        { freq: 784, start: 0.30, duration: 0.15, type: 'sawtooth', volume: 0.12 },
+        { freq: 1047, start: 0.36, duration: 0.2, type: 'sine', volume: 0.15 },
+        { freq: 1319, start: 0.42, duration: 0.25, type: 'sine', volume: 0.15 }
+    ], 0.7));
+
+    // Milestone: sustained major chord
+    SOUNDS.milestone = URL.createObjectURL(generateWav([
+        { freq: 523, start: 0, duration: 1.0, type: 'sine', volume: 0.15 },
+        { freq: 659, start: 0, duration: 1.0, type: 'sine', volume: 0.12 },
+        { freq: 784, start: 0, duration: 1.0, type: 'sine', volume: 0.12 },
+        { freq: 1047, start: 0.1, duration: 0.9, type: 'sine', volume: 0.1 }
+    ], 1.1));
+
+    // Firework launch: rising whoosh (white noise filtered to rising pitch)
+    SOUNDS.fireworkLaunch = URL.createObjectURL(generateWav([
+        { freq: 200, start: 0, duration: 0.15, type: 'sawtooth', volume: 0.06 },
+        { freq: 400, start: 0.05, duration: 0.15, type: 'sawtooth', volume: 0.08 },
+        { freq: 800, start: 0.10, duration: 0.15, type: 'sawtooth', volume: 0.10 },
+        { freq: 1600, start: 0.15, duration: 0.15, type: 'sawtooth', volume: 0.08 },
+        { freq: 3000, start: 0.20, duration: 0.10, type: 'sine', volume: 0.05 }
+    ], 0.35));
+
+    // Firework explosion: crackling burst (multiple short high-freq pops)
+    const explosionNotes = [];
+    for (let i = 0; i < 20; i++) {
+        explosionNotes.push({
+            freq: 1000 + Math.random() * 4000,
+            start: Math.random() * 0.15,
+            duration: 0.03 + Math.random() * 0.06,
+            type: i % 2 === 0 ? 'square' : 'sawtooth',
+            volume: 0.06 + Math.random() * 0.06
+        });
+    }
+    // Add a deep boom underneath
+    explosionNotes.push({ freq: 80, start: 0, duration: 0.3, type: 'sine', volume: 0.2 });
+    explosionNotes.push({ freq: 120, start: 0, duration: 0.2, type: 'sine', volume: 0.15 });
+    SOUNDS.fireworkBoom = URL.createObjectURL(generateWav(explosionNotes, 0.4));
+
+    console.log('Sound effects initialized');
+}
+
+function playSound(name) {
+    if (!soundEnabled) return;
+    const url = SOUNDS[name];
+    if (!url) return;
+    try {
+        const audio = new Audio(url);
+        audio.volume = 1.0;
+        const playPromise = audio.play();
+        if (playPromise) {
+            playPromise.catch(err => {
+                console.warn('Sound play blocked:', err.message);
+                // If blocked, it means user hasn't interacted with page yet.
+                // Sound will work after next user click.
+            });
+        }
+    } catch (e) {
+        console.warn('Sound error:', e);
+    }
+}
+
+function playChime() { playSound('chime'); }
+function playFanfare() { playSound('fanfare'); }
+function playChaosSound() { playSound('chaos'); }
+function playMilestoneSound() { playSound('milestone'); }
+
+function initializeSoundToggle() {
+    const soundToggle = document.getElementById('soundToggle');
+    if (!soundToggle) return;
+
+    const saved = sessionStorage.getItem('soundEnabled');
+    if (saved !== null) {
+        soundEnabled = saved === 'true';
+        soundToggle.value = soundEnabled ? 'on' : 'off';
+    }
+
+    soundToggle.addEventListener('change', (e) => {
+        soundEnabled = e.target.value === 'on';
+        sessionStorage.setItem('soundEnabled', soundEnabled.toString());
+        if (soundEnabled) playChime();
+    });
+
+    // Show a brief "click to enable sound" banner if sound is on
+    if (soundEnabled && !audioUnlocked) {
+        const banner = document.createElement('div');
+        banner.id = 'soundBanner';
+        banner.textContent = '🔊 Click anywhere to enable celebration sounds';
+        banner.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:12px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;text-align:center;font-size:1.1rem;font-weight:600;cursor:pointer;z-index:2000;';
+        document.body.appendChild(banner);
+
+        const dismissBanner = () => {
+            unlockAudio();
+            if (banner.parentNode) {
+                banner.style.transition = 'opacity 0.3s';
+                banner.style.opacity = '0';
+                setTimeout(() => banner.remove(), 300);
+            }
+            // Play a confirmation chime after a tiny delay
+            setTimeout(() => playChime(), 100);
+        };
+
+        banner.addEventListener('click', dismissBanner);
+        // Also dismiss on any page click
+        document.addEventListener('click', dismissBanner, { once: true });
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // CONFETTI SYSTEM
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -128,8 +366,13 @@ function animateConfetti() {
     // Filter out finished characters
     activeCharacters = activeCharacters.filter(c => c.opacity > 0 && c.x > -80 && c.x < confettiCanvas.width + 80 && c.y > -80 && c.y < confettiCanvas.height + 80);
 
-    // If nothing left to draw, stop the loop
-    if (confettiParticles.length === 0 && activeCharacters.length === 0) {
+    // Filter out finished fireworks
+    fireworks = fireworks.filter(fw => fw.alive);
+    fireworkSparks = fireworkSparks.filter(s => s.opacity > 0.05);
+
+    // If nothing left to draw, do a final clear and stop the loop
+    if (confettiParticles.length === 0 && activeCharacters.length === 0 && fireworks.length === 0 && fireworkSparks.length === 0) {
+        confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
         confettiAnimationId = null;
         return;
     }
@@ -188,7 +431,172 @@ function animateConfetti() {
         confettiCtx.restore();
     });
 
+    // Draw fireworks (rockets + sparks)
+    drawFireworks();
+
     confettiAnimationId = requestAnimationFrame(animateConfetti);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FIREWORKS SYSTEM
+// ══════════════════════════════════════════════════════════════════════════════
+
+const FIREWORK_COLORS = [
+    ['#ff6b6b', '#ffd700', '#ff9a9e'],          // warm red/gold
+    ['#667eea', '#00d2ff', '#4cdf7f'],           // cool blue/green
+    ['#f093fb', '#764ba2', '#ffd700'],           // purple/pink/gold
+    ['#4cdf7f', '#ffd700', '#ff6b6b'],           // green/gold/red
+    ['#00d2ff', '#667eea', '#f093fb'],           // cyan/blue/pink
+];
+
+let fireworks = [];      // Active rockets
+let fireworkSparks = []; // Explosion sparks
+
+/**
+ * Launch a firework rocket from the bottom of the screen
+ */
+function launchFirework(x) {
+    // Keep fireworks on the left half so they don't cover the QR code
+    const startX = x || confettiCanvas.width * (0.05 + Math.random() * 0.4);
+    const targetY = confettiCanvas.height * (0.1 + Math.random() * 0.3);
+    const palette = FIREWORK_COLORS[Math.floor(Math.random() * FIREWORK_COLORS.length)];
+
+    fireworks.push({
+        x: startX,
+        y: confettiCanvas.height + 10,
+        targetY,
+        vy: -(8 + Math.random() * 4),
+        size: 3,
+        color: palette[0],
+        palette,
+        trail: [],
+        alive: true
+    });
+
+    playSound('fireworkLaunch');
+
+    if (!confettiAnimationId) {
+        animateConfetti();
+    }
+}
+
+/**
+ * Explode a firework into sparks at its position
+ */
+function explodeFirework(fw) {
+    const sparkCount = 40 + Math.floor(Math.random() * 30);
+    for (let i = 0; i < sparkCount; i++) {
+        const angle = (Math.PI * 2 * i) / sparkCount + (Math.random() - 0.5) * 0.3;
+        const speed = 2 + Math.random() * 5;
+        fireworkSparks.push({
+            x: fw.x,
+            y: fw.y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            color: fw.palette[Math.floor(Math.random() * fw.palette.length)],
+            size: 2 + Math.random() * 3,
+            gravity: 0.06,
+            opacity: 1,
+            fadeRate: 0.015 + Math.random() * 0.015,
+            trail: Math.random() > 0.5
+        });
+    }
+
+    playSound('fireworkBoom');
+}
+
+/**
+ * Draw firework rockets and sparks — called from animateConfetti loop
+ */
+function drawFireworks() {
+    // Update and draw rockets
+    fireworks = fireworks.filter(fw => fw.alive);
+    fireworks.forEach(fw => {
+        fw.age = (fw.age || 0) + 1;
+
+        // Trail
+        fw.trail.push({ x: fw.x, y: fw.y });
+        if (fw.trail.length > 8) fw.trail.shift();
+
+        fw.y += fw.vy;
+        fw.vy *= 0.98;
+        fw.x += (Math.random() - 0.5) * 0.5; // slight wobble
+
+        // Draw trail
+        fw.trail.forEach((t, i) => {
+            const trailOpacity = (i / fw.trail.length) * 0.5;
+            confettiCtx.save();
+            confettiCtx.globalAlpha = trailOpacity;
+            confettiCtx.fillStyle = fw.color;
+            confettiCtx.beginPath();
+            confettiCtx.arc(t.x, t.y, fw.size * 0.6, 0, Math.PI * 2);
+            confettiCtx.fill();
+            confettiCtx.restore();
+        });
+
+        // Draw rocket head (bright dot)
+        confettiCtx.save();
+        confettiCtx.globalAlpha = 1;
+        confettiCtx.fillStyle = '#ffffff';
+        confettiCtx.shadowColor = fw.color;
+        confettiCtx.shadowBlur = 15;
+        confettiCtx.beginPath();
+        confettiCtx.arc(fw.x, fw.y, fw.size, 0, Math.PI * 2);
+        confettiCtx.fill();
+        confettiCtx.restore();
+
+        // Explode when: reached target, lost upward momentum, off-screen, or too old
+        if (fw.y <= fw.targetY || fw.vy > -1 || fw.y < -20 || fw.age > 120) {
+            explodeFirework(fw);
+            fw.alive = false;
+        }
+    });
+
+    // Update and draw sparks — kill sparks below 0.05 opacity to prevent ghost dots
+    fireworkSparks = fireworkSparks.filter(s => s.opacity > 0.05);
+    fireworkSparks.forEach(s => {
+        s.x += s.vx;
+        s.y += s.vy;
+        s.vy += s.gravity;
+        s.vx *= 0.98;
+        s.opacity -= s.fadeRate;
+
+        if (s.opacity <= 0.05) return; // skip drawing nearly-dead sparks
+
+        confettiCtx.save();
+        confettiCtx.globalAlpha = s.opacity;
+        confettiCtx.fillStyle = s.color;
+
+        // Only apply glow when spark is bright enough
+        if (s.opacity > 0.3) {
+            confettiCtx.shadowColor = s.color;
+            confettiCtx.shadowBlur = 6;
+        }
+
+        confettiCtx.beginPath();
+        confettiCtx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+        confettiCtx.fill();
+
+        // Spark trail
+        if (s.trail && s.opacity > 0.2) {
+            confettiCtx.globalAlpha = s.opacity * 0.4;
+            confettiCtx.shadowBlur = 0;
+            confettiCtx.beginPath();
+            confettiCtx.arc(s.x - s.vx, s.y - s.vy, s.size * 0.5, 0, Math.PI * 2);
+            confettiCtx.fill();
+        }
+
+        confettiCtx.restore();
+    });
+}
+
+/**
+ * Launch a volley of fireworks staggered over time
+ */
+function fireworkVolley(count) {
+    for (let i = 0; i < count; i++) {
+        setTimeout(() => launchFirework(), i * 300 + Math.random() * 200);
+    }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -300,13 +708,15 @@ function triggerCelebration(count, oldCount) {
     const level = celebrationLevel;
 
     if (level === 1) {
-        // Chill: small confetti + floating cat
+        // Chill: small confetti + floating cat + chime
         burstConfetti(20);
         spawnFloatingCat();
+        playChime();
     } else if (level === 2) {
-        // Party: medium confetti + screen glow + walking cats + duck
+        // Party: medium confetti + screen glow + walking cats + duck + fanfare
         burstConfetti(60);
         screenGlow();
+        playFanfare();
         // Spawn 2-3 walking cats
         const catCount = 2 + Math.floor(Math.random() * 2);
         for (let i = 0; i < catCount; i++) {
@@ -325,10 +735,11 @@ function triggerCelebration(count, oldCount) {
             });
         }, 500);
     } else if (level === 3) {
-        // Chaos: massive confetti + shake + glow + cat army + duck squad + bonus
+        // Chaos: massive confetti + shake + glow + cat army + duck squad + bonus + wild sound
         burstConfetti(150);
         screenShake();
         screenGlow();
+        playChaosSound();
         // Spawn 5-8 cats
         const catCount = 5 + Math.floor(Math.random() * 4);
         for (let i = 0; i < catCount; i++) {
@@ -389,22 +800,31 @@ function checkMilestone(newCount, oldCount) {
     for (const m of MILESTONES) {
         if (newCount >= m && oldCount < m) {
             showMilestone(m);
+            playMilestoneSound();
 
-            // Scale milestone celebration by level
+            // Scale milestone celebration by level — fireworks at all levels!
             const level = celebrationLevel;
             if (level === 1) {
+                // Chill milestone: 1 firework + confetti + floating cat
                 burstConfetti(60);
                 spawnFloatingCat();
+                fireworkVolley(1);
             } else if (level === 2) {
+                // Party milestone: 3 fireworks + confetti + glow + cats
                 burstConfetti(150);
                 screenGlow();
+                fireworkVolley(3);
                 for (let i = 0; i < 4; i++) {
                     setTimeout(() => spawnFloatingCat(), i * 200);
                 }
             } else if (level === 3) {
+                // Chaos milestone: 6-8 fireworks + confetti + shake + full parade
                 burstConfetti(300);
                 screenShake();
                 screenGlow();
+                fireworkVolley(6 + Math.floor(Math.random() * 3));
+                // Staggered second wave of fireworks
+                setTimeout(() => fireworkVolley(4), 1500);
                 for (let i = 0; i < 8; i++) {
                     setTimeout(() => spawnFloatingCat(), i * 150);
                 }
@@ -586,6 +1006,7 @@ function updateDigitDisplay(newCount) {
 
 document.addEventListener('DOMContentLoaded', function() {
     initConfettiCanvas();
+    initSounds();
     initialize();
 });
 
@@ -630,6 +1051,7 @@ async function initialize() {
         startLiveUpdates();
         initializeRefreshIntervalSelector();
         initializeCelebrationLevelSelector();
+        initializeSoundToggle();
         initializeFullscreenButton();
 
     } catch (error) {
@@ -717,7 +1139,7 @@ function mockLoadEventDetails(code) {
                     eventName: 'CAT Bootcamp Q1-2026',
                     startDate: '2026-02-15',
                     trainingTrack: 'Q1-2026',
-                    totalCount: 12,
+                    totalCount: 0,
                     modules: [
                         {
                             eventModuleId: 1,
@@ -725,7 +1147,7 @@ function mockLoadEventDetails(code) {
                             moduleName: 'Introduction to CAT Bootcamp',
                             speakerName: 'John Doe',
                             deliveryOrder: 1,
-                            feedbackCount: 12
+                            feedbackCount: 0
                         }
                     ]
                 },
@@ -735,7 +1157,7 @@ function mockLoadEventDetails(code) {
                     eventName: 'Test Event',
                     startDate: '2026-02-16',
                     trainingTrack: 'Q1-2026',
-                    totalCount: 18,
+                    totalCount: 0,
                     modules: [
                         {
                             eventModuleId: 2,
