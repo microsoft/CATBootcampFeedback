@@ -23,6 +23,7 @@ let isModuleMode = false;
 let currentRefreshInterval = CONFIG.COUNT_REFRESH_INTERVAL;
 let currentCount = 0;
 let isFirstLoad = true;
+let celebrationLevel = 1; // 1=Chill, 2=Party, 3=Chaos
 
 // ── DOM elements ──────────────────────────────────────────────────────────────
 const loadingState = document.getElementById('loadingState');
@@ -41,26 +42,28 @@ const confettiCtx = confettiCanvas.getContext('2d');
 const MILESTONES = [10, 25, 50, 75, 100, 150, 200, 300, 500];
 
 const MILESTONE_MESSAGES = {
-    10:  'First 10! Great start!',
-    25:  '25 responses! Momentum building!',
-    50:  '50! Halfway to a hundred!',
-    75:  '75! Keep them coming!',
-    100: 'Triple digits! Amazing!',
-    150: '150! Incredible engagement!',
-    200: '200! Outstanding participation!',
-    300: '300! You\'re on fire!',
-    500: '500! Legendary feedback!'
+    10:  'First 10! The cats approve! \u{1F63A}',
+    25:  '25 responses! A whole litter! \u{1F431}\u{1F431}\u{1F431}',
+    50:  '50! The cats are purring! \u{1F638}',
+    75:  '75! Cat-astrophically good! \u{1F3A9}\u{1F408}',
+    100: 'Triple digits! Legendary cats! \u{1F43E}\u{1F3C6}',
+    150: '150! The tuxedo cats are dancing! \u{1F57A}\u{1F431}',
+    200: '200! Cat-tastic participation! \u{1F63B}',
+    300: '300! The cats have taken over! \u{1F431}\u{1F431}\u{1F431}\u{1F431}\u{1F431}',
+    500: '500! You\'ve unleashed the mega cats! \u{1F451}\u{1F408}\u200D\u2B1B'
 };
 
 const ENCOURAGING_MESSAGES = [
-    'Every response helps us improve!',
-    'Your feedback matters!',
-    'Keep the feedback flowing!',
-    'Help us make it even better!',
-    'Share your thoughts!',
-    'We\'re listening to every response!',
-    'Great participation so far!',
-    'Your voice counts!'
+    'Paws up if you submitted feedback! \u{1F43E}',
+    'You\'re the cat\'s meow! Keep it coming! \u{1F63A}',
+    'Purr-fect participation so far! \u{1F431}',
+    'Every response is the cat\'s pajamas! \u{1F3A9}\u{1F408}',
+    'Feline good about this feedback! \u{1F638}',
+    'Don\'t be a scaredy-cat \u2014 share your thoughts! \u{1F43E}',
+    'We\'re not kitten around \u2014 your voice matters! \u{1F431}',
+    'Cat-ch us if you can \u2014 submit your feedback! \u{1F63C}',
+    'This feedback is claw-some! Keep going! \u{1F43E}',
+    'Meow is the time to share your thoughts! \u{1F63A}'
 ];
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -119,13 +122,19 @@ function burstConfetti(count) {
 function animateConfetti() {
     confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
 
+    // Filter out dead confetti particles
     confettiParticles = confettiParticles.filter(p => p.opacity > 0 && p.y < confettiCanvas.height + 50);
 
-    if (confettiParticles.length === 0) {
+    // Filter out finished characters
+    activeCharacters = activeCharacters.filter(c => c.opacity > 0 && c.x > -80 && c.x < confettiCanvas.width + 80 && c.y > -80 && c.y < confettiCanvas.height + 80);
+
+    // If nothing left to draw, stop the loop
+    if (confettiParticles.length === 0 && activeCharacters.length === 0) {
         confettiAnimationId = null;
         return;
     }
 
+    // Draw confetti particles
     confettiParticles.forEach(p => {
         p.x += p.vx;
         p.vy += p.gravity;
@@ -151,7 +160,209 @@ function animateConfetti() {
         confettiCtx.restore();
     });
 
+    // Draw emoji characters
+    activeCharacters.forEach(c => {
+        c.x += c.vx;
+        c.y += c.vy;
+        if (c.gravity) c.vy += c.gravity;
+        c.opacity -= c.fadeRate;
+        c.age = (c.age || 0) + 1;
+
+        // Bobbing motion for walking characters
+        const bobOffset = c.bob ? Math.sin(c.age * c.bobSpeed) * c.bobAmount : 0;
+
+        confettiCtx.save();
+        confettiCtx.globalAlpha = Math.max(0, c.opacity);
+        confettiCtx.font = `${c.size}px serif`;
+        confettiCtx.textAlign = 'center';
+        confettiCtx.textBaseline = 'middle';
+
+        // Flip horizontally if moving left
+        if (c.vx < 0) {
+            confettiCtx.scale(-1, 1);
+            confettiCtx.fillText(c.emoji, -c.x, c.y + bobOffset);
+        } else {
+            confettiCtx.fillText(c.emoji, c.x, c.y + bobOffset);
+        }
+
+        confettiCtx.restore();
+    });
+
     confettiAnimationId = requestAnimationFrame(animateConfetti);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// EMOJI CHARACTER ANIMATION SYSTEM
+// ══════════════════════════════════════════════════════════════════════════════
+
+const CHARACTER_POOL = {
+    cats: ['\u{1F431}', '\u{1F408}', '\u{1F63A}', '\u{1F638}', '\u{1F63B}', '\u{1F63C}', '\u{1F640}', '\u{1F408}\u200D\u2B1B'],
+    ducks: ['\u{1F986}', '\u{1F425}', '\u{1F424}'],
+    bonus: ['\u{1F984}', '\u{1F419}', '\u{1F420}', '\u{1F98B}', '\u{1F38A}', '\u{2B50}', '\u{1F31F}', '\u{1F680}', '\u{1F389}', '\u{1F4AB}']
+};
+
+let activeCharacters = [];
+
+function spawnCharacter(emoji, options = {}) {
+    const defaults = {
+        x: options.x !== undefined ? options.x : (Math.random() < 0.5 ? -40 : confettiCanvas.width + 40),
+        y: options.y !== undefined ? options.y : confettiCanvas.height * (0.5 + Math.random() * 0.4),
+        vx: options.vx !== undefined ? options.vx : 0,
+        vy: options.vy !== undefined ? options.vy : 0,
+        size: options.size || 40,
+        opacity: 1,
+        fadeRate: options.fadeRate || 0.003,
+        gravity: options.gravity || 0,
+        bob: options.bob !== undefined ? options.bob : true,
+        bobSpeed: options.bobSpeed || 0.08 + Math.random() * 0.04,
+        bobAmount: options.bobAmount || 3 + Math.random() * 3,
+        age: 0
+    };
+
+    // If spawning from left, move right; if from right, move left
+    if (defaults.vx === 0 && options.vx === undefined) {
+        defaults.vx = defaults.x < confettiCanvas.width / 2 ? (1.5 + Math.random() * 2) : -(1.5 + Math.random() * 2);
+    }
+
+    const character = { emoji, ...defaults };
+    activeCharacters.push(character);
+
+    // Start the unified animation loop if not already running
+    if (!confettiAnimationId) {
+        animateConfetti();
+    }
+}
+
+function spawnFloatingCat() {
+    const cats = CHARACTER_POOL.cats;
+    const emoji = cats[Math.floor(Math.random() * cats.length)];
+
+    // Float up from center area
+    const counterEl = document.querySelector('.left-section');
+    let startX = confettiCanvas.width / 2;
+    let startY = confettiCanvas.height / 2;
+
+    if (counterEl) {
+        const rect = counterEl.getBoundingClientRect();
+        startX = rect.left + rect.width / 2;
+        startY = rect.top + rect.height / 2;
+    }
+
+    spawnCharacter(emoji, {
+        x: startX + (Math.random() - 0.5) * 100,
+        y: startY,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: -1.5 - Math.random() * 1.5,
+        size: 50 + Math.random() * 20,
+        fadeRate: 0.005,
+        gravity: -0.02,
+        bob: false
+    });
+}
+
+function screenGlow() {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: radial-gradient(ellipse at center, rgba(102,126,234,0.3) 0%, transparent 70%);
+        pointer-events: none; z-index: 999; opacity: 1;
+        transition: opacity 1.5s ease-out;
+    `;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => {
+        overlay.style.opacity = '0';
+    });
+    setTimeout(() => overlay.remove(), 1600);
+}
+
+function screenShake() {
+    const container = document.querySelector('.count-container');
+    if (!container) return;
+    let shakeCount = 0;
+    const maxShakes = 6;
+    const shakeInterval = setInterval(() => {
+        const x = (Math.random() - 0.5) * 8;
+        const y = (Math.random() - 0.5) * 8;
+        container.style.transform = `translate(${x}px, ${y}px)`;
+        shakeCount++;
+        if (shakeCount >= maxShakes) {
+            clearInterval(shakeInterval);
+            container.style.transform = '';
+        }
+    }, 50);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CELEBRATION TRIGGERS
+// ══════════════════════════════════════════════════════════════════════════════
+
+function triggerCelebration(count, oldCount) {
+    const level = celebrationLevel;
+
+    if (level === 1) {
+        // Chill: small confetti + floating cat
+        burstConfetti(20);
+        spawnFloatingCat();
+    } else if (level === 2) {
+        // Party: medium confetti + screen glow + walking cats + duck
+        burstConfetti(60);
+        screenGlow();
+        // Spawn 2-3 walking cats
+        const catCount = 2 + Math.floor(Math.random() * 2);
+        for (let i = 0; i < catCount; i++) {
+            setTimeout(() => {
+                const cats = CHARACTER_POOL.cats;
+                spawnCharacter(cats[Math.floor(Math.random() * cats.length)], {
+                    size: 35 + Math.random() * 15
+                });
+            }, i * 300);
+        }
+        // Spawn 1 duck
+        setTimeout(() => {
+            const ducks = CHARACTER_POOL.ducks;
+            spawnCharacter(ducks[Math.floor(Math.random() * ducks.length)], {
+                size: 30 + Math.random() * 10
+            });
+        }, 500);
+    } else if (level === 3) {
+        // Chaos: massive confetti + shake + glow + cat army + duck squad + bonus
+        burstConfetti(150);
+        screenShake();
+        screenGlow();
+        // Spawn 5-8 cats
+        const catCount = 5 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < catCount; i++) {
+            setTimeout(() => {
+                const cats = CHARACTER_POOL.cats;
+                spawnCharacter(cats[Math.floor(Math.random() * cats.length)], {
+                    size: 30 + Math.random() * 30
+                });
+            }, i * 200);
+        }
+        // Spawn 2-4 ducks
+        const duckCount = 2 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < duckCount; i++) {
+            setTimeout(() => {
+                const ducks = CHARACTER_POOL.ducks;
+                spawnCharacter(ducks[Math.floor(Math.random() * ducks.length)], {
+                    size: 25 + Math.random() * 15
+                });
+            }, 300 + i * 250);
+        }
+        // Spawn 2-4 bonus characters
+        const bonusCount = 2 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < bonusCount; i++) {
+            setTimeout(() => {
+                const bonus = CHARACTER_POOL.bonus;
+                spawnCharacter(bonus[Math.floor(Math.random() * bonus.length)], {
+                    size: 30 + Math.random() * 20
+                });
+            }, 600 + i * 200);
+        }
+    }
+
+    // Always check milestones
+    checkMilestone(count, oldCount);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -178,7 +389,35 @@ function checkMilestone(newCount, oldCount) {
     for (const m of MILESTONES) {
         if (newCount >= m && oldCount < m) {
             showMilestone(m);
-            burstConfetti(120);
+
+            // Scale milestone celebration by level
+            const level = celebrationLevel;
+            if (level === 1) {
+                burstConfetti(60);
+                spawnFloatingCat();
+            } else if (level === 2) {
+                burstConfetti(150);
+                screenGlow();
+                for (let i = 0; i < 4; i++) {
+                    setTimeout(() => spawnFloatingCat(), i * 200);
+                }
+            } else if (level === 3) {
+                burstConfetti(300);
+                screenShake();
+                screenGlow();
+                for (let i = 0; i < 8; i++) {
+                    setTimeout(() => spawnFloatingCat(), i * 150);
+                }
+                for (let i = 0; i < 4; i++) {
+                    setTimeout(() => {
+                        const bonus = CHARACTER_POOL.bonus;
+                        spawnCharacter(bonus[Math.floor(Math.random() * bonus.length)], {
+                            size: 40 + Math.random() * 25,
+                            fadeRate: 0.003
+                        });
+                    }, 500 + i * 200);
+                }
+            }
             return;
         }
     }
@@ -390,6 +629,7 @@ async function initialize() {
         await updateCount();
         startLiveUpdates();
         initializeRefreshIntervalSelector();
+        initializeCelebrationLevelSelector();
         initializeFullscreenButton();
 
     } catch (error) {
@@ -629,10 +869,9 @@ async function updateCount() {
             void counterNumber.offsetWidth;
             counterNumber.classList.add('pulse');
 
-            // Confetti and milestones only after initial load
+            // Celebrations only after initial load
             if (!isFirstLoad && count > oldCount) {
-                burstConfetti(30 + Math.min(70, (count - oldCount) * 15));
-                checkMilestone(count, oldCount);
+                triggerCelebration(count, oldCount);
             }
 
             // Update progress ring
@@ -739,6 +978,23 @@ function initializeRefreshIntervalSelector() {
         sessionStorage.setItem('countRefreshInterval', newInterval.toString());
         restartLiveUpdates();
         updateCount();
+    });
+}
+
+function initializeCelebrationLevelSelector() {
+    const celebrationLevelSelect = document.getElementById('celebrationLevel');
+    if (!celebrationLevelSelect) return;
+
+    const savedLevel = sessionStorage.getItem('celebrationLevel');
+    if (savedLevel) {
+        celebrationLevel = parseInt(savedLevel);
+        celebrationLevelSelect.value = savedLevel;
+    }
+
+    celebrationLevelSelect.addEventListener('change', (e) => {
+        const newLevel = parseInt(e.target.value);
+        celebrationLevel = newLevel;
+        sessionStorage.setItem('celebrationLevel', newLevel.toString());
     });
 }
 
