@@ -92,7 +92,12 @@ if (typeof window !== 'undefined') {
                           !window.location.hostname.includes('blue-moss');
     const isCustomDomain = window.location.hostname === 'catbootcamp.yourdomain.com';
 
-    if (isProdHostname || isCustomDomain) {
+    const isQAHostname = window.location.hostname.includes('ashy-rock-0b254600f');
+    if (isQAHostname) {
+        CONFIG.USE_MOCK_DATA = false;
+        CONFIG.API_BASE_URL = 'https://catbootcamp-api-qa.azurewebsites.net/api';
+        console.log('Environment: QA');
+    } else if (isProdHostname || isCustomDomain) {
         // Production environment
         CONFIG.USE_MOCK_DATA = false;
         CONFIG.API_BASE_URL = 'https://cat-bootcamp-api-prod.azurewebsites.net/api';
