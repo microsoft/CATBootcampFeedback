@@ -1,5 +1,6 @@
 name: Deploy Functions App (QA)
 # QA ENVIRONMENT - Manual deployment via workflow dispatch
+# Uses Azure Functions Core Tools for reliable deploys to Linux Consumption plan
 
 on:
   workflow_dispatch:
@@ -16,16 +17,20 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install Azure Functions Core Tools
+        run: npm install -g azure-functions-core-tools@4 --unsafe-perm true
+
       - name: Install dependencies
         run: |
           cd api
           npm install --production
 
-      - name: Deploy to Azure Functions (QA)
-        uses: Azure/functions-action@v1
+      - name: Azure Login
+        uses: Azure/login@v2
         with:
-          app-name: 'catbootcamp-api-qa'
-          package: './api'
-          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE_QA }}
-          scm-do-build-during-deployment: true
-          enable-oryx-build: true
+          creds: ${{ secrets.AZURE_CREDENTIALS_QA }}
+
+      - name: Deploy to Azure Functions (QA)
+        run: |
+          cd api
+          func azure functionapp publish catbootcamp-api-qa --javascript
