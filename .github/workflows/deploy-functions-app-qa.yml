@@ -27,3 +27,5 @@ jobs:
           app-name: 'catbootcamp-api-qa'
           package: './api'
           publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE_QA }}
+          scm-do-build-during-deployment: true
+          enable-oryx-build: true
