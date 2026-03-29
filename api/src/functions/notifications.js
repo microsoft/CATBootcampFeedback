@@ -12,6 +12,7 @@ const { app } = require('@azure/functions');
 const { requireRole, getAuthenticatedUser } = require('../shared/auth');
 const { addSecurityHeaders } = require('../shared/utils');
 const { audit } = require('../shared/audit');
+const { sendEmail } = require('../shared/email');
 
 app.http('notifyWelcome', {
     methods: ['POST'],
@@ -56,32 +57,14 @@ app.http('notifyWelcome', {
                 '— CAT Bootcamp Feedback System'
             ].join('\n');
 
-            // Check if email service is configured
-            const sendgridKey = process.env.SENDGRID_API_KEY;
-            const azureCommStr = process.env.AZURE_COMM_CONNECTION_STRING;
-            let emailSent = false;
-
-            if (sendgridKey) {
-                // TODO: Implement SendGrid email sending
-                context.log(`[EMAIL] Would send via SendGrid to: ${recipientEmail}, CC: ${creatorEmail}`);
-                context.log(`[EMAIL] Subject: ${emailSubject}`);
-                emailSent = true;
-            } else if (azureCommStr) {
-                // TODO: Implement Azure Communication Services email sending
-                context.log(`[EMAIL] Would send via Azure Comm Services to: ${recipientEmail}, CC: ${creatorEmail}`);
-                context.log(`[EMAIL] Subject: ${emailSubject}`);
-                emailSent = true;
-            } else {
-                // Dev mode: log the email content
-                context.log('─────────────────────────────────────────');
-                context.log(`[EMAIL - DEV MODE] No email service configured.`);
-                context.log(`To: ${recipientEmail}`);
-                context.log(`CC: ${creatorEmail || caller?.email || 'N/A'}`);
-                context.log(`Subject: ${emailSubject}`);
-                context.log('');
-                context.log(emailBody);
-                context.log('─────────────────────────────────────────');
-            }
+            // Send email via Azure Communication Services (or log if not configured)
+            const emailResult = await sendEmail({
+                to: recipientEmail,
+                cc: creatorEmail || undefined,
+                subject: emailSubject,
+                text: emailBody
+            });
+            const emailSent = emailResult.sent;
 
             await audit(request, 'SEND_WELCOME', 'Notification', null, `Welcome email for ${username} to ${recipientEmail}`, { recipientEmail, username, roles, emailSent });
 

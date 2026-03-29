@@ -13,6 +13,7 @@ const { requireAuth, requireRole, getAuthenticatedUser } = require('../shared/au
 const { addSecurityHeaders } = require('../shared/utils');
 const { rateLimit } = require('../shared/rate-limiter');
 const { audit } = require('../shared/audit');
+const { sendEmail } = require('../shared/email');
 
 const BCRYPT_SALT_ROUNDS = 10;
 
@@ -278,21 +279,21 @@ app.http('requestPasswordReset', {
                 { token: resetToken, expiry, userId: users[0].UserId }
             );
 
-            context.log('─────────────────────────────────────────');
-            context.log('[EMAIL - DEV MODE] Password Reset Request');
-            context.log(`To: ${users[0].Email}`);
-            context.log(`Subject: Password Reset — CAT Bootcamp Feedback`);
-            context.log('');
-            context.log(`Hello ${users[0].Username},`);
-            context.log('');
-            context.log('A password reset was requested for your account.');
-            context.log('Please contact your administrator to complete the reset.');
-            context.log(`Your reset token: ${resetToken.substring(0, 8)}...`);
-            context.log('This token expires in 1 hour.');
-            context.log('');
-            context.log('If you did not request this, you can safely ignore this message.');
-            context.log('─────────────────────────────────────────');
-            // In production, send email via SendGrid/Azure Communication Services
+            await sendEmail({
+                to: users[0].Email,
+                subject: 'Password Reset — CAT Bootcamp Feedback',
+                text: [
+                    `Hello ${users[0].Username},`,
+                    '',
+                    'A password reset was requested for your account on the CAT Bootcamp Feedback System.',
+                    '',
+                    'Please contact your administrator to complete the reset.',
+                    '',
+                    'If you did not request this, you can safely ignore this message.',
+                    '',
+                    '— CAT Bootcamp Feedback System'
+                ].join('\n')
+            });
 
             return successResponse;
 
@@ -354,20 +355,22 @@ app.http('recoverUsername', {
             );
 
             if (users.length > 0) {
-                context.log('─────────────────────────────────────────');
-                context.log('[EMAIL - DEV MODE] Username Recovery');
-                context.log(`To: ${users[0].Email}`);
-                context.log(`Subject: Your Username — CAT Bootcamp Feedback`);
-                context.log('');
-                context.log(`Hello,`);
-                context.log('');
-                context.log('A username recovery was requested for this email address.');
-                context.log(`Your username is: ${users[0].Username}`);
-                context.log('');
-                context.log('You can log in at the admin panel using this username.');
-                context.log('If you did not request this, you can safely ignore this message.');
-                context.log('─────────────────────────────────────────');
-                // In production, send email via SendGrid/Azure Communication Services
+                await sendEmail({
+                    to: users[0].Email,
+                    subject: 'Your Username — CAT Bootcamp Feedback',
+                    text: [
+                        'Hello,',
+                        '',
+                        'A username recovery was requested for this email address.',
+                        '',
+                        `Your username is: ${users[0].Username}`,
+                        '',
+                        'You can log in at the admin panel using this username.',
+                        'If you did not request this, you can safely ignore this message.',
+                        '',
+                        '— CAT Bootcamp Feedback System'
+                    ].join('\n')
+                });
             } else {
                 context.log(`Username recovery requested for unknown email: ${email}`);
             }
