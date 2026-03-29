@@ -39,6 +39,9 @@ app.http('getEventModules', {
                     em.ModuleId,
                     m.ModuleName,
                     em.SpeakerName,
+                    em.SpeakerId,
+                    s.Bio AS SpeakerBio,
+                    s.ProfileImage AS SpeakerImage,
                     em.DeliveryOrder,
                     em.DeliveryDate,
                     em.Notes,
@@ -46,6 +49,7 @@ app.http('getEventModules', {
                     m.IsActive
                 FROM EventModules em
                 INNER JOIN Modules m ON em.ModuleId = m.ModuleId
+                LEFT JOIN Speakers s ON em.SpeakerId = s.SpeakerId
                 WHERE em.EventId = @eventId
                 ORDER BY em.DeliveryOrder ASC
             `, { eventId: parseInt(eventId) });
@@ -56,6 +60,9 @@ app.http('getEventModules', {
                 moduleId: em.ModuleId,
                 moduleName: em.ModuleName,
                 speakerName: em.SpeakerName,
+                speakerId: em.SpeakerId,
+                speakerBio: em.SpeakerBio,
+                speakerImage: em.SpeakerImage,
                 deliveryOrder: em.DeliveryOrder,
                 deliveryDate: em.DeliveryDate,
                 notes: em.Notes,
@@ -96,7 +103,7 @@ app.http('addEventModule', {
             // Parse request body
             const bodyText = await request.text();
             const body = JSON.parse(bodyText);
-            const { eventId, moduleId, speakerName, deliveryOrder, deliveryDate, notes } = body;
+            const { eventId, moduleId, speakerId, speakerName, deliveryOrder, deliveryDate, notes } = body;
 
             // Resource-level access check
             const caller = getAuthenticatedUser(request);
@@ -108,14 +115,30 @@ app.http('addEventModule', {
                 }
             }
 
-            // Validate required fields
-            if (!eventId || !moduleId || !speakerName) {
-                const errorResponse = error(400, 'Event ID, Module ID, and Speaker Name are required', 'INVALID_DATA');
+            // Validate required fields — accept speakerId (preferred) or speakerName (backward compat)
+            if (!eventId || !moduleId || (!speakerId && !speakerName)) {
+                const errorResponse = error(400, 'Event ID, Module ID, and Speaker (speakerId or speakerName) are required', 'INVALID_DATA');
                 return {
                     status: errorResponse.status,
                     headers: errorResponse.headers,
                     body: errorResponse.body
                 };
+            }
+
+            // Resolve speaker: if speakerId provided, look up name; otherwise use speakerName directly
+            let resolvedSpeakerId = speakerId ? parseInt(speakerId) : null;
+            let resolvedSpeakerName = speakerName ? speakerName.trim() : null;
+
+            if (resolvedSpeakerId) {
+                const speakerLookup = await query(
+                    'SELECT SpeakerName FROM Speakers WHERE SpeakerId = @speakerId',
+                    { speakerId: resolvedSpeakerId }
+                );
+                if (speakerLookup.length === 0) {
+                    const errorResponse = error(400, 'Speaker not found', 'INVALID_DATA');
+                    return { status: errorResponse.status, headers: errorResponse.headers, body: errorResponse.body };
+                }
+                resolvedSpeakerName = speakerLookup[0].SpeakerName;
             }
 
             // Check if this module is already added to this event
@@ -155,14 +178,15 @@ app.http('addEventModule', {
 
             // Insert event module at the requested position
             const result = await query(`
-                INSERT INTO EventModules (EventId, ModuleId, SpeakerName, DeliveryOrder, DeliveryDate, Notes, CreatedAt)
+                INSERT INTO EventModules (EventId, ModuleId, SpeakerName, SpeakerId, DeliveryOrder, DeliveryDate, Notes, CreatedAt)
                 OUTPUT INSERTED.EventModuleId, INSERTED.EventId, INSERTED.ModuleId,
-                       INSERTED.SpeakerName, INSERTED.DeliveryOrder, INSERTED.DeliveryDate, INSERTED.Notes
-                VALUES (@eventId, @moduleId, @speakerName, @deliveryOrder, @deliveryDate, @notes, GETDATE())
+                       INSERTED.SpeakerName, INSERTED.SpeakerId, INSERTED.DeliveryOrder, INSERTED.DeliveryDate, INSERTED.Notes
+                VALUES (@eventId, @moduleId, @speakerName, @speakerId, @deliveryOrder, @deliveryDate, @notes, GETDATE())
             `, {
                 eventId: parseInt(eventId),
                 moduleId: parseInt(moduleId),
-                speakerName: speakerName.trim(),
+                speakerName: resolvedSpeakerName,
+                speakerId: resolvedSpeakerId,
                 deliveryOrder: requestedOrder,
                 deliveryDate: deliveryDate || null,
                 notes: notes ? notes.trim() : null
@@ -171,7 +195,7 @@ app.http('addEventModule', {
             const created = result[0];
 
             context.log(`Module ${moduleId} added to event ${eventId}`);
-            await audit(request, 'ADD_MODULE', 'EventModule', created.EventModuleId, `Added module ModuleId=${moduleId} to EventId=${eventId} (speaker: ${speakerName.trim()})`, { eventId: parseInt(eventId), moduleId: parseInt(moduleId), speakerName: speakerName.trim(), deliveryOrder: requestedOrder });
+            await audit(request, 'ADD_MODULE', 'EventModule', created.EventModuleId, `Added module ModuleId=${moduleId} to EventId=${eventId} (speaker: ${resolvedSpeakerName})`, { eventId: parseInt(eventId), moduleId: parseInt(moduleId), speakerName: resolvedSpeakerName, speakerId: resolvedSpeakerId, deliveryOrder: requestedOrder });
 
             const response = success({
                 message: 'Module added to event successfully',
@@ -180,6 +204,7 @@ app.http('addEventModule', {
                     eventId: created.EventId,
                     moduleId: created.ModuleId,
                     speakerName: created.SpeakerName,
+                    speakerId: created.SpeakerId,
                     deliveryOrder: created.DeliveryOrder,
                     deliveryDate: created.DeliveryDate,
                     notes: created.Notes
@@ -444,13 +469,13 @@ app.http('updateEventModuleSpeaker', {
                 };
             }
 
-            // Parse request body
+            // Parse request body — accepts speakerId (preferred) or speakerName (backward compat)
             const bodyText = await request.text();
             const body = JSON.parse(bodyText);
-            const { speakerName } = body;
+            const { speakerId, speakerName } = body;
 
-            if (!speakerName || !speakerName.trim()) {
-                const errorResponse = error(400, 'Speaker name is required', 'INVALID_DATA');
+            if (!speakerId && (!speakerName || !speakerName.trim())) {
+                const errorResponse = error(400, 'Speaker (speakerId or speakerName) is required', 'INVALID_DATA');
                 return {
                     status: errorResponse.status,
                     headers: errorResponse.headers,
@@ -458,9 +483,25 @@ app.http('updateEventModuleSpeaker', {
                 };
             }
 
+            // Resolve speaker
+            let resolvedSpeakerId = speakerId ? parseInt(speakerId) : null;
+            let resolvedSpeakerName = speakerName ? speakerName.trim() : null;
+
+            if (resolvedSpeakerId) {
+                const speakerLookup = await query(
+                    'SELECT SpeakerName FROM Speakers WHERE SpeakerId = @speakerId',
+                    { speakerId: resolvedSpeakerId }
+                );
+                if (speakerLookup.length === 0) {
+                    const errorResponse = error(400, 'Speaker not found', 'INVALID_DATA');
+                    return { status: errorResponse.status, headers: errorResponse.headers, body: errorResponse.body };
+                }
+                resolvedSpeakerName = speakerLookup[0].SpeakerName;
+            }
+
             // Check if event module exists
             const existing = await query(
-                'SELECT EventModuleId, SpeakerName FROM EventModules WHERE EventModuleId = @eventModuleId',
+                'SELECT EventModuleId, SpeakerName, SpeakerId FROM EventModules WHERE EventModuleId = @eventModuleId',
                 { eventModuleId: parseInt(eventModuleId) }
             );
 
@@ -473,22 +514,24 @@ app.http('updateEventModuleSpeaker', {
                 };
             }
 
-            // Update the speaker name
+            // Update both SpeakerName and SpeakerId
             await query(
-                'UPDATE EventModules SET SpeakerName = @speakerName WHERE EventModuleId = @eventModuleId',
+                'UPDATE EventModules SET SpeakerName = @speakerName, SpeakerId = @speakerId WHERE EventModuleId = @eventModuleId',
                 {
                     eventModuleId: parseInt(eventModuleId),
-                    speakerName: speakerName.trim()
+                    speakerName: resolvedSpeakerName,
+                    speakerId: resolvedSpeakerId
                 }
             );
 
-            context.log(`Event module ${eventModuleId} speaker updated to "${speakerName.trim()}"`);
-            await audit(request, 'UPDATE_SPEAKER', 'EventModule', parseInt(eventModuleId), `Changed speaker to "${speakerName.trim()}" (was "${existing[0].SpeakerName}")`, { eventModuleId: parseInt(eventModuleId), newSpeaker: speakerName.trim(), previousSpeaker: existing[0].SpeakerName });
+            context.log(`Event module ${eventModuleId} speaker updated to "${resolvedSpeakerName}"`);
+            await audit(request, 'UPDATE_SPEAKER', 'EventModule', parseInt(eventModuleId), `Changed speaker to "${resolvedSpeakerName}" (was "${existing[0].SpeakerName}")`, { eventModuleId: parseInt(eventModuleId), newSpeaker: resolvedSpeakerName, newSpeakerId: resolvedSpeakerId, previousSpeaker: existing[0].SpeakerName, previousSpeakerId: existing[0].SpeakerId });
 
             const response = success({
                 message: 'Speaker updated successfully',
                 eventModuleId: parseInt(eventModuleId),
-                speakerName: speakerName.trim()
+                speakerName: resolvedSpeakerName,
+                speakerId: resolvedSpeakerId
             });
 
             return {

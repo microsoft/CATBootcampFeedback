@@ -18,6 +18,17 @@ require('./functions/update-event');
 require('./functions/update-event-status');
 require('./functions/event-modules');
 
+// Speakers
+require('./functions/speakers');
+require('./functions/update-speaker');
+
+// Templates
+require('./functions/templates');
+require('./functions/update-template');
+
+// Create Event from Template
+require('./functions/create-event-from-template');
+
 // Feedback
 require('./functions/feedback');
 

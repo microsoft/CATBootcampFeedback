@@ -26,6 +26,11 @@ let allUsers = [];
 let allRoles = [];
 let currentEventId = null;
 let loginRateLimiter = null;
+let allSpeakers = [];
+let allTemplates = [];
+let currentEditingSpeakerId = null;
+let currentEditingTemplateId = null;
+let templateModulesList = []; // modules being built in the template modal
 
 // ── Permission helper ────────────────────────────
 const PERMISSIONS = {
@@ -41,6 +46,10 @@ const PERMISSIONS = {
     DELETE_FEEDBACK:      ['GlobalAdmin', 'FeedbackManager'],
     MANAGE_EVENT_MODULES: ['GlobalAdmin', 'EventCreator'],
     VIEW_ANALYTICS:       ['GlobalAdmin', 'EventCreator', 'FeedbackManager', 'FeedbackViewer'],
+    MANAGE_SPEAKERS:      ['GlobalAdmin', 'ModuleManager'],
+    VIEW_SPEAKERS:        ['GlobalAdmin', 'ModuleManager', 'EventCreator'],
+    MANAGE_TEMPLATES:     ['GlobalAdmin', 'ModuleManager'],
+    VIEW_TEMPLATES:       ['GlobalAdmin', 'ModuleManager', 'EventCreator'],
 };
 
 function isAllowed(permission) {
@@ -171,6 +180,8 @@ function setupEventListeners() {
             } else if (target.classList.contains('btn-toggle-status')) {
                 console.log('Toggle status clicked for event:', eventId);
                 toggleEventStatus(eventId);
+            } else if (target.classList.contains('btn-save-as-template')) {
+                openSaveAsTemplateModal(eventId, target.dataset.eventName);
             }
             return;
         }
@@ -214,6 +225,70 @@ function setupEventListeners() {
     // Clickable stat cards
     document.getElementById('totalEventsCard').addEventListener('click', navigateToEventsWithFilters);
     document.getElementById('totalFeedbackCard').addEventListener('click', navigateToFeedbackWithFilters);
+
+    // Speakers tab
+    const createSpeakerBtn2 = document.getElementById('createSpeakerBtn');
+    if (createSpeakerBtn2) createSpeakerBtn2.addEventListener('click', () => openSpeakerModal());
+    const speakerSearch = document.getElementById('speakerSearch');
+    if (speakerSearch) speakerSearch.addEventListener('input', debounce(filterSpeakers, 300));
+    const closeSpeakerModalBtn = document.getElementById('closeSpeakerModal');
+    if (closeSpeakerModalBtn) closeSpeakerModalBtn.addEventListener('click', closeSpeakerModal);
+    const cancelSpeakerModalBtn = document.getElementById('cancelSpeakerModal');
+    if (cancelSpeakerModalBtn) cancelSpeakerModalBtn.addEventListener('click', closeSpeakerModal);
+    const speakerForm = document.getElementById('speakerForm');
+    if (speakerForm) speakerForm.addEventListener('submit', handleSaveSpeaker);
+    const deleteSpeakersBtn = document.getElementById('deleteSpeakersBtn');
+    if (deleteSpeakersBtn) deleteSpeakersBtn.addEventListener('click', handleBulkDeleteSpeakers);
+    const selectAllSpeakers = document.getElementById('selectAllSpeakers');
+    if (selectAllSpeakers) selectAllSpeakers.addEventListener('change', toggleAllSpeakers);
+
+    // Speaker avatar upload
+    setupSpeakerAvatarUpload();
+
+    // Quick add speaker from module modal
+    const quickAddSpeakerLink = document.getElementById('quickAddSpeakerFromModule');
+    if (quickAddSpeakerLink) quickAddSpeakerLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        openSpeakerModal();
+    });
+
+    // Templates tab
+    const createTemplateBtnEl = document.getElementById('createTemplateBtn');
+    if (createTemplateBtnEl) createTemplateBtnEl.addEventListener('click', () => openTemplateModal());
+    const createTemplateFromEventBtnEl = document.getElementById('createTemplateFromEventBtn');
+    if (createTemplateFromEventBtnEl) createTemplateFromEventBtnEl.addEventListener('click', openEventPickerModal);
+    const templateSearch = document.getElementById('templateSearch');
+    if (templateSearch) templateSearch.addEventListener('input', debounce(filterTemplates, 300));
+    const closeTemplateModalBtn = document.getElementById('closeTemplateModal');
+    if (closeTemplateModalBtn) closeTemplateModalBtn.addEventListener('click', closeTemplateModal);
+    const cancelTemplateModalBtn = document.getElementById('cancelTemplateModal');
+    if (cancelTemplateModalBtn) cancelTemplateModalBtn.addEventListener('click', closeTemplateModal);
+    const templateForm = document.getElementById('templateForm');
+    if (templateForm) templateForm.addEventListener('submit', handleSaveTemplate);
+    const addTemplateModuleBtn = document.getElementById('addTemplateModuleBtn');
+    if (addTemplateModuleBtn) addTemplateModuleBtn.addEventListener('click', addModuleToTemplate);
+
+    // Event picker modal (for template from event)
+    const closeEventPickerModalBtn = document.getElementById('closeEventPickerModal');
+    if (closeEventPickerModalBtn) closeEventPickerModalBtn.addEventListener('click', closeEventPickerModal);
+    const eventPickerSearch = document.getElementById('eventPickerSearch');
+    if (eventPickerSearch) eventPickerSearch.addEventListener('input', debounce(filterEventPicker, 300));
+
+    // Template selection modal (for event from template)
+    const createEventFromTemplateBtnEl = document.getElementById('createEventFromTemplateBtn');
+    if (createEventFromTemplateBtnEl) createEventFromTemplateBtnEl.addEventListener('click', openTemplateSelectionModal);
+    const closeTemplateSelectionModalBtn = document.getElementById('closeTemplateSelectionModal');
+    if (closeTemplateSelectionModalBtn) closeTemplateSelectionModalBtn.addEventListener('click', closeTemplateSelectionModal);
+    const templateSelectionSearch = document.getElementById('templateSelectionSearch');
+    if (templateSelectionSearch) templateSelectionSearch.addEventListener('input', debounce(filterTemplateSelection, 300));
+
+    // Save as template modal
+    const closeSaveAsTemplateModalBtn = document.getElementById('closeSaveAsTemplateModal');
+    if (closeSaveAsTemplateModalBtn) closeSaveAsTemplateModalBtn.addEventListener('click', closeSaveAsTemplateModal);
+    const cancelSaveAsTemplateBtn = document.getElementById('cancelSaveAsTemplate');
+    if (cancelSaveAsTemplateBtn) cancelSaveAsTemplateBtn.addEventListener('click', closeSaveAsTemplateModal);
+    const saveAsTemplateForm = document.getElementById('saveAsTemplateForm');
+    if (saveAsTemplateForm) saveAsTemplateForm.addEventListener('submit', handleSaveAsTemplate);
 }
 
 // Handle login
@@ -315,6 +390,10 @@ function applyPermissionUI() {
     if (usersTabBtn) usersTabBtn.style.display = isAllowed('MANAGE_USERS') ? '' : 'none';
     const auditLogTabBtn = document.getElementById('auditLogTabBtn');
     if (auditLogTabBtn) auditLogTabBtn.style.display = currentUserRoles.includes('GlobalAdmin') ? '' : 'none';
+    const speakersTabBtn = document.getElementById('speakersTabBtn');
+    if (speakersTabBtn) speakersTabBtn.style.display = isAllowed('VIEW_SPEAKERS') ? '' : 'none';
+    const templatesTabBtn = document.getElementById('templatesTabBtn');
+    if (templatesTabBtn) templatesTabBtn.style.display = isAllowed('VIEW_TEMPLATES') ? '' : 'none';
 
     // Module action buttons
     const createModuleBtn = document.getElementById('createModuleBtn');
@@ -325,6 +404,20 @@ function applyPermissionUI() {
     const createEventBtn = document.getElementById('createEventBtn');
     const deleteEventsBtn = document.getElementById('deleteEventsBtn');
     if (createEventBtn) createEventBtn.style.display = isAllowed('CREATE_EVENTS') ? '' : 'none';
+
+    // Speaker action buttons
+    const createSpeakerBtn = document.getElementById('createSpeakerBtn');
+    if (createSpeakerBtn) createSpeakerBtn.style.display = isAllowed('MANAGE_SPEAKERS') ? '' : 'none';
+
+    // Template action buttons
+    const createTemplateBtn = document.getElementById('createTemplateBtn');
+    const createTemplateFromEventBtn = document.getElementById('createTemplateFromEventBtn');
+    if (createTemplateBtn) createTemplateBtn.style.display = isAllowed('MANAGE_TEMPLATES') ? '' : 'none';
+    if (createTemplateFromEventBtn) createTemplateFromEventBtn.style.display = isAllowed('MANAGE_TEMPLATES') ? '' : 'none';
+
+    // Create from template button (EventCreator can use)
+    const createEventFromTemplateBtn = document.getElementById('createEventFromTemplateBtn');
+    if (createEventFromTemplateBtn) createEventFromTemplateBtn.style.display = isAllowed('VIEW_TEMPLATES') ? '' : 'none';
 
     // Feedback action buttons
     const deleteFeedbackBtn = document.getElementById('deleteFeedbackBtn');
@@ -425,13 +518,26 @@ async function showMainContent() {
             dataPromises.push(Promise.resolve([]));
         }
 
-        const [modules, events, feedback] = await Promise.all(dataPromises);
+        if (isAllowed('VIEW_SPEAKERS')) {
+            dataPromises.push(fetchSpeakers().catch(err => { console.error('fetchSpeakers failed:', err); return []; }));
+        } else {
+            dataPromises.push(Promise.resolve([]));
+        }
+        if (isAllowed('VIEW_TEMPLATES')) {
+            dataPromises.push(fetchTemplates().catch(err => { console.error('fetchTemplates failed:', err); return []; }));
+        } else {
+            dataPromises.push(Promise.resolve([]));
+        }
+
+        const [modules, events, feedback, speakers, templates] = await Promise.all(dataPromises);
 
         console.log('Data loaded successfully:', { modules: modules.length, events: events.length, feedback: feedback.length });
 
         allModules = modules;
         allEvents = events;
         allFeedback = feedback;
+        allSpeakers = speakers || [];
+        allTemplates = templates || [];
 
         renderModules(modules);
         renderEvents(events);
@@ -440,6 +546,8 @@ async function showMainContent() {
         populateSpeakerFilter(feedback);
         populateAnalyticsFilters(events, feedback);
         renderFeedback(feedback);
+        renderSpeakers(allSpeakers);
+        renderTemplates(allTemplates);
         updateAnalyticsUI();
     } catch (error) {
         console.error('Error loading data:', error);
@@ -468,6 +576,10 @@ function switchTab(tabName) {
         fetchUsers();
     } else if (tabName === 'auditlog' && currentUserRoles.includes('GlobalAdmin')) {
         fetchAuditLog(1);
+    } else if (tabName === 'speakers') {
+        loadSpeakers();
+    } else if (tabName === 'templates') {
+        loadTemplates();
     }
 }
 
@@ -1072,6 +1184,11 @@ function renderEvents(events) {
                 <button class="btn btn-secondary btn-icon btn-toggle-status" data-event-id="${event.eventId}" data-is-active="${event.isActive}">
                     ${event.isActive ? '🚫 Deactivate' : '✅ Activate'}
                 </button>
+                ${isAllowed('MANAGE_TEMPLATES') ? `
+                <button class="btn btn-secondary btn-icon btn-save-as-template" data-event-id="${event.eventId}" data-event-name="${escapeHtml(event.eventCode)}">
+                    📋 Save as Template
+                </button>
+                ` : ''}
             </div>
         </div>
     `;
@@ -1716,6 +1833,9 @@ window.openAddModuleModal = async function() {
     // Populate module dropdown
     await populateModuleSelectForEvent();
 
+    // Populate speaker dropdown
+    populateSpeakerDropdowns();
+
     // Display current module order and populate insertion position dropdown
     displayCurrentModuleOrder();
     populateInsertionPositions();
@@ -1878,7 +1998,16 @@ function closeAddModuleModal() {
 function openEditSpeakerModal(eventModuleId, currentSpeakerName) {
     if (!eventModuleId) return;
     document.getElementById('editSpeakerEventModuleId').value = eventModuleId;
-    document.getElementById('editSpeakerName').value = currentSpeakerName || '';
+    // Populate and pre-select the speaker dropdown
+    populateSpeakerDropdowns();
+    const select = document.getElementById('editSpeakerId');
+    if (select) {
+        // Find the speaker by name to pre-select
+        const module = currentEventModules.find(m => m.eventModuleId === eventModuleId);
+        if (module && module.speakerId) {
+            select.value = module.speakerId;
+        }
+    }
     document.getElementById('editSpeakerModal').classList.remove('hidden');
 }
 
@@ -1892,16 +2021,16 @@ async function handleEditSpeaker(e) {
     e.preventDefault();
 
     const eventModuleId = document.getElementById('editSpeakerEventModuleId').value;
-    const speakerName = document.getElementById('editSpeakerName').value.trim();
+    const speakerId = document.getElementById('editSpeakerId').value;
 
-    if (!speakerName) {
-        showNotification('Error', 'Please enter a speaker name', 'error');
+    if (!speakerId) {
+        showNotification('Error', 'Please select a speaker', 'error');
         return;
     }
 
     try {
         const result = await apiPut(`/event-modules/${eventModuleId}/speaker`, {
-            speakerName: speakerName
+            speakerId: parseInt(speakerId)
         });
 
         if (result.success) {
@@ -1929,13 +2058,13 @@ async function handleAddModule(e) {
     e.preventDefault();
 
     const moduleId = document.getElementById('moduleSelectForEvent').value;
-    const speakerName = document.getElementById('speakerNameForModule').value;
+    const speakerId = document.getElementById('speakerIdForModule').value;
     const deliveryOrder = document.getElementById('deliveryOrder').value;
     const deliveryDate = document.getElementById('deliveryDate').value;
     const notes = document.getElementById('moduleNotes').value;
 
-    if (!moduleId || !speakerName) {
-        showNotification('Error', 'Please select a module and enter speaker name', 'error');
+    if (!moduleId || !speakerId) {
+        showNotification('Error', 'Please select a module and a speaker', 'error');
         return;
     }
 
@@ -1943,7 +2072,7 @@ async function handleAddModule(e) {
         const result = await apiPost('/event-modules', {
             eventId: parseInt(currentEventIdForModule),
             moduleId: parseInt(moduleId),
-            speakerName: speakerName,
+            speakerId: parseInt(speakerId),
             deliveryOrder: parseInt(deliveryOrder) || 1,
             deliveryDate: deliveryDate || null,
             notes: notes || null
@@ -4669,6 +4798,870 @@ function setupAuditLogListeners() {
 }
 
 setupAuditLogListeners();
+
+// ====================================
+// SPEAKERS MANAGEMENT
+// ====================================
+
+async function fetchSpeakers() {
+    const result = await apiGet('/speakers');
+    return result.data || result || [];
+}
+
+async function loadSpeakers() {
+    try {
+        const speakers = await fetchSpeakers();
+        allSpeakers = speakers;
+        renderSpeakers(speakers);
+    } catch (error) {
+        console.error('Error loading speakers:', error);
+    }
+}
+
+function renderSpeakers(speakers) {
+    const list = document.getElementById('speakersList');
+    if (!list) return;
+
+    if (!speakers || speakers.length === 0) {
+        list.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🎤</div>
+                <p>No speakers found. Create your first speaker to get started.</p>
+            </div>
+        `;
+        return;
+    }
+
+    list.innerHTML = speakers.map(speaker => {
+        const initials = (speaker.speakerName || '?').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+        const avatarContent = speaker.profileImage
+            ? `<img src="${speaker.profileImage}" alt="${escapeHtml(speaker.speakerName)}">`
+            : initials;
+
+        return `
+        <div class="speaker-card" data-speaker-id="${speaker.speakerId}">
+            <input type="checkbox" class="speaker-checkbox" data-speaker-id="${speaker.speakerId}" style="cursor: pointer; width: 18px; height: 18px; margin-top: 3px;">
+            <div class="speaker-avatar">${avatarContent}</div>
+            <div class="speaker-info">
+                <div class="speaker-name">${escapeHtml(speaker.speakerName)}</div>
+                ${speaker.bio ? `<div class="speaker-bio">${escapeHtml(speaker.bio)}</div>` : ''}
+                <div class="speaker-meta">
+                    <span>📅 ${speaker.eventCount || 0} event${speaker.eventCount === 1 ? '' : 's'}</span>
+                    <span class="status-badge ${speaker.isActive ? 'active' : 'inactive'}">${speaker.isActive ? 'Active' : 'Inactive'}</span>
+                </div>
+            </div>
+            <div class="speaker-actions">
+                ${isAllowed('MANAGE_SPEAKERS') ? `
+                <button class="btn btn-secondary btn-sm btn-edit-speaker-record" data-speaker-id="${speaker.speakerId}">✏️ Edit</button>
+                <button class="btn btn-danger btn-sm btn-delete-speaker-record" data-speaker-id="${speaker.speakerId}">🗑️</button>
+                ` : ''}
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    // Add click handlers for edit/delete buttons via delegation
+    list.querySelectorAll('.btn-edit-speaker-record').forEach(btn => {
+        btn.addEventListener('click', () => openSpeakerModal(parseInt(btn.dataset.speakerId)));
+    });
+    list.querySelectorAll('.btn-delete-speaker-record').forEach(btn => {
+        btn.addEventListener('click', () => deleteSpeaker(parseInt(btn.dataset.speakerId)));
+    });
+
+    updateSpeakerBulkDeleteVisibility();
+}
+
+function filterSpeakers() {
+    const search = document.getElementById('speakerSearch').value.toLowerCase();
+    const filtered = allSpeakers.filter(s =>
+        s.speakerName.toLowerCase().includes(search) ||
+        (s.bio && s.bio.toLowerCase().includes(search))
+    );
+    renderSpeakers(filtered);
+}
+
+function openSpeakerModal(speakerId = null) {
+    currentEditingSpeakerId = speakerId;
+    const modal = document.getElementById('speakerModal');
+    const title = document.getElementById('speakerModalTitle');
+    const form = document.getElementById('speakerForm');
+    form.reset();
+
+    const preview = document.getElementById('speakerAvatarPreview');
+    const removeBtn = document.getElementById('removeSpeakerAvatar');
+
+    if (speakerId) {
+        title.textContent = 'Edit Speaker';
+        const speaker = allSpeakers.find(s => s.speakerId === speakerId);
+        if (speaker) {
+            document.getElementById('speakerName').value = speaker.speakerName;
+            document.getElementById('speakerBio').value = speaker.bio || '';
+            document.getElementById('speakerIsActive').checked = speaker.isActive;
+            if (speaker.profileImage) {
+                preview.innerHTML = `<img src="${speaker.profileImage}" alt="Preview">`;
+                preview.dataset.imageData = speaker.profileImage;
+                if (removeBtn) removeBtn.style.display = '';
+            } else {
+                const initials = (speaker.speakerName || '?').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+                preview.innerHTML = `<span>${initials}</span>`;
+                preview.dataset.imageData = '';
+                if (removeBtn) removeBtn.style.display = 'none';
+            }
+        }
+    } else {
+        title.textContent = 'Create New Speaker';
+        preview.innerHTML = `<span id="speakerAvatarInitials"></span>`;
+        preview.dataset.imageData = '';
+        if (removeBtn) removeBtn.style.display = 'none';
+    }
+
+    modal.classList.remove('hidden');
+}
+
+function closeSpeakerModal() {
+    document.getElementById('speakerModal').classList.add('hidden');
+    currentEditingSpeakerId = null;
+}
+
+async function handleSaveSpeaker(e) {
+    e.preventDefault();
+
+    const name = document.getElementById('speakerName').value.trim();
+    const bio = document.getElementById('speakerBio').value.trim();
+    const isActive = document.getElementById('speakerIsActive').checked;
+    const preview = document.getElementById('speakerAvatarPreview');
+    const profileImage = preview.dataset.imageData || null;
+
+    if (!name || name.length < 2) {
+        showNotification('Error', 'Speaker name must be at least 2 characters', 'error');
+        return;
+    }
+
+    try {
+        const payload = { speakerName: name, bio: bio || null, profileImage, isActive };
+        let result;
+
+        if (currentEditingSpeakerId) {
+            result = await apiPut(`/speakers/${currentEditingSpeakerId}`, payload);
+        } else {
+            result = await apiPost('/speakers', payload);
+        }
+
+        if (result.success !== false) {
+            closeSpeakerModal();
+            await loadSpeakers();
+            // Also refresh speaker dropdowns
+            populateSpeakerDropdowns();
+            showNotification('Success', currentEditingSpeakerId ? 'Speaker updated!' : 'Speaker created!', 'success');
+        } else {
+            showNotification('Error', result.message || 'Error saving speaker', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving speaker:', error);
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showNotification('Error', friendlyError.message, 'error');
+    }
+}
+
+async function deleteSpeaker(speakerId) {
+    const speaker = allSpeakers.find(s => s.speakerId === speakerId);
+    if (!confirm(`Are you sure you want to delete speaker "${speaker?.speakerName || 'Unknown'}"?`)) return;
+
+    try {
+        const result = await apiDelete(`/speakers/${speakerId}`);
+        if (result.success) {
+            await loadSpeakers();
+            populateSpeakerDropdowns();
+            showNotification('Success', 'Speaker deleted', 'success');
+        } else {
+            showNotification('Error', result.message || 'Error deleting speaker', 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting speaker:', error);
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showNotification('Error', friendlyError.message, 'error');
+    }
+}
+
+async function handleBulkDeleteSpeakers() {
+    const checked = document.querySelectorAll('.speaker-checkbox:checked');
+    const ids = Array.from(checked).map(cb => parseInt(cb.dataset.speakerId));
+    if (ids.length === 0) return;
+    if (!confirm(`Delete ${ids.length} speaker(s)?`)) return;
+
+    try {
+        const result = await apiPost('/speakers/bulk-delete', { speakerIds: ids });
+        if (result.success) {
+            await loadSpeakers();
+            populateSpeakerDropdowns();
+            showNotification('Success', result.message, 'success');
+        } else {
+            showNotification('Error', result.message || 'Error deleting speakers', 'error');
+        }
+    } catch (error) {
+        console.error('Error bulk deleting speakers:', error);
+        showNotification('Error', 'Error deleting speakers', 'error');
+    }
+}
+
+function toggleAllSpeakers(e) {
+    document.querySelectorAll('.speaker-checkbox').forEach(cb => { cb.checked = e.target.checked; });
+    updateSpeakerBulkDeleteVisibility();
+}
+
+function updateSpeakerBulkDeleteVisibility() {
+    const checked = document.querySelectorAll('.speaker-checkbox:checked');
+    const btn = document.getElementById('deleteSpeakersBtn');
+    if (btn) btn.style.display = checked.length > 0 ? '' : 'none';
+    // Also listen for individual checkbox changes
+    document.querySelectorAll('.speaker-checkbox').forEach(cb => {
+        cb.removeEventListener('change', updateSpeakerBulkDeleteVisibility);
+        cb.addEventListener('change', updateSpeakerBulkDeleteVisibility);
+    });
+}
+
+function setupSpeakerAvatarUpload() {
+    const fileInput = document.getElementById('speakerAvatarInput');
+    if (fileInput) {
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.size > 500 * 1024) {
+                showNotification('Error', 'Image is too large. Maximum size is 500KB.', 'error');
+                fileInput.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const size = Math.min(img.width, img.height);
+                    canvas.width = 200;
+                    canvas.height = 200;
+                    const ctx = canvas.getContext('2d');
+                    const sx = (img.width - size) / 2;
+                    const sy = (img.height - size) / 2;
+                    ctx.drawImage(img, sx, sy, size, size, 0, 0, 200, 200);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                    const preview = document.getElementById('speakerAvatarPreview');
+                    preview.innerHTML = `<img src="${dataUrl}" alt="Preview">`;
+                    preview.dataset.imageData = dataUrl;
+                    const removeBtn = document.getElementById('removeSpeakerAvatar');
+                    if (removeBtn) removeBtn.style.display = '';
+                };
+                img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+    const removeBtn = document.getElementById('removeSpeakerAvatar');
+    if (removeBtn) {
+        removeBtn.addEventListener('click', () => {
+            const preview = document.getElementById('speakerAvatarPreview');
+            preview.innerHTML = `<span></span>`;
+            preview.dataset.imageData = '';
+            removeBtn.style.display = 'none';
+            if (fileInput) fileInput.value = '';
+        });
+    }
+}
+
+// Populate speaker dropdowns (used in add module modal, edit speaker modal)
+function populateSpeakerDropdowns() {
+    const activeSpeakers = allSpeakers.filter(s => s.isActive);
+    const options = '<option value="">-- Select a Speaker --</option>' +
+        activeSpeakers.map(s => `<option value="${s.speakerId}">${escapeHtml(s.speakerName)}</option>`).join('');
+
+    const addModuleSelect = document.getElementById('speakerIdForModule');
+    if (addModuleSelect) addModuleSelect.innerHTML = options;
+
+    const editSpeakerSelect = document.getElementById('editSpeakerId');
+    if (editSpeakerSelect) editSpeakerSelect.innerHTML = options;
+}
+
+// Override the openAddModuleModal to populate speaker dropdown
+const originalOpenAddModuleModal = typeof openAddModuleModal === 'function' ? openAddModuleModal : null;
+
+// ====================================
+// TEMPLATES MANAGEMENT
+// ====================================
+
+async function fetchTemplates() {
+    const result = await apiGet('/templates');
+    return result.data || result || [];
+}
+
+async function loadTemplates() {
+    try {
+        const templates = await fetchTemplates();
+        allTemplates = templates;
+        renderTemplates(templates);
+    } catch (error) {
+        console.error('Error loading templates:', error);
+    }
+}
+
+function renderTemplates(templates) {
+    const list = document.getElementById('templatesList');
+    if (!list) return;
+
+    if (!templates || templates.length === 0) {
+        list.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📋</div>
+                <p>No templates found. Create a template to quickly set up recurring events.</p>
+            </div>
+        `;
+        return;
+    }
+
+    list.innerHTML = templates.map(template => {
+        const modulesList = (template.modules || [])
+            .sort((a, b) => a.deliveryOrder - b.deliveryOrder)
+            .map(m => `<li>${escapeHtml(m.moduleName)}</li>`).join('');
+
+        return `
+        <div class="template-card" data-template-id="${template.templateId}">
+            <div class="template-card-header">
+                <div class="template-name">${escapeHtml(template.templateName)}</div>
+                <span class="status-badge ${template.isActive ? 'active' : 'inactive'}">${template.isActive ? 'Active' : 'Inactive'}</span>
+            </div>
+            ${template.description ? `<div class="template-description">${escapeHtml(template.description)}</div>` : ''}
+            <div class="template-meta">
+                <span>📚 ${template.moduleCount || 0} module${template.moduleCount === 1 ? '' : 's'}</span>
+                ${template.trainingTrack ? `<span>🎓 ${escapeHtml(template.trainingTrack)}</span>` : ''}
+                <span>📅 ${formatDate(template.createdAt)}</span>
+            </div>
+            ${(template.modules || []).length > 0 ? `
+            <div class="template-modules-preview">
+                <h5>Modules:</h5>
+                <ol>${modulesList}</ol>
+            </div>
+            ` : ''}
+            <div class="template-actions">
+                ${isAllowed('CREATE_EVENTS') ? `
+                <button class="btn btn-primary btn-sm btn-use-template" data-template-id="${template.templateId}">📅 Create Event</button>
+                ` : ''}
+                ${isAllowed('MANAGE_TEMPLATES') ? `
+                <button class="btn btn-secondary btn-sm btn-edit-template" data-template-id="${template.templateId}">✏️ Edit</button>
+                <button class="btn btn-danger btn-sm btn-delete-template" data-template-id="${template.templateId}">🗑️</button>
+                ` : ''}
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    // Event listeners via delegation
+    list.querySelectorAll('.btn-edit-template').forEach(btn => {
+        btn.addEventListener('click', () => openTemplateModal(parseInt(btn.dataset.templateId)));
+    });
+    list.querySelectorAll('.btn-delete-template').forEach(btn => {
+        btn.addEventListener('click', () => deleteTemplate(parseInt(btn.dataset.templateId)));
+    });
+    list.querySelectorAll('.btn-use-template').forEach(btn => {
+        btn.addEventListener('click', () => handleCreateEventFromTemplate(parseInt(btn.dataset.templateId)));
+    });
+}
+
+function filterTemplates() {
+    const search = document.getElementById('templateSearch').value.toLowerCase();
+    const filtered = allTemplates.filter(t =>
+        t.templateName.toLowerCase().includes(search) ||
+        (t.description && t.description.toLowerCase().includes(search)) ||
+        (t.trainingTrack && t.trainingTrack.toLowerCase().includes(search))
+    );
+    renderTemplates(filtered);
+}
+
+function openTemplateModal(templateId = null) {
+    currentEditingTemplateId = templateId;
+    const modal = document.getElementById('templateModal');
+    const title = document.getElementById('templateModalTitle');
+    const form = document.getElementById('templateForm');
+    form.reset();
+    templateModulesList = [];
+
+    // Populate module dropdown
+    const select = document.getElementById('templateModuleSelect');
+    if (select) {
+        const activeModules = allModules.filter(m => m.isActive);
+        select.innerHTML = '<option value="">-- Select a Module --</option>' +
+            activeModules.map(m => `<option value="${m.moduleId}">${escapeHtml(m.moduleName)}</option>`).join('');
+    }
+
+    if (templateId) {
+        title.textContent = 'Edit Template';
+        const template = allTemplates.find(t => t.templateId === templateId);
+        if (template) {
+            document.getElementById('templateName').value = template.templateName;
+            document.getElementById('templateDescription').value = template.description || '';
+            document.getElementById('templateTrainingTrack').value = template.trainingTrack || '';
+            templateModulesList = (template.modules || []).map(m => ({
+                moduleId: m.moduleId,
+                moduleName: m.moduleName,
+                deliveryOrder: m.deliveryOrder,
+                notes: m.notes
+            })).sort((a, b) => a.deliveryOrder - b.deliveryOrder);
+        }
+    } else {
+        title.textContent = 'Create New Template';
+    }
+
+    renderTemplateModulesBuilder();
+    modal.classList.remove('hidden');
+}
+
+function closeTemplateModal() {
+    document.getElementById('templateModal').classList.add('hidden');
+    currentEditingTemplateId = null;
+    templateModulesList = [];
+}
+
+function addModuleToTemplate() {
+    const select = document.getElementById('templateModuleSelect');
+    const moduleId = parseInt(select.value);
+    if (!moduleId) {
+        showNotification('Error', 'Please select a module', 'error');
+        return;
+    }
+
+    // Check for duplicates
+    if (templateModulesList.some(m => m.moduleId === moduleId)) {
+        showNotification('Error', 'This module is already in the template', 'error');
+        return;
+    }
+
+    const module = allModules.find(m => m.moduleId === moduleId);
+    templateModulesList.push({
+        moduleId,
+        moduleName: module ? module.moduleName : `Module ${moduleId}`,
+        deliveryOrder: templateModulesList.length + 1,
+        notes: null
+    });
+
+    select.value = '';
+    renderTemplateModulesBuilder();
+}
+
+function renderTemplateModulesBuilder() {
+    const container = document.getElementById('templateModulesList');
+    if (!container) return;
+
+    if (templateModulesList.length === 0) {
+        container.innerHTML = `<div class="empty-state" style="padding: 20px; text-align: center; color: #888;">No modules added yet. Select a module above and click "Add".</div>`;
+        return;
+    }
+
+    container.innerHTML = templateModulesList.map((mod, index) => `
+        <div class="template-module-item" data-index="${index}">
+            <div class="template-module-order">${index + 1}</div>
+            <div class="template-module-name">${escapeHtml(mod.moduleName)}</div>
+            <div class="template-module-actions">
+                <button type="button" onclick="moveTemplateModule(${index}, -1)" ${index === 0 ? 'disabled' : ''}>↑</button>
+                <button type="button" onclick="moveTemplateModule(${index}, 1)" ${index === templateModulesList.length - 1 ? 'disabled' : ''}>↓</button>
+                <button type="button" onclick="removeTemplateModule(${index})" style="color: #e74c3c;">✕</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+window.moveTemplateModule = function(index, direction) {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= templateModulesList.length) return;
+    const temp = templateModulesList[index];
+    templateModulesList[index] = templateModulesList[newIndex];
+    templateModulesList[newIndex] = temp;
+    // Update delivery orders
+    templateModulesList.forEach((m, i) => m.deliveryOrder = i + 1);
+    renderTemplateModulesBuilder();
+};
+
+window.removeTemplateModule = function(index) {
+    templateModulesList.splice(index, 1);
+    templateModulesList.forEach((m, i) => m.deliveryOrder = i + 1);
+    renderTemplateModulesBuilder();
+};
+
+async function handleSaveTemplate(e) {
+    e.preventDefault();
+
+    const name = document.getElementById('templateName').value.trim();
+    const description = document.getElementById('templateDescription').value.trim();
+    const trainingTrack = document.getElementById('templateTrainingTrack').value.trim();
+
+    if (!name || name.length < 3) {
+        showNotification('Error', 'Template name must be at least 3 characters', 'error');
+        return;
+    }
+
+    const modules = templateModulesList.map((m, i) => ({
+        moduleId: m.moduleId,
+        deliveryOrder: i + 1,
+        notes: m.notes || null
+    }));
+
+    try {
+        const payload = { templateName: name, description: description || null, trainingTrack: trainingTrack || null, isActive: true, modules };
+        let result;
+
+        if (currentEditingTemplateId) {
+            result = await apiPut(`/templates/${currentEditingTemplateId}`, payload);
+        } else {
+            result = await apiPost('/templates', payload);
+        }
+
+        if (result.success !== false) {
+            closeTemplateModal();
+            await loadTemplates();
+            showNotification('Success', currentEditingTemplateId ? 'Template updated!' : 'Template created!', 'success');
+        } else {
+            showNotification('Error', result.message || 'Error saving template', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving template:', error);
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showNotification('Error', friendlyError.message, 'error');
+    }
+}
+
+async function deleteTemplate(templateId) {
+    const template = allTemplates.find(t => t.templateId === templateId);
+    if (!confirm(`Delete template "${template?.templateName || 'Unknown'}"?`)) return;
+
+    try {
+        const result = await apiDelete(`/templates/${templateId}`);
+        if (result.success) {
+            await loadTemplates();
+            showNotification('Success', 'Template deleted', 'success');
+        } else {
+            showNotification('Error', result.message || 'Error deleting template', 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting template:', error);
+        showNotification('Error', 'Error deleting template', 'error');
+    }
+}
+
+// ====================================
+// CREATE TEMPLATE FROM EVENT
+// ====================================
+
+function openEventPickerModal() {
+    const modal = document.getElementById('eventPickerModal');
+    const list = document.getElementById('eventPickerList');
+    document.getElementById('templateFromEventName').value = '';
+    document.getElementById('templateFromEventDesc').value = '';
+    document.getElementById('eventPickerSearch').value = '';
+    renderEventPickerList(allEvents);
+    modal.classList.remove('hidden');
+}
+
+function closeEventPickerModal() {
+    document.getElementById('eventPickerModal').classList.add('hidden');
+}
+
+function filterEventPicker() {
+    const search = document.getElementById('eventPickerSearch').value.toLowerCase();
+    const filtered = allEvents.filter(e =>
+        e.eventCode.toLowerCase().includes(search) ||
+        (e.eventName && e.eventName.toLowerCase().includes(search)) ||
+        (e.trainingTrack && e.trainingTrack.toLowerCase().includes(search))
+    );
+    renderEventPickerList(filtered);
+}
+
+function renderEventPickerList(events) {
+    const list = document.getElementById('eventPickerList');
+    if (!events || events.length === 0) {
+        list.innerHTML = '<div class="empty-state" style="padding: 20px; text-align: center; color: #888;">No events found.</div>';
+        return;
+    }
+
+    list.innerHTML = events.map(event => `
+        <div class="event-picker-item" data-event-id="${event.eventId}">
+            <div class="event-picker-name">${escapeHtml(event.eventCode)}</div>
+            <div class="event-picker-meta">
+                ${formatDate(event.startDate)} | ${(event.modules || []).length} module${(event.modules || []).length === 1 ? '' : 's'}
+                ${event.trainingTrack ? ` | ${escapeHtml(event.trainingTrack)}` : ''}
+            </div>
+        </div>
+    `).join('');
+
+    list.querySelectorAll('.event-picker-item').forEach(item => {
+        item.addEventListener('click', () => handlePickEventForTemplate(parseInt(item.dataset.eventId)));
+    });
+}
+
+async function handlePickEventForTemplate(eventId) {
+    const templateName = document.getElementById('templateFromEventName').value.trim();
+    const description = document.getElementById('templateFromEventDesc').value.trim();
+
+    if (!templateName || templateName.length < 3) {
+        showNotification('Error', 'Please enter a template name (at least 3 characters) before selecting an event', 'error');
+        return;
+    }
+
+    try {
+        const result = await apiPost('/templates/from-event', {
+            eventId,
+            templateName,
+            description: description || null
+        });
+
+        if (result.success !== false) {
+            closeEventPickerModal();
+            await loadTemplates();
+            showNotification('Success', 'Template created from event!', 'success');
+        } else {
+            showNotification('Error', result.message || 'Error creating template', 'error');
+        }
+    } catch (error) {
+        console.error('Error creating template from event:', error);
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showNotification('Error', friendlyError.message, 'error');
+    }
+}
+
+// ====================================
+// SAVE EVENT AS TEMPLATE
+// ====================================
+
+function openSaveAsTemplateModal(eventId, eventName) {
+    const modal = document.getElementById('saveAsTemplateModal');
+    const info = document.getElementById('saveAsTemplateEventInfo');
+    const nameInput = document.getElementById('saveAsTemplateName');
+    const descInput = document.getElementById('saveAsTemplateDesc');
+
+    info.textContent = `Creating a template from event: ${eventName}`;
+    nameInput.value = `${eventName} Template`;
+    descInput.value = '';
+    modal.dataset.eventId = eventId;
+    modal.classList.remove('hidden');
+}
+
+function closeSaveAsTemplateModal() {
+    document.getElementById('saveAsTemplateModal').classList.add('hidden');
+}
+
+async function handleSaveAsTemplate(e) {
+    e.preventDefault();
+    const modal = document.getElementById('saveAsTemplateModal');
+    const eventId = parseInt(modal.dataset.eventId);
+    const templateName = document.getElementById('saveAsTemplateName').value.trim();
+    const description = document.getElementById('saveAsTemplateDesc').value.trim();
+
+    if (!templateName || templateName.length < 3) {
+        showNotification('Error', 'Template name must be at least 3 characters', 'error');
+        return;
+    }
+
+    try {
+        const result = await apiPost('/templates/from-event', {
+            eventId,
+            templateName,
+            description: description || null
+        });
+
+        if (result.success !== false) {
+            closeSaveAsTemplateModal();
+            await loadTemplates();
+            showNotification('Success', 'Template created from event!', 'success');
+        } else {
+            showNotification('Error', result.message || 'Error creating template', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving as template:', error);
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showNotification('Error', friendlyError.message, 'error');
+    }
+}
+
+// ====================================
+// CREATE EVENT FROM TEMPLATE
+// ====================================
+
+function openTemplateSelectionModal() {
+    const modal = document.getElementById('templateSelectionModal');
+    document.getElementById('templateSelectionSearch').value = '';
+    renderTemplateSelectionList(allTemplates.filter(t => t.isActive));
+    modal.classList.remove('hidden');
+}
+
+function closeTemplateSelectionModal() {
+    document.getElementById('templateSelectionModal').classList.add('hidden');
+}
+
+function filterTemplateSelection() {
+    const search = document.getElementById('templateSelectionSearch').value.toLowerCase();
+    const filtered = allTemplates.filter(t => t.isActive && (
+        t.templateName.toLowerCase().includes(search) ||
+        (t.description && t.description.toLowerCase().includes(search))
+    ));
+    renderTemplateSelectionList(filtered);
+}
+
+function renderTemplateSelectionList(templates) {
+    const list = document.getElementById('templateSelectionList');
+    if (!templates || templates.length === 0) {
+        list.innerHTML = '<div class="empty-state" style="padding: 20px; text-align: center; color: #888;">No templates available.</div>';
+        return;
+    }
+
+    list.innerHTML = templates.map(t => {
+        const moduleNames = (t.modules || []).sort((a, b) => a.deliveryOrder - b.deliveryOrder).map(m => escapeHtml(m.moduleName)).join(', ');
+        return `
+        <div class="template-selection-item" data-template-id="${t.templateId}">
+            <div class="template-selection-name">${escapeHtml(t.templateName)}</div>
+            <div class="template-selection-meta">
+                ${t.moduleCount || 0} module${t.moduleCount === 1 ? '' : 's'}
+                ${t.trainingTrack ? ` | ${escapeHtml(t.trainingTrack)}` : ''}
+            </div>
+            ${moduleNames ? `<div style="font-size: 0.8rem; color: #888; margin-top: 4px;">Modules: ${moduleNames}</div>` : ''}
+        </div>
+        `;
+    }).join('');
+
+    list.querySelectorAll('.template-selection-item').forEach(item => {
+        item.addEventListener('click', () => handleCreateEventFromTemplate(parseInt(item.dataset.templateId)));
+    });
+}
+
+function handleCreateEventFromTemplate(templateId) {
+    const template = allTemplates.find(t => t.templateId === templateId);
+    if (!template) return;
+
+    // Close the selection modal if open
+    closeTemplateSelectionModal();
+
+    // Open the event creation modal
+    openEventModal();
+
+    // Pre-fill training track from template
+    const trackInput = document.getElementById('trainingTrack');
+    if (trackInput && template.trainingTrack) {
+        trackInput.value = template.trainingTrack;
+    }
+
+    // Store template info for when the event is saved
+    const form = document.getElementById('eventForm');
+    form.dataset.templateId = templateId;
+
+    // Show the modules section with template modules and speaker dropdowns
+    const modulesSection = document.getElementById('eventModulesSection');
+    if (modulesSection) {
+        modulesSection.style.display = '';
+        const modulesList = document.getElementById('eventModulesList');
+        if (modulesList) {
+            populateSpeakerDropdowns(); // Ensure speakers are loaded
+            const templateModules = (template.modules || []).sort((a, b) => a.deliveryOrder - b.deliveryOrder);
+
+            const activeSpeakers = allSpeakers.filter(s => s.isActive);
+            const speakerOptions = '<option value="">-- Select --</option>' +
+                activeSpeakers.map(s => `<option value="${s.speakerId}">${escapeHtml(s.speakerName)}</option>`).join('');
+
+            modulesList.innerHTML = `
+                <div style="margin-bottom: 10px; padding: 10px; background: #e8f4fd; border-radius: 6px; font-size: 0.9em; color: #333;">
+                    <strong>Template: ${escapeHtml(template.templateName)}</strong> — Assign a speaker to each module below.
+                </div>
+                ${templateModules.map(mod => `
+                <div class="template-event-module-row" data-module-id="${mod.moduleId}" data-delivery-order="${mod.deliveryOrder}">
+                    <div class="template-event-module-order">${mod.deliveryOrder}</div>
+                    <div class="template-event-module-name">${escapeHtml(mod.moduleName)}</div>
+                    <div class="template-event-module-speaker">
+                        <select class="template-speaker-select" data-module-id="${mod.moduleId}" required>
+                            ${speakerOptions}
+                        </select>
+                    </div>
+                </div>
+                `).join('')}
+            `;
+        }
+    }
+
+    // Override the form submit to use the from-template endpoint
+    form.onsubmit = async function(e) {
+        e.preventDefault();
+        await handleSaveEventFromTemplate(templateId);
+    };
+}
+
+async function handleSaveEventFromTemplate(templateId) {
+    const eventName = document.getElementById('eventName').value.trim();
+    const eventCode = document.getElementById('eventCode').value.trim();
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    const trainingTrack = document.getElementById('trainingTrack').value.trim();
+    const isActive = document.getElementById('eventIsActive').checked;
+
+    if (!eventName || !eventCode || !startDate) {
+        showNotification('Error', 'Event name, code, and start date are required', 'error');
+        return;
+    }
+
+    // Gather speaker assignments
+    const speakerSelects = document.querySelectorAll('.template-speaker-select');
+    const modules = [];
+    let allAssigned = true;
+
+    speakerSelects.forEach(select => {
+        const moduleId = parseInt(select.dataset.moduleId);
+        const speakerId = parseInt(select.value);
+        const row = select.closest('.template-event-module-row');
+        const deliveryOrder = parseInt(row.dataset.deliveryOrder);
+
+        if (!speakerId) {
+            allAssigned = false;
+        }
+
+        modules.push({ moduleId, speakerId, deliveryOrder });
+    });
+
+    if (!allAssigned) {
+        showNotification('Error', 'Please assign a speaker to every module', 'error');
+        return;
+    }
+
+    try {
+        const result = await apiPost('/events/from-template', {
+            templateId,
+            eventName,
+            eventCode,
+            startDate,
+            endDate: endDate || null,
+            trainingTrack: trainingTrack || null,
+            isActive,
+            modules
+        });
+
+        if (result.success !== false) {
+            closeEventModal();
+            // Restore normal form submit
+            const form = document.getElementById('eventForm');
+            delete form.dataset.templateId;
+            form.onsubmit = null;
+            document.getElementById('eventForm').addEventListener('submit', handleSaveEvent);
+
+            await loadEvents();
+            await loadModules();
+            showNotification('Success', 'Event created from template!', 'success');
+        } else {
+            showNotification('Error', result.message || 'Error creating event', 'error');
+        }
+    } catch (error) {
+        console.error('Error creating event from template:', error);
+        const friendlyError = getUserFriendlyErrorMessage(error);
+        showNotification('Error', friendlyError.message, 'error');
+    }
+}
+
+// Helper: populate speaker dropdowns whenever speaker data is available
+// Call this after loading speakers and when opening add-module modal
+function ensureSpeakerDropdownsPopulated() {
+    if (allSpeakers.length > 0) {
+        populateSpeakerDropdowns();
+    }
+}
 
 console.log('Admin Panel Loaded');
 console.log('Using Mock Data:', CONFIG.USE_MOCK_DATA);

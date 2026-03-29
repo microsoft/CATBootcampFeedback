@@ -113,6 +113,14 @@
                     <span class="tab-icon">📋</span>
                     Audit Log
                 </button>
+                <button class="tab-button" data-tab="speakers" id="speakersTabBtn" style="display: none;">
+                    <span class="tab-icon">🎤</span>
+                    Speakers
+                </button>
+                <button class="tab-button" data-tab="templates" id="templatesTabBtn" style="display: none;">
+                    <span class="tab-icon">📋</span>
+                    Templates
+                </button>
             </nav>
 
             <!-- Modules Tab -->
@@ -154,6 +162,9 @@
                     <div>
                         <button class="btn btn-danger" id="deleteEventsBtn" style="display: none; margin-right: 10px;">
                             <span>🗑️ Delete Selected</span>
+                        </button>
+                        <button class="btn btn-secondary" id="createEventFromTemplateBtn" style="margin-right: 10px;">
+                            <span>📋 From Template</span>
                         </button>
                         <button class="btn btn-primary" id="createEventBtn">
                             <span>+ Create New Event</span>
@@ -426,6 +437,60 @@
 
                     <div class="al-pagination" id="alPagination">
                         <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Speakers Tab -->
+            <div id="speakersTab" class="tab-content">
+                <div class="tab-header">
+                    <h2>Manage Speakers</h2>
+                    <div>
+                        <button class="btn btn-danger" id="deleteSpeakersBtn" style="display: none; margin-right: 10px;">
+                            <span>🗑️ Delete Selected</span>
+                        </button>
+                        <button class="btn btn-primary" id="createSpeakerBtn">
+                            <span>+ Create New Speaker</span>
+                        </button>
+                    </div>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: inline-flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="selectAllSpeakers" style="margin-right: 5px;">
+                        <span>Select All</span>
+                    </label>
+                </div>
+                <div class="search-bar">
+                    <input type="text" id="speakerSearch" placeholder="Search speakers by name...">
+                </div>
+                <div class="speakers-list" id="speakersList">
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <p>Loading speakers...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Templates Tab -->
+            <div id="templatesTab" class="tab-content">
+                <div class="tab-header">
+                    <h2>Manage Templates</h2>
+                    <div>
+                        <button class="btn btn-secondary" id="createTemplateFromEventBtn" style="margin-right: 10px;">
+                            <span>📅 Create from Event</span>
+                        </button>
+                        <button class="btn btn-primary" id="createTemplateBtn">
+                            <span>+ Create Blank Template</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="search-bar">
+                    <input type="text" id="templateSearch" placeholder="Search templates by name...">
+                </div>
+                <div class="templates-list" id="templatesList">
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <p>Loading templates...</p>
                     </div>
                 </div>
             </div>
@@ -735,10 +800,11 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="speakerNameForModule">Speaker Name <span class="required">*</span></label>
-                        <input type="text" id="speakerNameForModule" name="speakerName" required
-                               placeholder="e.g., John Doe">
-                        <small class="form-help">Who is delivering this module at this event?</small>
+                        <label for="speakerIdForModule">Speaker <span class="required">*</span></label>
+                        <select id="speakerIdForModule" name="speakerId" required>
+                            <option value="">-- Select a Speaker --</option>
+                        </select>
+                        <small class="form-help">Who is delivering this module at this event? <a href="#" id="quickAddSpeakerFromModule" style="color: #667eea;">+ Add new speaker</a></small>
                     </div>
                     <!-- Current Module Order Display -->
                     <div id="currentModuleOrderDisplay" class="form-group" style="display: none;">
@@ -783,16 +849,204 @@
                 <form id="editSpeakerForm">
                     <input type="hidden" id="editSpeakerEventModuleId">
                     <div class="form-group">
-                        <label for="editSpeakerName">Speaker Name <span class="required">*</span></label>
-                        <input type="text" id="editSpeakerName" name="speakerName" required
-                               placeholder="e.g., John Doe">
-                        <small class="form-help">Update who is delivering this module at this event.</small>
+                        <label for="editSpeakerId">Speaker <span class="required">*</span></label>
+                        <select id="editSpeakerId" name="speakerId" required>
+                            <option value="">-- Select a Speaker --</option>
+                        </select>
                     </div>
                     <div class="modal-actions">
                         <button type="button" class="btn btn-secondary" id="cancelEditSpeakerBtn">Cancel</button>
                         <button type="submit" class="btn btn-primary">Save Speaker</button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- Speaker Create/Edit Modal -->
+        <div id="speakerModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="speakerModalTitle">Create New Speaker</h3>
+                    <button class="modal-close" id="closeSpeakerModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="speakerForm">
+                        <div class="form-group">
+                            <label for="speakerName">Speaker Name <span class="required">*</span></label>
+                            <input type="text" id="speakerName" name="speakerName" required
+                                   placeholder="e.g., Jane Smith" minlength="2" maxlength="100">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="speakerBio">Bio</label>
+                            <textarea id="speakerBio" name="bio" rows="4"
+                                      placeholder="Optional speaker biography..."></textarea>
+                            <small class="form-help">Brief description of the speaker's background and expertise.</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Profile Photo</label>
+                            <div class="um-avatar-upload">
+                                <div class="um-avatar-preview" id="speakerAvatarPreview">
+                                    <span id="speakerAvatarInitials"></span>
+                                </div>
+                                <div class="um-avatar-actions">
+                                    <label class="umc-btn um-avatar-upload-btn">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                        Upload Photo
+                                        <input type="file" id="speakerAvatarInput"
+                                               accept="image/png,image/jpeg,image/webp"
+                                               style="display:none;">
+                                    </label>
+                                    <button type="button" class="umc-btn" id="removeSpeakerAvatar" style="display:none;">Remove</button>
+                                </div>
+                                <small class="form-help">Square image recommended. Max 500KB. JPG, PNG, or WebP.</small>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="speakerIsActive" name="isActive" checked>
+                                Active
+                            </label>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" id="cancelSpeakerModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary" id="saveSpeakerBtn">Save Speaker</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Template Create/Edit Modal -->
+        <div id="templateModal" class="modal hidden">
+            <div class="modal-content" style="max-width: 700px;">
+                <div class="modal-header">
+                    <h3 id="templateModalTitle">Create New Template</h3>
+                    <button class="modal-close" id="closeTemplateModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="templateForm">
+                        <div class="form-group">
+                            <label for="templateName">Template Name <span class="required">*</span></label>
+                            <input type="text" id="templateName" name="templateName" required
+                                   placeholder="e.g., Azure Fundamentals Bootcamp" minlength="3" maxlength="200">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="templateDescription">Description</label>
+                            <textarea id="templateDescription" name="description" rows="3"
+                                      placeholder="Optional description of this template..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="templateTrainingTrack">Training Track</label>
+                            <input type="text" id="templateTrainingTrack" name="trainingTrack"
+                                   placeholder="e.g., Azure Developer">
+                        </div>
+
+                        <div class="form-section">
+                            <h4>Template Modules</h4>
+                            <small class="form-help" style="display: block; margin-bottom: 10px;">Add modules in the order they should be delivered. Speakers are assigned when creating an event from this template.</small>
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <select id="templateModuleSelect" style="flex: 1;">
+                                    <option value="">-- Select a Module --</option>
+                                </select>
+                                <button type="button" class="btn btn-primary btn-sm" id="addTemplateModuleBtn">+ Add</button>
+                            </div>
+                            <div id="templateModulesList" class="template-modules-list">
+                                <div class="empty-state" style="padding: 20px; text-align: center; color: #888;">
+                                    No modules added yet. Select a module above and click "Add".
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" id="cancelTemplateModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary" id="saveTemplateBtn">Save Template</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Event Picker Modal (for creating template from event) -->
+        <div id="eventPickerModal" class="modal hidden">
+            <div class="modal-content" style="max-width: 700px;">
+                <div class="modal-header">
+                    <h3>Select an Event</h3>
+                    <button class="modal-close" id="closeEventPickerModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="templateFromEventName">Template Name <span class="required">*</span></label>
+                        <input type="text" id="templateFromEventName" placeholder="Enter a name for the new template" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="templateFromEventDesc">Description</label>
+                        <textarea id="templateFromEventDesc" rows="2" placeholder="Optional description..."></textarea>
+                    </div>
+                    <div class="search-bar" style="margin-bottom: 15px;">
+                        <input type="text" id="eventPickerSearch" placeholder="Search events...">
+                    </div>
+                    <div id="eventPickerList" class="event-picker-list" style="max-height: 400px; overflow-y: auto;">
+                        <div class="loading-state">
+                            <div class="spinner"></div>
+                            <p>Loading events...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Template Selection Modal (for creating event from template) -->
+        <div id="templateSelectionModal" class="modal hidden">
+            <div class="modal-content" style="max-width: 700px;">
+                <div class="modal-header">
+                    <h3>Select a Template</h3>
+                    <button class="modal-close" id="closeTemplateSelectionModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="search-bar" style="margin-bottom: 15px;">
+                        <input type="text" id="templateSelectionSearch" placeholder="Search templates...">
+                    </div>
+                    <div id="templateSelectionList" class="template-selection-list" style="max-height: 500px; overflow-y: auto;">
+                        <div class="loading-state">
+                            <div class="spinner"></div>
+                            <p>Loading templates...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save as Template Modal (quick save from event card) -->
+        <div id="saveAsTemplateModal" class="modal hidden">
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h3>Save Event as Template</h3>
+                    <button class="modal-close" id="closeSaveAsTemplateModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p id="saveAsTemplateEventInfo" style="margin-bottom: 15px; color: #666;"></p>
+                    <form id="saveAsTemplateForm">
+                        <div class="form-group">
+                            <label for="saveAsTemplateName">Template Name <span class="required">*</span></label>
+                            <input type="text" id="saveAsTemplateName" required
+                                   placeholder="e.g., Azure Bootcamp Template" minlength="3" maxlength="200">
+                        </div>
+                        <div class="form-group">
+                            <label for="saveAsTemplateDesc">Description</label>
+                            <textarea id="saveAsTemplateDesc" rows="2" placeholder="Optional description..."></textarea>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" id="cancelSaveAsTemplate">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save as Template</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
 

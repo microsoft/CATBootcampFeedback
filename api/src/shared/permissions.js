@@ -24,6 +24,14 @@ const PERMISSIONS = {
     DELETE_MODULES:         ['ModuleManager'],
     VIEW_MODULES:           ['ModuleManager', 'EventCreator'],
 
+    // Speaker management
+    MANAGE_SPEAKERS:        ['ModuleManager'],
+    VIEW_SPEAKERS:          ['ModuleManager', 'EventCreator'],
+
+    // Template management
+    MANAGE_TEMPLATES:       ['ModuleManager'],
+    VIEW_TEMPLATES:         ['ModuleManager', 'EventCreator'],
+
     // Event management
     CREATE_EVENTS:          ['EventCreator'],
     EDIT_EVENTS:            ['EventCreator'],      // + resource access check
