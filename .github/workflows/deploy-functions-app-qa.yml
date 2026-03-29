@@ -3,6 +3,11 @@ name: Deploy Functions App (QA)
 # Uses Azure Functions Core Tools for reliable deploys to Linux Consumption plan
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'api/**'
   workflow_dispatch:
 
 jobs:
