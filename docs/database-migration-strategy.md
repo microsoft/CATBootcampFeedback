@@ -34,8 +34,8 @@ This document outlines the strategy for managing database schema changes and dat
 5. Run: `database-init-PORTAL-ALL-IN-ONE.sql`
 
 **What gets created:**
-- **4 Tables:** Events, Modules, EventModules, Feedback
-- **3 Views:** vw_EventsWithModules, vw_FeedbackWithDetails, vw_EventFeedbackCounts
+- **9 Tables:** Events, Modules, EventModules, Feedback, Users, Roles, UserRoles, UserEventAccess, AuditLog
+- **4 Views:** vw_EventsWithModules, vw_FeedbackWithDetails, vw_EventFeedbackCounts, vw_UsersWithRoles
 - **2 Stored Procedures:** sp_GetEventByCode, sp_GetFeedbackCountByEventCode
 
 ### Schema Version Control
@@ -52,7 +52,13 @@ CATBootcampFeedback/
 ├── database-init-part5-sp1.sql
 ├── database-init-part6-sp2.sql
 ├── restore-dev-sample-data-v2.sql       (Dev sample data only)
-└── database-cleanup.sql                 (Drop all objects)
+├── database-cleanup.sql                 (Drop all objects)
+├── migrations/
+│   ├── rename-cohort-to-training-track.sql
+│   ├── 002-add-user-management.sql     (Users, Roles, UserRoles, UserEventAccess)
+│   ├── 003-add-profile-image.sql       (ProfileImage column)
+│   ├── 004-add-audit-log.sql           (AuditLog table)
+│   └── 005-widen-event-code.sql        (EventCode NVARCHAR(8) -> (50))
 ```
 
 ### Schema Changes Process
@@ -239,7 +245,7 @@ After any schema change, verify:
    SELECT 'Stored Procedures', COUNT(*)
    FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_TYPE = 'PROCEDURE';
 
-   -- Expected: Tables=4, Views=3, Stored Procedures=2
+   -- Expected: Tables=9, Views=4, Stored Procedures=2
    ```
 
 4. **Sample Query:**
@@ -264,6 +270,10 @@ az functionapp logs tail \
 |------|-------------|-------------------|-------------|------------|
 | 2026-02-06 | Production | Initial schema setup | database-init-PORTAL-ALL-IN-ONE.sql | System Admin |
 | 2026-02-06 | Development | Sample data restoration | restore-dev-sample-data-v2.sql | System Admin |
+| 2026-03 | Both | User management & RBAC tables | migrations/002-add-user-management.sql | System Admin |
+| 2026-03 | Both | ProfileImage column on Users | migrations/003-add-profile-image.sql | System Admin |
+| 2026-03 | Both | AuditLog table | migrations/004-add-audit-log.sql | System Admin |
+| 2026-03 | Both | Widen EventCode to NVARCHAR(50) | migrations/005-widen-event-code.sql | System Admin |
 
 ---
 

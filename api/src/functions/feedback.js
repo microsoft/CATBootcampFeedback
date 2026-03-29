@@ -10,7 +10,9 @@ const { app } = require('@azure/functions');
 const { query, mutate } = require('../shared/database');
 const { success, error } = require('../shared/utils');
 const { rateLimit } = require('../shared/rate-limiter');
-const { requireAuth } = require('../shared/auth');
+const { requireRole, getAuthenticatedUser } = require('../shared/auth');
+const { getAccessibleEventIds } = require('../shared/permissions');
+const { audit } = require('../shared/audit');
 
 app.http('feedback', {
     methods: ['GET'],
@@ -18,11 +20,25 @@ app.http('feedback', {
     route: 'feedback',
     handler: async (request, context) => {
         try {
-            // Require authentication for reading all feedback
-            const authError = requireAuth(request);
-            if (authError) return authError;
+            // Require: GlobalAdmin, EventCreator, FeedbackManager, or FeedbackViewer
+            const roleError = requireRole(request, 'EventCreator', 'FeedbackManager', 'FeedbackViewer');
+            if (roleError) return roleError;
 
-            // Get all feedback with event details
+            // Resource-level filtering
+            const caller = getAuthenticatedUser(request);
+            let eventFilter = '';
+            if (caller && caller.roles) {
+                const accessibleIds = await getAccessibleEventIds(caller.userId, caller.username, caller.roles);
+                if (accessibleIds !== null) {
+                    if (accessibleIds.length === 0) {
+                        eventFilter = 'AND 1=0';
+                    } else {
+                        eventFilter = `AND f.EventId IN (${accessibleIds.join(',')})`;
+                    }
+                }
+            }
+
+            // Get feedback filtered by accessible events
             const feedback = await query(`
                 SELECT
                     f.FeedbackId,
@@ -44,6 +60,7 @@ app.http('feedback', {
                 LEFT JOIN Events e ON f.EventId = e.EventId
                 LEFT JOIN EventModules em ON f.EventModuleId = em.EventModuleId
                 LEFT JOIN Modules m ON em.ModuleId = m.ModuleId
+                WHERE 1=1 ${eventFilter}
                 ORDER BY f.SubmittedAt DESC
             `);
 
@@ -207,16 +224,15 @@ app.http('submitFeedback', {
     }
 });
 
-// DELETE single feedback submission
+// DELETE single feedback — GlobalAdmin or FeedbackManager (with resource access)
 app.http('deleteFeedback', {
     methods: ['DELETE'],
     authLevel: 'anonymous',
     route: 'feedback/{feedbackId}',
     handler: async (request, context) => {
         try {
-            // Require authentication for deleting feedback
-            const authError = requireAuth(request);
-            if (authError) return authError;
+            const roleError = requireRole(request, 'FeedbackManager');
+            if (roleError) return roleError;
 
             const feedbackId = parseInt(request.params.feedbackId);
 
@@ -230,6 +246,8 @@ app.http('deleteFeedback', {
             if (result.rowsAffected[0] === 0) {
                 return { status: 404, jsonBody: { success: false, message: 'Feedback not found', error: 'NOT_FOUND' } };
             }
+
+            await audit(request, 'DELETE', 'Feedback', feedbackId, `Deleted feedback FeedbackId=${feedbackId}`);
 
             return {
                 status: 200,
@@ -247,16 +265,15 @@ app.http('deleteFeedback', {
     }
 });
 
-// DELETE multiple feedback submissions (bulk delete)
+// DELETE multiple feedback (bulk) — GlobalAdmin or FeedbackManager
 app.http('deleteFeedbackBulk', {
     methods: ['POST'],  // Using POST for bulk delete to send body
     authLevel: 'anonymous',
     route: 'feedback/bulk-delete',
     handler: async (request, context) => {
         try {
-            // Require authentication for bulk deleting feedback
-            const authError = requireAuth(request);
-            if (authError) return authError;
+            const roleError = requireRole(request, 'FeedbackManager');
+            if (roleError) return roleError;
 
             const data = await request.json();
             const { feedbackIds } = data;
@@ -273,6 +290,8 @@ app.http('deleteFeedbackBulk', {
                     deletedCount++;
                 }
             }
+
+            if (deletedCount > 0) await audit(request, 'BULK_DELETE', 'Feedback', null, `Bulk deleted ${deletedCount} feedback submission(s)`, { deletedCount, feedbackIds });
 
             return {
                 status: 200,

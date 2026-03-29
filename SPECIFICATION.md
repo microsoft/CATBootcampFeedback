@@ -1,7 +1,7 @@
 # CAT Bootcamp Feedback Application - Specification
 
-**Version:** 3.0
-**Last Updated:** February 6, 2026
+**Version:** 5.0
+**Last Updated:** March 29, 2026
 **Status:** Production (Deployed)
 
 ## Production Deployment
@@ -264,7 +264,31 @@ Each feedback submission should be associated with:
 - **Feedback Viewing**: View all submitted feedback for each module, filtered by event code
 - **Analytics Dashboard**: View summary statistics and trends per module
 - **Export Capabilities**: Export feedback data to CSV/Excel
-- **Authentication Required**: Secure access for administrators only (client-side authentication)
+- **Authentication Required**: Secure access for administrators only (database-backed users with env-var fallback)
+- **RBAC User Management (People & Permissions Tab)**:
+  - Database-backed user accounts with bcrypt password hashing
+  - 6 roles with permission matrix:
+    | Role | Description | Key Permissions |
+    |------|-------------|-----------------|
+    | GlobalAdmin | Full system access | All permissions, manage users and roles |
+    | UserAdmin | User management | Create/edit/delete users, assign roles |
+    | ModuleManager | Module library management | Create/edit/delete modules |
+    | EventCreator | Event management | Create/edit/delete events, assign modules |
+    | FeedbackManager | Feedback administration | View/delete/export feedback |
+    | FeedbackViewer | Read-only feedback access | View feedback and analytics |
+  - People & Permissions tab in the admin interface:
+    - View all users with their roles and event access
+    - Create, edit, and deactivate user accounts
+    - Assign and revoke roles per user
+    - Grant or revoke per-event access
+    - Protected accounts (GlobalAdmin) cannot be deleted or demoted
+    - Force password change on next login
+    - Profile image upload (base64)
+  - Audit log viewer:
+    - View all admin actions (CREATE, UPDATE, DELETE, LOGIN, etc.)
+    - Filter by user, action type, resource type, and date range
+    - Each entry includes timestamp, username, action summary, and client IP
+    - JSON details available for drill-down
 - **Count Display**: Dedicated page for displaying live feedback counts with auto-refresh
 - **Responsive Design**: Fully responsive interface that works on desktop, tablet, and mobile devices
 - **Visual Accessibility**: High contrast module count badges for better readability
@@ -583,9 +607,11 @@ POST /api/feedback
 ##### Admin Endpoints (Authentication Required)
 ```
 POST   /api/login
-       - Admin authentication
+       - Admin authentication (database-backed users with ADMIN_USERS_JSON env-var fallback)
        - Body: { username: string, password: string }
-       - Returns: { success: true, token: string, user: { ... } }
+       - Returns: { success: true, token: string, user: { userId, username, fullName, roles: [...] } }
+       - Users are now stored in the database Users table with bcrypt hashes
+       - Falls back to ADMIN_USERS_JSON environment variable if no database users exist
        - Demo credentials: username=admin, password=[REDACTED - See Desktop/Secure_CAT_Files/CREDENTIALS_MASTER.md]
 
 POST   /api/events
@@ -656,6 +682,75 @@ DELETE /api/modules/bulk
        - Body: { moduleIds: [1, 2, 3, ...] }
        - Returns: { success: true, data: { deletedCount: number, skipped: number, message } }
        - Skips modules that are used in active events
+```
+
+##### User Management Endpoints (Authentication Required, UserAdmin+ role)
+```
+GET    /api/users
+       - List all users with roles and event access
+       - Returns: { success: true, data: [ array of user objects ] }
+
+POST   /api/users
+       - Create a new user
+       - Body: { username, password, fullName, email, roles?: string[], eventIds?: number[] }
+       - Returns: { success: true, data: { userId } }
+
+GET    /api/users/{userId}
+       - Get a single user with roles and event access
+       - Returns: { success: true, data: { user object } }
+
+PUT    /api/users/{userId}
+       - Update user details
+       - Body: { fullName?, email?, isActive?, roles?, eventIds?, mustChangePassword? }
+       - Returns: { success: true, data: { userId } }
+
+DELETE /api/users/{userId}
+       - Delete a user (protected users cannot be deleted)
+       - Returns: { success: true, data: { message } }
+
+PUT    /api/users/{userId}/profile-image
+       - Upload or update profile image (base64)
+       - Body: { profileImage: string }
+       - Returns: { success: true, data: { message } }
+```
+
+##### Password Management Endpoints (Authentication Required)
+```
+PUT    /api/users/{userId}/password
+       - Change user password (self or admin)
+       - Body: { currentPassword?, newPassword }
+       - Returns: { success: true, data: { message } }
+
+POST   /api/users/password-reset
+       - Request password reset token
+       - Body: { email }
+       - Returns: { success: true, data: { message } }
+
+POST   /api/users/password-reset/confirm
+       - Confirm password reset with token
+       - Body: { token, newPassword }
+       - Returns: { success: true, data: { message } }
+```
+
+##### Audit Log Endpoints (Authentication Required, GlobalAdmin role)
+```
+GET    /api/audit-log
+       - Get audit log entries
+       - Query params: ?userId=X&action=CREATE&resourceType=USER&from=DATE&to=DATE&limit=100&offset=0
+       - Returns: { success: true, data: { entries: [...], total: number } }
+```
+
+##### Notification Endpoints (Authentication Required, GlobalAdmin role)
+```
+POST   /api/notifications/test-email
+       - Send a test email notification
+       - Body: { to: string, subject?: string }
+       - Returns: { success: true, data: { message } }
+
+POST   /api/notifications/feedback-summary
+       - Send feedback summary email for an event
+       - Body: { eventId: number, recipients: string[] }
+       - Returns: { success: true, data: { message } }
 ```
 
 ##### Environment Detection
@@ -774,19 +869,78 @@ CREATE TABLE Feedback (
 
 **Purpose:** Stores feedback submissions tied to specific module deliveries (EventModuleId).
 
-#### Table: AdminUsers (Optional)
+#### Table: Users (RBAC - replaces AdminUsers)
 ```sql
-CREATE TABLE AdminUsers (
+CREATE TABLE Users (
     UserId INT IDENTITY(1,1) PRIMARY KEY,
     Username NVARCHAR(100) UNIQUE NOT NULL,
     PasswordHash NVARCHAR(255) NOT NULL,
-    Email NVARCHAR(255) NULL,
     FullName NVARCHAR(200) NULL,
+    Email NVARCHAR(255) UNIQUE NULL,
     IsActive BIT DEFAULT 1,
+    IsProtected BIT DEFAULT 0,
+    MustChangePassword BIT DEFAULT 0,
+    ProfileImage NVARCHAR(MAX) NULL,
+    PasswordResetToken NVARCHAR(255) NULL,
+    PasswordResetExpiry DATETIME2 NULL,
+    LastLoginAt DATETIME2 NULL,
     CreatedAt DATETIME2 DEFAULT GETDATE(),
-    LastLoginAt DATETIME2 NULL
+    CreatedBy NVARCHAR(100) NULL,
+    UpdatedAt DATETIME2 NULL,
+    UpdatedBy NVARCHAR(100) NULL
 );
 ```
+
+#### Table: Roles
+```sql
+CREATE TABLE Roles (
+    RoleId INT IDENTITY(1,1) PRIMARY KEY,
+    RoleName NVARCHAR(50) UNIQUE NOT NULL,
+    Description NVARCHAR(500) NULL,
+    IsSystem BIT DEFAULT 0
+);
+-- Seeded: GlobalAdmin, UserAdmin, ModuleManager, EventCreator, FeedbackManager, FeedbackViewer
+```
+
+#### Table: UserRoles (Junction)
+```sql
+CREATE TABLE UserRoles (
+    UserRoleId INT IDENTITY(1,1) PRIMARY KEY,
+    UserId INT NOT NULL REFERENCES Users(UserId) ON DELETE CASCADE,
+    RoleId INT NOT NULL REFERENCES Roles(RoleId),
+    AssignedAt DATETIME2 DEFAULT GETDATE(),
+    AssignedBy NVARCHAR(100) NULL
+);
+```
+
+#### Table: UserEventAccess
+```sql
+CREATE TABLE UserEventAccess (
+    UserEventAccessId INT IDENTITY(1,1) PRIMARY KEY,
+    UserId INT NOT NULL REFERENCES Users(UserId) ON DELETE CASCADE,
+    EventId INT NOT NULL REFERENCES Events(EventId) ON DELETE CASCADE,
+    GrantedAt DATETIME2 DEFAULT GETDATE(),
+    GrantedBy NVARCHAR(100) NULL
+);
+```
+
+#### Table: AuditLog
+```sql
+CREATE TABLE AuditLog (
+    AuditLogId BIGINT IDENTITY(1,1) PRIMARY KEY,
+    UserId INT NULL,
+    Username NVARCHAR(100) NULL,
+    Action NVARCHAR(50) NOT NULL,
+    ResourceType NVARCHAR(50) NULL,
+    ResourceId NVARCHAR(100) NULL,
+    Summary NVARCHAR(500) NULL,
+    Details NVARCHAR(MAX) NULL,
+    IpAddress NVARCHAR(45) NULL,
+    Timestamp DATETIME2 DEFAULT GETDATE()
+);
+```
+
+**Note:** Users are now database-backed. The ADMIN_USERS_JSON environment variable serves as a fallback for bootstrap and recovery scenarios only.
 
 ### Event Code Generation
 
@@ -902,9 +1056,9 @@ The application implements client-side rate limiting to prevent abuse and enhanc
 
 #### Admin Interface
 - **Authentication Required**:
-  - Azure AD integration (recommended)
-  - Or username/password with bcrypt hashing
-  - Or API key-based access
+  - Database-backed user accounts (Users table) with bcrypt password hashing (primary)
+  - ADMIN_USERS_JSON environment variable (fallback for bootstrap/recovery)
+  - Azure AD integration (optional, future enhancement)
 - **Rate Limiting**:
   - Max 5 login attempts per 5 minutes (client-side)
   - Prevents brute force attacks

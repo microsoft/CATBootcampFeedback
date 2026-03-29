@@ -56,6 +56,20 @@ This application uses a **separate Azure Functions app** architecture to enable 
 - **Schema Version:** V2 (many-to-many Events ↔ Modules)
 - **Collation:** SQL_Latin1_General_CP1_CI_AS
 
+### Database Migrations for User Management
+
+After deploying the schema, run these migrations in order:
+1. `migrations/002-add-user-management.sql` — Creates Users, Roles, UserRoles, UserEventAccess tables
+2. `migrations/003-add-profile-image.sql` — Adds ProfileImage column to Users
+3. `migrations/004-add-audit-log.sql` — Creates AuditLog table
+4. `migrations/005-widen-event-code.sql` — Widens EventCode to NVARCHAR(50)
+
+Then run the user migration script to move existing users from ADMIN_USERS_JSON to the database:
+```bash
+cd scripts
+node migrate-users-from-env.js --global-admin=admin
+```
+
 ## Deployment Workflows
 
 ### Frontend Deployment (Automatic)
@@ -151,6 +165,15 @@ SQL_USER=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-USER)
 SQL_PASSWORD=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-PASSWORD)
 JWT_SECRET=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=JWT-SECRET)
 ADMIN_USERS_JSON=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=ADMIN-USERS-JSON)
+# Note: ADMIN_USERS_JSON is now a fallback only. Users are managed in the database
+# via the Users, Roles, UserRoles, and UserEventAccess tables.
+# The env var is used for initial bootstrap and as a fallback if no DB users exist.
+
+# Optional: Email Notifications
+SENDGRID_API_KEY=your-sendgrid-key
+# OR
+AZURE_COMM_CONNECTION_STRING=your-connection-string
+
 NODE_ENV=development
 FUNCTIONS_WORKER_RUNTIME=node
 ```

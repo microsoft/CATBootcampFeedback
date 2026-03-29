@@ -18,7 +18,7 @@ function getDbConfig() {
         password: process.env.SQL_PASSWORD,
         options: {
             encrypt: true,
-            trustServerCertificate: false,
+            trustServerCertificate: process.env.SQL_TRUST_SERVER_CERTIFICATE === 'true' || process.env.NODE_ENV === 'development',
             enableArithAbort: true
         },
         pool: {

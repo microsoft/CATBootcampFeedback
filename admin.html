@@ -13,8 +13,12 @@
         <header class="admin-header">
             <div class="header-content">
                 <h1>Feedback Admin Panel</h1>
-                <div class="header-actions">
-                    <span class="admin-user" id="adminUser">Admin</span>
+                <div class="header-actions" id="headerActions" style="display: none;">
+                    <button class="header-profile-btn" id="myProfileBtn" title="Edit my profile">
+                        <span class="header-avatar" id="headerAvatar"></span>
+                        <span class="admin-user" id="adminUser">Admin</span>
+                    </button>
+                    <span class="admin-roles" id="adminRoles"></span>
                     <button class="btn btn-secondary btn-sm" id="logoutBtn">Logout</button>
                 </div>
             </div>
@@ -23,20 +27,61 @@
         <!-- Login Screen -->
         <div id="loginScreen" class="login-screen">
             <div class="login-box">
-                <h2>Admin Login</h2>
-                <p class="login-subtitle">Enter your credentials to access the admin panel</p>
-                <form id="loginForm">
-                    <div class="form-group">
-                        <label for="username">Username</label>
-                        <input type="text" id="username" name="username" required autofocus>
+                <!-- Login Form (default view) -->
+                <div id="loginFormView">
+                    <h2>Admin Login</h2>
+                    <p class="login-subtitle">Enter your credentials to access the admin panel</p>
+                    <form id="loginForm">
+                        <div class="form-group">
+                            <label for="username">Username</label>
+                            <input type="text" id="username" name="username" required autofocus>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" name="password" required>
+                        </div>
+                        <div class="error-message" id="loginError"></div>
+                        <button type="submit" class="btn btn-primary btn-block">Login</button>
+                    </form>
+                    <div class="login-help-links">
+                        <button type="button" class="login-help-link" id="showForgotPassword">Forgot your password?</button>
+                        <button type="button" class="login-help-link" id="showForgotUsername">Forgot your username?</button>
                     </div>
-                    <div class="form-group">
-                        <label for="password">Password</label>
-                        <input type="password" id="password" name="password" required>
+                </div>
+
+                <!-- Forgot Password View -->
+                <div id="forgotPasswordView" style="display: none;">
+                    <h2>Reset Your Password</h2>
+                    <p class="login-subtitle">Enter your email address and we'll send you a link to reset your password.</p>
+                    <form id="forgotPasswordForm">
+                        <div class="form-group">
+                            <label for="resetEmail">Email Address</label>
+                            <input type="email" id="resetEmail" name="email" required placeholder="you@example.com">
+                        </div>
+                        <div class="login-message" id="forgotPasswordMessage"></div>
+                        <button type="submit" class="btn btn-primary btn-block">Send Reset Link</button>
+                    </form>
+                    <div class="login-help-links">
+                        <button type="button" class="login-help-link" id="backToLoginFromPw">Back to login</button>
                     </div>
-                    <div class="error-message" id="loginError"></div>
-                    <button type="submit" class="btn btn-primary btn-block">Login</button>
-                </form>
+                </div>
+
+                <!-- Forgot Username View -->
+                <div id="forgotUsernameView" style="display: none;">
+                    <h2>Find Your Username</h2>
+                    <p class="login-subtitle">Enter your email address and we'll send your username to you.</p>
+                    <form id="forgotUsernameForm">
+                        <div class="form-group">
+                            <label for="usernameRecoveryEmail">Email Address</label>
+                            <input type="email" id="usernameRecoveryEmail" name="email" required placeholder="you@example.com">
+                        </div>
+                        <div class="login-message" id="forgotUsernameMessage"></div>
+                        <button type="submit" class="btn btn-primary btn-block">Send My Username</button>
+                    </form>
+                    <div class="login-help-links">
+                        <button type="button" class="login-help-link" id="backToLoginFromUn">Back to login</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -59,6 +104,14 @@
                 <button class="tab-button" data-tab="analytics">
                     <span class="tab-icon">📊</span>
                     Analytics
+                </button>
+                <button class="tab-button" data-tab="users" id="usersTabBtn" style="display: none;">
+                    <span class="tab-icon">👥</span>
+                    Users
+                </button>
+                <button class="tab-button" data-tab="auditlog" id="auditLogTabBtn" style="display: none;">
+                    <span class="tab-icon">📋</span>
+                    Audit Log
                 </button>
             </nav>
 
@@ -281,6 +334,291 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Users Tab (visible to GlobalAdmin/UserAdmin only) -->
+            <div id="usersTab" class="tab-content">
+                <div class="um-panel">
+                    <div class="um-header">
+                        <div class="um-header-left">
+                            <h2 class="um-title">People &amp; Permissions</h2>
+                            <p class="um-subtitle"><span id="userCountDisplay">0</span> people have access to this system</p>
+                        </div>
+                        <button class="um-btn-create" id="createUserBtn">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1v14M1 8h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                            Add Person
+                        </button>
+                    </div>
+
+                    <div class="um-toolbar">
+                        <div class="um-search-wrap">
+                            <svg class="um-search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            <input type="text" id="userSearch" class="um-search" placeholder="Find someone...">
+                        </div>
+                        <div class="um-filter-pills" id="userRoleFilter">
+                            <button class="um-pill active" data-role="all">Everyone</button>
+                            <button class="um-pill" data-role="GlobalAdmin">Full Access</button>
+                            <button class="um-pill" data-role="EventCreator">Event Managers</button>
+                            <button class="um-pill" data-role="ModuleManager">Module Managers</button>
+                            <button class="um-pill" data-role="FeedbackManager">Feedback Managers</button>
+                            <button class="um-pill" data-role="FeedbackViewer">Reporters</button>
+                        </div>
+                    </div>
+
+                    <div class="um-cards-grid" id="usersList">
+                        <div class="um-loading">
+                            <div class="spinner"></div>
+                            <span>Loading people...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Audit Log Tab (GlobalAdmin only) -->
+            <div id="auditlogTab" class="tab-content">
+                <div class="al-panel">
+                    <div class="al-header">
+                        <div>
+                            <h2 class="al-title">Audit Log</h2>
+                            <p class="al-subtitle">Complete record of all actions taken by authenticated users</p>
+                        </div>
+                        <button class="umc-btn" id="alExportBtn">
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1v10M4 7l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 12v2h14v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            Export CSV
+                        </button>
+                    </div>
+
+                    <div class="al-filters">
+                        <div class="al-search-wrap">
+                            <svg class="um-search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            <input type="text" id="alSearch" class="um-search" placeholder="Search actions, users, details...">
+                        </div>
+                        <select id="alFilterAction" class="al-select">
+                            <option value="">All Actions</option>
+                        </select>
+                        <select id="alFilterResource" class="al-select">
+                            <option value="">All Resources</option>
+                        </select>
+                        <select id="alFilterUser" class="al-select">
+                            <option value="">All Users</option>
+                        </select>
+                        <input type="date" id="alFilterDateFrom" class="al-date" title="From date">
+                        <input type="date" id="alFilterDateTo" class="al-date" title="To date">
+                    </div>
+
+                    <div class="al-table-wrap">
+                        <table class="al-table">
+                            <thead>
+                                <tr>
+                                    <th>When</th>
+                                    <th>Who</th>
+                                    <th>Action</th>
+                                    <th>What</th>
+                                    <th>Summary</th>
+                                    <th>IP</th>
+                                </tr>
+                            </thead>
+                            <tbody id="alTableBody">
+                                <tr><td colspan="6" class="al-loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="al-pagination" id="alPagination">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create/Edit User Modal -->
+        <div id="userModal" class="modal hidden">
+            <div class="modal-content um-modal">
+                <div class="um-modal-header">
+                    <div>
+                        <h3 id="userModalTitle">Create New User</h3>
+                        <p class="um-modal-subtitle" id="userModalSubtitle">Set up credentials and assign permissions</p>
+                    </div>
+                    <button class="modal-close" id="closeUserModal">&times;</button>
+                </div>
+                <form id="userForm">
+                    <div class="um-modal-body">
+                        <fieldset class="um-fieldset">
+                            <legend>Identity</legend>
+                            <div class="um-field-row">
+                                <div class="form-group">
+                                    <label for="userFullName">Full Name <span class="required">*</span></label>
+                                    <input type="text" id="userFullName" name="fullName" required placeholder="Jane Doe">
+                                </div>
+                                <div class="form-group">
+                                    <label for="userUsername">Username <span class="required">*</span></label>
+                                    <input type="text" id="userUsername" name="username" required placeholder="jdoe" autocomplete="off">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="userEmail">Email <span class="required">*</span></label>
+                                <input type="email" id="userEmail" name="email" required placeholder="jane@example.com">
+                            </div>
+                            <div class="form-group" id="avatarUploadGroup" style="display: none;">
+                                <label>Profile Photo</label>
+                                <div class="um-avatar-upload">
+                                    <div class="um-avatar-preview" id="avatarPreview">
+                                        <span id="avatarPreviewInitials"></span>
+                                    </div>
+                                    <div class="um-avatar-actions">
+                                        <label class="umc-btn um-avatar-upload-btn">
+                                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1v10M4 5l4-4 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 11v3h14v-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                            Upload Photo
+                                            <input type="file" id="avatarFileInput" accept="image/png,image/jpeg,image/webp" style="display:none;">
+                                        </label>
+                                        <button type="button" class="umc-btn" id="removeAvatarBtn" style="display:none;">Remove</button>
+                                    </div>
+                                    <small class="form-help">Square image recommended. Max 500KB. JPG, PNG, or WebP.</small>
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <fieldset class="um-fieldset" id="userPasswordGroup">
+                            <legend>Credentials</legend>
+                            <div class="um-autogen-pw">
+                                <div class="um-autogen-header">
+                                    <label>Initial Password</label>
+                                    <label class="um-autogen-toggle">
+                                        <input type="checkbox" id="userPwOverride">
+                                        <span>Set my own password</span>
+                                    </label>
+                                </div>
+                                <div id="userPwAutoView">
+                                    <div class="um-autogen-display">
+                                        <code id="userPwGenerated"></code>
+                                        <button type="button" class="um-autogen-refresh" id="userPwRegenBtn" title="Generate new password">&#x21BB;</button>
+                                    </div>
+                                    <small class="form-help">A secure password has been generated. The user will be required to change it on first login.</small>
+                                </div>
+                                <div id="userPwManualView" style="display: none;">
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <input type="text" id="userPassword" name="password" placeholder="Minimum 8 characters" autocomplete="new-password">
+                                        <small class="form-help">User will be required to change this on first login.</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="um-notify-section">
+                                <label class="um-notify-toggle">
+                                    <input type="checkbox" id="userSendEmail" checked>
+                                    <span>Email login details to the new user and to me</span>
+                                </label>
+                                <small class="form-help">Sends the username, temporary password, login URL, and assigned permissions.</small>
+                            </div>
+                        </fieldset>
+
+                        <fieldset class="um-fieldset">
+                            <legend>Permissions</legend>
+                            <div id="userRolesCheckboxes" class="um-roles-grid">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </fieldset>
+
+                        <fieldset class="um-fieldset" id="userActiveGroup" style="display: none;">
+                            <legend>Account Status</legend>
+                            <div class="um-status-toggle" id="umStatusToggle">
+                                <input type="checkbox" id="userIsActive" name="isActive" checked style="display:none;">
+                                <button type="button" class="um-status-opt um-status-opt-active" data-active="true">
+                                    <span class="um-status-dot-green"></span> Active
+                                </button>
+                                <button type="button" class="um-status-opt um-status-opt-inactive" data-active="false">
+                                    <span class="um-status-dot-red"></span> Inactive
+                                </button>
+                            </div>
+                            <p class="um-status-help" id="umStatusHelp">This account is currently active and can sign in.</p>
+                        </fieldset>
+                    </div>
+
+                    <input type="hidden" id="editUserId" name="userId">
+                    <div class="um-modal-footer">
+                        <button type="button" class="um-btn-cancel" id="cancelUserBtn">Cancel</button>
+                        <button type="submit" class="um-btn-submit" id="saveUserBtn">Create User</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- User Created Success Modal -->
+        <div id="userCreatedModal" class="modal hidden">
+            <div class="modal-content" style="max-width: 540px;">
+                <div class="modal-header">
+                    <h3>Account Created Successfully</h3>
+                    <button class="modal-close" id="closeUserCreatedModal">&times;</button>
+                </div>
+                <div id="userCreatedContent" style="padding: 20px 25px;">
+                    <!-- Populated dynamically -->
+                </div>
+                <div class="modal-actions" style="padding: 12px 25px 20px;">
+                    <button type="button" class="umc-btn" id="copyWelcomeEmailBtn">Copy Email Content</button>
+                    <button type="button" class="btn btn-primary" id="closeUserCreatedBtn">Done</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Event Access Modal -->
+        <div id="userEventAccessModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="userEventAccessTitle">Manage Event Access</h3>
+                    <button class="modal-close" id="closeUserEventAccessModal">&times;</button>
+                </div>
+                <div id="userEventAccessContent">
+                    <p>Loading...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Change Password Modal -->
+        <div id="changePasswordModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="changePasswordTitle">Change Password</h3>
+                    <button class="modal-close" id="closeChangePasswordModal">&times;</button>
+                </div>
+                <form id="changePasswordForm">
+                    <div class="form-group" id="currentPasswordGroup">
+                        <label for="currentPassword">Current Password <span class="required">*</span></label>
+                        <input type="password" id="currentPassword" name="currentPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">New Password <span class="required">*</span></label>
+                        <input type="password" id="newPassword" name="newPassword" required placeholder="Minimum 8 characters">
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmNewPassword">Confirm New Password <span class="required">*</span></label>
+                        <input type="password" id="confirmNewPassword" name="confirmNewPassword" required>
+                    </div>
+                    <div class="error-message" id="changePasswordError"></div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelChangePasswordBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Change Password</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Reset Password Confirmation Modal -->
+        <div id="resetPasswordModal" class="modal hidden">
+            <div class="modal-content" style="max-width: 460px;">
+                <div class="modal-header">
+                    <h3>Password Reset</h3>
+                    <button class="modal-close" id="closeResetPasswordModal">&times;</button>
+                </div>
+                <div id="resetPasswordContent" style="padding: 20px 25px;">
+                    <p style="margin-bottom: 14px;">The temporary password for <strong id="resetPasswordUsername"></strong> is:</p>
+                    <div class="temp-pw-copy-wrap">
+                        <code class="temp-password-display" id="tempPasswordDisplay"></code>
+                        <button type="button" class="temp-pw-copy-btn" id="copyTempPwBtn" title="Copy to clipboard">Copy</button>
+                    </div>
+                    <p class="warning-text">This password will only be shown once. Communicate it securely to the user.</p>
+                    <p style="font-size: 0.85rem; color: #64748b; margin-top: 8px;">The user will be required to change their password on next login.</p>
+                </div>
+                <div class="modal-actions" style="padding: 12px 25px 20px;">
+                    <button type="button" class="btn btn-primary" id="closeResetPasswordBtn">Close</button>
                 </div>
             </div>
         </div>

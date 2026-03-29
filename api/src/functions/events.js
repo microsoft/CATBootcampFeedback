@@ -9,7 +9,9 @@
 const { app } = require('@azure/functions');
 const { query, mutate } = require('../shared/database');
 const { success, error } = require('../shared/utils');
-const { requireAuth } = require('../shared/auth');
+const { requireRole, getAuthenticatedUser, isAuthenticated } = require('../shared/auth');
+const { getAccessibleEventIds } = require('../shared/permissions');
+const { audit } = require('../shared/audit');
 
 app.http('events', {
     methods: ['GET', 'POST'],
@@ -18,9 +20,9 @@ app.http('events', {
     handler: async (request, context) => {
         try {
             if (request.method === 'POST') {
-                // Verify authentication for POST (create event)
-                const authError = requireAuth(request);
-                if (authError) return authError;
+                // GlobalAdmin or EventCreator can create events
+                const roleError = requireRole(request, 'EventCreator');
+                if (roleError) return roleError;
                 // Create new event
                 const bodyText = await request.text();
                 const body = JSON.parse(bodyText);
@@ -75,10 +77,26 @@ app.http('events', {
                     endDate: endDate || null,
                     trainingTrack: trainingTrack ? trainingTrack.trim() : null,
                     isActive: isActive ? 1 : 0,
-                    createdBy: 'admin'
+                    createdBy: (getAuthenticatedUser(request) || {}).username || 'admin'
                 });
 
                 const createdEvent = result[0];
+
+                // Auto-grant event access to the creator
+                const caller = getAuthenticatedUser(request);
+                if (caller && caller.userId) {
+                    try {
+                        await mutate(
+                            `INSERT INTO UserEventAccess (UserId, EventId, GrantedBy)
+                             VALUES (@userId, @eventId, @grantedBy)`,
+                            { userId: caller.userId, eventId: createdEvent.EventId, grantedBy: caller.username }
+                        );
+                    } catch (accessErr) {
+                        context.log('Warning: Failed to auto-grant event access:', accessErr.message);
+                    }
+                }
+
+                await audit(request, 'CREATE', 'Event', createdEvent.EventId, `Created event "${eventName.trim()}" (${eventCode.trim().toUpperCase()})`, { eventId: createdEvent.EventId, eventName: eventName.trim(), eventCode: eventCode.trim().toUpperCase(), startDate, endDate, trainingTrack, isActive });
 
                 const response = success({
                     message: 'Event created successfully',
@@ -100,6 +118,24 @@ app.http('events', {
             }
 
             // GET all events
+            // If authenticated, filter by resource access. If public (no auth), return all active.
+            let eventFilter = '';
+            if (isAuthenticated(request)) {
+                const caller = getAuthenticatedUser(request);
+                if (caller && caller.roles) {
+                    const accessibleIds = await getAccessibleEventIds(caller.userId, caller.username, caller.roles);
+                    if (accessibleIds !== null) {
+                        // Non-GlobalAdmin: filter to accessible events
+                        if (accessibleIds.length === 0) {
+                            eventFilter = 'AND 1=0'; // No access
+                        } else {
+                            eventFilter = `AND e.EventId IN (${accessibleIds.join(',')})`;
+                        }
+                    }
+                    // GlobalAdmin: accessibleIds is null, no filter applied
+                }
+            }
+
             const events = await query(`
                 SELECT
                     e.EventId,
@@ -114,6 +150,7 @@ app.http('events', {
                     COUNT(DISTINCT f.FeedbackId) AS FeedbackCount
                 FROM Events e
                 LEFT JOIN Feedback f ON e.EventId = f.EventId
+                WHERE 1=1 ${eventFilter}
                 GROUP BY
                     e.EventId, e.EventName, e.EventCode, e.StartDate, e.EndDate, e.TrainingTrack,
                     e.IsActive, e.CreatedAt, e.CreatedBy
@@ -263,15 +300,14 @@ app.http('getModuleCount', {
     }
 });
 
-// DELETE single event (with cascade deletion of feedback)
+// DELETE single event — GlobalAdmin only
 app.http('deleteEvent', {
     methods: ['DELETE'],
     authLevel: 'anonymous',
     route: 'events/{eventId}',
     handler: async (request, context) => {
-        // Verify authentication
-        const authError = requireAuth(request);
-        if (authError) return authError;
+        const roleError = requireRole(request);  // No extra roles = GlobalAdmin only
+        if (roleError) return roleError;
 
         try {
             const eventId = parseInt(request.params.eventId);
@@ -293,6 +329,7 @@ app.http('deleteEvent', {
 
             // Delete event (cascade will delete EventModules and Feedback)
             await query('DELETE FROM Events WHERE EventId = @eventId', { eventId });
+            await audit(request, 'DELETE', 'Event', eventId, `Deleted event EventId=${eventId}`, { feedbackDeleted: feedbackCount[0].Count });
 
             return {
                 status: 200,
@@ -313,15 +350,14 @@ app.http('deleteEvent', {
     }
 });
 
-// DELETE multiple events (bulk delete with cascade)
+// DELETE multiple events (bulk delete) — GlobalAdmin only
 app.http('deleteEventsBulk', {
     methods: ['POST'],  // Using POST for bulk delete to send body
     authLevel: 'anonymous',
     route: 'events/bulk-delete',
     handler: async (request, context) => {
-        // Verify authentication
-        const authError = requireAuth(request);
-        if (authError) return authError;
+        const roleError = requireRole(request);  // No extra roles = GlobalAdmin only
+        if (roleError) return roleError;
 
         try {
             const data = await request.json();
@@ -348,6 +384,8 @@ app.http('deleteEventsBulk', {
                     totalFeedbackDeleted += feedbackCount[0].Count;
                 }
             }
+
+            if (deletedCount > 0) await audit(request, 'BULK_DELETE', 'Event', null, `Bulk deleted ${deletedCount} event(s) and ${totalFeedbackDeleted} feedback`, { deletedCount, totalFeedbackDeleted, eventIds });
 
             return {
                 status: 200,

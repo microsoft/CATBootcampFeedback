@@ -8,7 +8,9 @@
 const { app } = require('@azure/functions');
 const { query } = require('../shared/database');
 const { success, error } = require('../shared/utils');
-const { requireAuth } = require('../shared/auth');
+const { requireRole, getAuthenticatedUser } = require('../shared/auth');
+const { hasEventAccess } = require('../shared/permissions');
+const { audit } = require('../shared/audit');
 
 app.http('updateEvent', {
     methods: ['PUT'],
@@ -16,9 +18,21 @@ app.http('updateEvent', {
     route: 'events/{eventId}',
     handler: async (request, context) => {
         try {
-            // Require authentication for updating events
-            const authError = requireAuth(request);
-            if (authError) return authError;
+            // GlobalAdmin or EventCreator (with resource access) can edit events
+            const roleError = requireRole(request, 'EventCreator');
+            if (roleError) return roleError;
+
+            // Resource-level access check for non-GlobalAdmin
+            const caller = getAuthenticatedUser(request);
+            const parsedEventId = parseInt(request.params.eventId);
+            if (caller && !caller.roles.includes('GlobalAdmin')) {
+                const canAccess = await hasEventAccess(caller.userId, caller.username, caller.roles, parsedEventId);
+                if (!canAccess) {
+                    const { error: errorFn } = require('../shared/utils');
+                    const errorResponse = errorFn(403, 'You do not have access to this event', 'FORBIDDEN');
+                    return { status: errorResponse.status, headers: errorResponse.headers, body: errorResponse.body };
+                }
+            }
 
             const eventId = request.params.eventId;
 
@@ -97,6 +111,7 @@ app.http('updateEvent', {
             });
 
             context.log(`Event ${eventId} updated successfully`);
+            await audit(request, 'UPDATE', 'Event', parseInt(eventId), `Updated event "${eventName.trim()}" (${eventCode.trim()})`, { eventId: parseInt(eventId), eventName: eventName.trim(), eventCode: eventCode.trim(), startDate, endDate, trainingTrack, isActive });
 
             const response = success({
                 message: 'Event updated successfully',

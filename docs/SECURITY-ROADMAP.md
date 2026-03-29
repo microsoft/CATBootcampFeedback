@@ -17,6 +17,12 @@ This document outlines recommended security enhancements for the CAT Bootcamp Fe
 - ✅ All credentials rotated (Feb 2026)
 - ✅ Credentials removed from documentation
 - ✅ Demo credentials removed from UI
+- ✅ Role-based access control (RBAC) with 6 granular roles
+- ✅ Resource-level security (users only see their events/feedback)
+- ✅ Comprehensive audit logging of all authenticated actions
+- ✅ Per-email rate limiting on recovery endpoints
+- ✅ Protected Global Admin account
+- ✅ Database-backed user management (replacing env-var JSON)
 
 ## Recent Security Actions Completed (Feb 2026) 🎉
 
@@ -35,11 +41,11 @@ This document outlines recommended security enhancements for the CAT Bootcamp Fe
 
 ### Priority 1: Critical (Implement First)
 
-#### 1. Rate Limiting ⭐ HIGH IMPACT
+#### 1. Rate Limiting ⭐ HIGH IMPACT -- ✅ IMPLEMENTED
 
-**Current State:** Not implemented
-**Risk:** Brute force attacks, API abuse, DDoS
-**Effort:** 4-6 hours
+**Current State:** Implemented (IP-based rate limiting on login + per-email rate limiting on recovery endpoints)
+**Risk:** ~~Brute force attacks, API abuse, DDoS~~ Mitigated
+**Effort:** ~~4-6 hours~~ Done
 
 **Why This Matters:**
 Without rate limiting, attackers can:
@@ -83,16 +89,18 @@ Without rate limiting, attackers can:
 
 ### Priority 2: Important (Implement Next)
 
-#### 4. Enhanced Audit Logging
+#### 4. Enhanced Audit Logging -- ✅ IMPLEMENTED
 
-**Effort:** 6-8 hours
+**Effort:** ~~6-8 hours~~ Done
 
-**What to Log:**
+**What is logged (AuditLog table in database):**
 - All login attempts (success/failure)
-- Admin actions (create, update, delete)
+- All CRUD operations (CREATE, UPDATE, DELETE)
+- Role assignments/revocations (ASSIGN_ROLE, REMOVE_ROLE)
+- Event access grants/revocations (GRANT_ACCESS, REVOKE_ACCESS)
+- Password changes and resets
 - Unauthorized access attempts
-- Key Vault access patterns
-- Failed JWT validations
+- Key Vault access patterns (via Azure Monitor)
 
 **Set up alerts for:**
 - 5+ failed logins in 5 minutes
@@ -147,19 +155,23 @@ Use a validation library like Joi to:
 - Industry standard for admin access
 - Compliance requirement for many organizations
 
-#### 9. Role-Based Access Control (RBAC)
+#### 9. Role-Based Access Control (RBAC) -- ✅ IMPLEMENTED
 
-**Effort:** 20-30 hours
+**Effort:** ~~20-30 hours~~ Done
 
-**Proposed Roles:**
-- **Super Admin** - Full access
-- **Admin** - Create/update events, view feedback
-- **Viewer** - Read-only access
+**Implemented Roles:**
+- **GlobalAdmin** - Full access to everything
+- **UserAdmin** - Manage users and role assignments
+- **ModuleManager** - Create, edit, delete modules
+- **EventCreator** - Create events, manage event-modules
+- **FeedbackManager** - View and delete feedback for granted events
+- **FeedbackViewer** - Read-only reporting for granted events
 
-**Benefits:**
-- Principle of least privilege
-- Better audit trail
-- Scalable user management
+**Benefits (realized):**
+- Principle of least privilege via 6 granular roles
+- Resource-level security via UserEventAccess table
+- Comprehensive audit trail via AuditLog table
+- Database-backed user management (replaces env-var JSON)
 
 ---
 
@@ -203,15 +215,15 @@ Automate monthly rotation of:
 
 | Feature | Impact | Effort | Time | Priority |
 |---------|--------|--------|------|----------|
-| Rate Limiting | High | Medium | 4-6h | 🔴 P1 |
+| ~~Rate Limiting~~ | ~~High~~ | ~~Medium~~ | ~~4-6h~~ | ✅ Done |
 | SQL to Key Vault | High | Low | 1-2h | 🔴 P1 |
 | CSP Headers | Medium | Low | 2-3h | 🔴 P1 |
-| Enhanced Logging | Medium | Medium | 6-8h | 🟡 P2 |
+| ~~Enhanced Logging~~ | ~~Medium~~ | ~~Medium~~ | ~~6-8h~~ | ✅ Done |
 | Input Validation | Medium | Medium | 8-10h | 🟡 P2 |
 | IP Allowlisting | Low | Low | 2-3h | 🟡 P2 |
 | Refresh Tokens | Medium | High | 16-20h | 🟢 P3 |
 | MFA | High | High | 24-32h | 🟢 P3 |
-| RBAC | Medium | High | 20-30h | 🟢 P3 |
+| ~~RBAC~~ | ~~Medium~~ | ~~High~~ | ~~20-30h~~ | ✅ Done |
 | WAF | High | High | 16-24h | 🔵 P4 |
 | Dep Scanning | Medium | Low | 4-6h | 🔵 P4 |
 | Secret Rotation | Low | High | 12-16h | 🔵 P4 |
@@ -221,10 +233,10 @@ Automate monthly rotation of:
 ### Phase 1: Quick Wins (Week 1-2) - 9-13 hours
 1. ⏳ **Move SQL credentials to Key Vault (1-2h)** - Password rotated, needs Key Vault migration
 2. ❌ Add CSP headers (2-3h)
-3. ❌ Implement rate limiting (4-6h)
+3. ✅ ~~Implement rate limiting~~ -- Done (IP-based + per-email)
 4. ❌ Add dependency scanning (4-6h)
 
-**Status:** Credential rotation completed (Feb 2026), remaining items in progress
+**Status:** Rate limiting implemented (March 2026), remaining items in progress
 **Total Investment:** ~10-13 hours
 **Security Improvement:** ~40%
 
@@ -277,11 +289,8 @@ Automate monthly rotation of:
 
 Based on recent credential rotation work, here are the next critical steps:
 
-### 1. 🔥 Rate Limiting (4-6 hours) - HIGHEST PRIORITY
-**Why:** Now that credentials are rotated, protect them from brute force
-**Impact:** Prevents 80% of automated attacks on login endpoints
-**Cost:** Free
-**Status:** ❌ Not implemented
+### 1. ~~Rate Limiting~~ ✅ DONE
+**Status:** Implemented -- IP-based rate limiting on login and per-email rate limiting on recovery endpoints
 
 ### 2. 🔐 Complete SQL Credentials Migration to Key Vault (1-2 hours)
 **Why:** Finish the credential security work already started
@@ -335,16 +344,16 @@ Would you like me to:
 - SQL credentials migration to Key Vault (50% - rotated, not in vault)
 
 ### 📋 Next Up (Priority Order)
-1. Rate limiting implementation (4-6h)
+1. ~~Rate limiting implementation~~ ✅ Done
 2. Complete SQL Key Vault migration (1-2h)
 3. Content Security Policy headers (2-3h)
-4. Enhanced audit logging (6-8h)
+4. ~~Enhanced audit logging~~ ✅ Done (AuditLog table)
 5. Input validation improvements (8-10h)
 
 **Estimated Time to Phase 1 Completion:** 7-11 hours remaining
 
 ---
 
-**Last Updated:** February 8, 2026
-**Next Review:** May 8, 2026
-**Status:** Phase 1 credential rotation complete, additional quick wins recommended
+**Last Updated:** March 28, 2026
+**Next Review:** June 28, 2026
+**Status:** Rate limiting, RBAC, audit logging, and database-backed user management implemented. CSP headers and SQL Key Vault migration remain.
