@@ -9,7 +9,9 @@
 const { app } = require('@azure/functions');
 const { query } = require('../shared/database');
 const { success, error } = require('../shared/utils');
-const { requireAuth } = require('../shared/auth');
+const { requireRole, getAuthenticatedUser } = require('../shared/auth');
+const { hasEventAccess } = require('../shared/permissions');
+const { audit } = require('../shared/audit');
 
 // GET modules for a specific event
 app.http('getEventModules', {
@@ -87,14 +89,24 @@ app.http('addEventModule', {
     route: 'event-modules',
     handler: async (request, context) => {
         try {
-            // Require authentication for adding modules to events
-            const authError = requireAuth(request);
-            if (authError) return authError;
+            // GlobalAdmin or EventCreator can add modules to events
+            const roleError = requireRole(request, 'EventCreator');
+            if (roleError) return roleError;
 
             // Parse request body
             const bodyText = await request.text();
             const body = JSON.parse(bodyText);
             const { eventId, moduleId, speakerName, deliveryOrder, deliveryDate, notes } = body;
+
+            // Resource-level access check
+            const caller = getAuthenticatedUser(request);
+            if (caller && !caller.roles.includes('GlobalAdmin') && eventId) {
+                const canAccess = await hasEventAccess(caller.userId, caller.username, caller.roles, parseInt(eventId));
+                if (!canAccess) {
+                    const errorResponse = error(403, 'You do not have access to this event', 'FORBIDDEN');
+                    return { status: errorResponse.status, headers: errorResponse.headers, body: errorResponse.body };
+                }
+            }
 
             // Validate required fields
             if (!eventId || !moduleId || !speakerName) {
@@ -159,6 +171,7 @@ app.http('addEventModule', {
             const created = result[0];
 
             context.log(`Module ${moduleId} added to event ${eventId}`);
+            await audit(request, 'ADD_MODULE', 'EventModule', created.EventModuleId, `Added module ModuleId=${moduleId} to EventId=${eventId} (speaker: ${speakerName.trim()})`, { eventId: parseInt(eventId), moduleId: parseInt(moduleId), speakerName: speakerName.trim(), deliveryOrder: requestedOrder });
 
             const response = success({
                 message: 'Module added to event successfully',
@@ -198,9 +211,9 @@ app.http('removeEventModule', {
     route: 'event-modules/{eventModuleId}',
     handler: async (request, context) => {
         try {
-            // Require authentication for removing modules from events
-            const authError = requireAuth(request);
-            if (authError) return authError;
+            // GlobalAdmin or EventCreator can remove modules from events
+            const roleError = requireRole(request, 'EventCreator');
+            if (roleError) return roleError;
 
             const eventModuleId = request.params.eventModuleId;
 
@@ -213,11 +226,23 @@ app.http('removeEventModule', {
                 };
             }
 
-            // Check if event module exists
+            // Check if event module exists and get EventId for access check
             const existing = await query(
-                'SELECT EventModuleId FROM EventModules WHERE EventModuleId = @eventModuleId',
+                'SELECT EventModuleId, EventId FROM EventModules WHERE EventModuleId = @eventModuleId',
                 { eventModuleId: parseInt(eventModuleId) }
             );
+
+            // Resource-level access check
+            if (existing.length > 0) {
+                const caller = getAuthenticatedUser(request);
+                if (caller && !caller.roles.includes('GlobalAdmin')) {
+                    const canAccess = await hasEventAccess(caller.userId, caller.username, caller.roles, existing[0].EventId);
+                    if (!canAccess) {
+                        const errorResponse = error(403, 'You do not have access to this event', 'FORBIDDEN');
+                        return { status: errorResponse.status, headers: errorResponse.headers, body: errorResponse.body };
+                    }
+                }
+            }
 
             if (existing.length === 0) {
                 const errorResponse = error(404, 'Event module not found', 'NOT_FOUND');
@@ -235,6 +260,7 @@ app.http('removeEventModule', {
             );
 
             context.log(`Event module ${eventModuleId} removed`);
+            await audit(request, 'REMOVE_MODULE', 'EventModule', parseInt(eventModuleId), `Removed event module EventModuleId=${eventModuleId} from EventId=${existing[0].EventId}`, { eventModuleId: parseInt(eventModuleId), eventId: existing[0].EventId });
 
             const response = success({
                 message: 'Module removed from event successfully',
@@ -259,16 +285,15 @@ app.http('removeEventModule', {
     }
 });
 
-// PUT - Update module delivery order
+// PUT - Update module delivery order — GlobalAdmin or EventCreator with access
 app.http('updateModuleOrder', {
     methods: ['PUT'],
     authLevel: 'anonymous',
     route: 'event-modules/{eventModuleId}/order',
     handler: async (request, context) => {
         try {
-            // Require authentication for reordering modules
-            const authError = requireAuth(request);
-            if (authError) return authError;
+            const roleError = requireRole(request, 'EventCreator');
+            if (roleError) return roleError;
 
             const eventModuleId = request.params.eventModuleId;
 
@@ -371,6 +396,7 @@ app.http('updateModuleOrder', {
             });
 
             context.log(`Module ${eventModuleId} order changed from ${currentOrder} to ${newOrder}`);
+            await audit(request, 'REORDER', 'EventModule', parseInt(eventModuleId), `Reordered event module from position ${currentOrder} to ${newOrder}`, { eventModuleId: parseInt(eventModuleId), eventId: EventId, oldOrder: currentOrder, newOrder });
 
             const response = success({
                 message: 'Module order updated successfully',
@@ -397,16 +423,15 @@ app.http('updateModuleOrder', {
     }
 });
 
-// PUT - Update speaker for an event module
+// PUT - Update speaker for an event module — GlobalAdmin or EventCreator with access
 app.http('updateEventModuleSpeaker', {
     methods: ['PUT'],
     authLevel: 'anonymous',
     route: 'event-modules/{eventModuleId}/speaker',
     handler: async (request, context) => {
         try {
-            // Require authentication for updating speaker
-            const authError = requireAuth(request);
-            if (authError) return authError;
+            const roleError = requireRole(request, 'EventCreator');
+            if (roleError) return roleError;
 
             const eventModuleId = request.params.eventModuleId;
 
@@ -458,6 +483,7 @@ app.http('updateEventModuleSpeaker', {
             );
 
             context.log(`Event module ${eventModuleId} speaker updated to "${speakerName.trim()}"`);
+            await audit(request, 'UPDATE_SPEAKER', 'EventModule', parseInt(eventModuleId), `Changed speaker to "${speakerName.trim()}" (was "${existing[0].SpeakerName}")`, { eventModuleId: parseInt(eventModuleId), newSpeaker: speakerName.trim(), previousSpeaker: existing[0].SpeakerName });
 
             const response = success({
                 message: 'Speaker updated successfully',

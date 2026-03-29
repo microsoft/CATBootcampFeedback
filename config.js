@@ -6,8 +6,15 @@
 export const CONFIG = {
     // API Configuration
     API_BASE_URL: '/api',
-    // Auto-detect environment: use real APIs in production, mock in localhost
-    USE_MOCK_DATA: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
+    // Auto-detect environment: use real APIs in production, mock in localhost (dev server on default port)
+    // Docker/nginx on port 8080 uses real APIs; ?mock=true forces mock mode; ?mock=false forces real mode
+    USE_MOCK_DATA: (() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('mock')) return params.get('mock') !== 'false';
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const isDockerDev = window.location.port === '8080';
+        return isLocalhost && !isDockerDev;
+    })(),
 
     // Timeouts & Intervals
     API_TIMEOUT: 60000,                 // 60 seconds (handles cold starts on Consumption plan)

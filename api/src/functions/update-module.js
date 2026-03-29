@@ -8,16 +8,17 @@
 const { app } = require('@azure/functions');
 const { query } = require('../shared/database');
 const { success, error } = require('../shared/utils');
-const { requireAuth } = require('../shared/auth');
+const { requireRole, getAuthenticatedUser } = require('../shared/auth');
+const { audit } = require('../shared/audit');
 
 app.http('updateModule', {
     methods: ['PUT'],
     authLevel: 'anonymous',
     route: 'modules/{moduleId}',
     handler: async (request, context) => {
-        // Verify authentication
-        const authError = requireAuth(request);
-        if (authError) return authError;
+        // GlobalAdmin or ModuleManager can edit modules
+        const roleError = requireRole(request, 'ModuleManager');
+        if (roleError) return roleError;
 
         try {
             const moduleId = request.params.moduleId;
@@ -100,10 +101,11 @@ app.http('updateModule', {
                 moduleName: moduleName.trim(),
                 description: description ? description.trim() : null,
                 isActive: isActive ? 1 : 0,
-                updatedBy: 'admin'
+                updatedBy: (getAuthenticatedUser(request) || {}).username || 'admin'
             });
 
             context.log(`Module ${moduleId} updated successfully`);
+            await audit(request, 'UPDATE', 'Module', parseInt(moduleId), `Updated module "${moduleName.trim()}"`, { moduleId: parseInt(moduleId), moduleName: moduleName.trim(), description, isActive });
 
             const response = success({
                 message: 'Module updated successfully',

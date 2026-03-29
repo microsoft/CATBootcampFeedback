@@ -1,0 +1,111 @@
+##
+## CAT Bootcamp Feedback — Local Development Stack
+##
+## Usage:
+##   docker compose up --build
+##   Open http://localhost:8080/admin.html
+##
+## Default admin credentials:
+##   Username: admin
+##   Password: Admin123!
+##
+## Services:
+##   db       — Azure SQL Edge (SQL Server for ARM64/x64)
+##   api      — Azure Functions v4 Node.js API
+##   frontend — nginx serving static files
+##
+
+services:
+  # ── SQL Database ──────────────────────────────
+  db:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "LocalDev#2024!"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import socket; s=socket.socket(); s.settimeout(2); s.connect(('localhost',1433)); s.close()\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  # ── Database Initialization ───────────────────
+  db-init:
+    image: node:20-slim
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./docker/init-db.js:/init-db.js:ro
+      - ./database-init-v2.sql:/scripts/001-schema.sql:ro
+      - ./migrations/002-add-user-management.sql:/scripts/002-user-management.sql:ro
+      - ./docker/003-seed-test-admin.sql:/scripts/003-seed-test-admin.sql:ro
+      - ./migrations/003-add-profile-image.sql:/scripts/003b-profile-image.sql:ro
+      - ./migrations/004-add-audit-log.sql:/scripts/003c-audit-log.sql:ro
+      - ./migrations/005-widen-event-code.sql:/scripts/003d-widen-event-code.sql:ro
+      - ./docker/004-seed-sample-data.sql:/scripts/004-seed-sample-data.sql:ro
+    working_dir: /work
+    entrypoint: ["sh", "-c", "npm install mssql@12 && NODE_PATH=/work/node_modules node /init-db.js"]
+    environment:
+      SA_PASSWORD: "LocalDev#2024!"
+      DB_HOST: db
+
+  # ── Azure Functions API ───────────────────────
+  api:
+    build:
+      context: ./api
+      dockerfile: ../docker/Dockerfile.api
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    ports:
+      - "7071:80"
+    volumes:
+      - ./docker/server.js:/home/site/wwwroot/server.js:ro
+    environment:
+      AzureWebJobsStorage: ""
+      FUNCTIONS_WORKER_RUNTIME: "node"
+      SQL_SERVER: "db"
+      SQL_DATABASE: "CATBootcampFeedback"
+      SQL_USER: "sa"
+      SQL_PASSWORD: "LocalDev#2024!"
+      JWT_SECRET: "local-dev-jwt-secret-change-in-production-1234567890"
+      JWT_EXPIRY: "8h"
+      ALLOWED_ORIGINS: "http://localhost:8080"
+      NODE_ENV: "development"
+
+  # ── Frontend (nginx) ──────────────────────────
+  frontend:
+    image: nginx:alpine
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./admin.html:/usr/share/nginx/html/admin.html:ro
+      - ./admin.js:/usr/share/nginx/html/admin.js:ro
+      - ./admin.css:/usr/share/nginx/html/admin.css:ro
+      - ./feedback.html:/usr/share/nginx/html/feedback.html:ro
+      - ./feedback.js:/usr/share/nginx/html/feedback.js:ro
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+      - ./count.html:/usr/share/nginx/html/count.html:ro
+      - ./count.js:/usr/share/nginx/html/count.js:ro
+      - ./styles.css:/usr/share/nginx/html/styles.css:ro
+      - ./config.js:/usr/share/nginx/html/config.js:ro
+      - ./api.js:/usr/share/nginx/html/api.js:ro
+      - ./utils.js:/usr/share/nginx/html/utils.js:ro
+      - ./errors.js:/usr/share/nginx/html/errors.js:ro
+      - ./RateLimiter.js:/usr/share/nginx/html/RateLimiter.js:ro
+      - ./Cache.js:/usr/share/nginx/html/Cache.js:ro
+      - ./manual-entry.js:/usr/share/nginx/html/manual-entry.js:ro
+      - ./qrcode.min.js:/usr/share/nginx/html/qrcode.min.js:ro
+      - ./staticwebapp.config.json:/usr/share/nginx/html/staticwebapp.config.json:ro
+
+volumes:
+  sqldata:

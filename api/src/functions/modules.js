@@ -7,16 +7,23 @@
 const { app } = require('@azure/functions');
 const { query, mutate } = require('../shared/database');
 const { success, error } = require('../shared/utils');
-const { requireAuth } = require('../shared/auth');
+const { requireRole, getAuthenticatedUser } = require('../shared/auth');
+const { audit } = require('../shared/audit');
 
 app.http('modules', {
     methods: ['GET', 'POST'],
     authLevel: 'anonymous',
     route: 'modules',
     handler: async (request, context) => {
-        // Verify authentication for all methods
-        const authError = requireAuth(request);
-        if (authError) return authError;
+        if (request.method === 'GET') {
+            // GET: GlobalAdmin, ModuleManager, or EventCreator can view modules
+            const roleError = requireRole(request, 'ModuleManager', 'EventCreator');
+            if (roleError) return roleError;
+        } else {
+            // POST: Only GlobalAdmin or ModuleManager can create modules
+            const roleError = requireRole(request, 'ModuleManager');
+            if (roleError) return roleError;
+        }
 
         try {
             if (request.method === 'GET') {
@@ -109,10 +116,12 @@ app.http('modules', {
                     moduleName: moduleName.trim(),
                     description: description ? description.trim() : null,
                     isActive: isActive ? 1 : 0,
-                    createdBy: 'admin'
+                    createdBy: (getAuthenticatedUser(request) || {}).username || 'admin'
                 });
 
                 const createdModule = result[0];
+
+                await audit(request, 'CREATE', 'Module', createdModule.ModuleId, `Created module "${moduleName.trim()}"`, { moduleName });
 
                 const response = success({
                     message: 'Module created successfully',
@@ -144,15 +153,14 @@ app.http('modules', {
     }
 });
 
-// DELETE single module
+// DELETE single module — GlobalAdmin or ModuleManager only
 app.http('deleteModule', {
     methods: ['DELETE'],
     authLevel: 'anonymous',
     route: 'modules/{moduleId}',
     handler: async (request, context) => {
-        // Verify authentication
-        const authError = requireAuth(request);
-        if (authError) return authError;
+        const roleError = requireRole(request, 'ModuleManager');
+        if (roleError) return roleError;
 
         try {
             const moduleId = parseInt(request.params.moduleId);
@@ -187,6 +195,8 @@ app.http('deleteModule', {
                 return { status: 404, jsonBody: { success: false, message: 'Module not found', error: 'NOT_FOUND' } };
             }
 
+            await audit(request, 'DELETE', 'Module', moduleId, `Deleted module ModuleId=${moduleId}`, { moduleId });
+
             return {
                 status: 200,
                 jsonBody: {
@@ -203,15 +213,14 @@ app.http('deleteModule', {
     }
 });
 
-// DELETE multiple modules (bulk delete)
+// DELETE multiple modules (bulk delete) — GlobalAdmin or ModuleManager only
 app.http('deleteModulesBulk', {
     methods: ['POST'],  // Using POST for bulk delete to send body
     authLevel: 'anonymous',
     route: 'modules/bulk-delete',
     handler: async (request, context) => {
-        // Verify authentication
-        const authError = requireAuth(request);
-        if (authError) return authError;
+        const roleError = requireRole(request, 'ModuleManager');
+        if (roleError) return roleError;
 
         try {
             const data = await request.json();
@@ -252,6 +261,8 @@ app.http('deleteModulesBulk', {
                     deletedCount++;
                 }
             }
+
+            if (deletedCount > 0) await audit(request, 'BULK_DELETE', 'Module', null, `Bulk deleted ${deletedCount} module(s), skipped ${skippedCount}`, { deletedCount, skippedCount, moduleIds });
 
             return {
                 status: 200,

@@ -13,16 +13,43 @@ import {
     generateEventCode
 } from './utils.js';
 import { getUserFriendlyErrorMessage } from './errors.js';
-import { apiGet, apiPost, apiPut } from './api.js';
+import { apiGet, apiPost, apiPut, apiDelete } from './api.js';
 import { createLoginRateLimiter } from './RateLimiter.js';
 
 // Global state
 let currentUser = null;
+let currentUserRoles = [];
 let allModules = [];
 let allEvents = [];
 let allFeedback = [];
+let allUsers = [];
+let allRoles = [];
 let currentEventId = null;
 let loginRateLimiter = null;
+
+// ── Permission helper ────────────────────────────
+const PERMISSIONS = {
+    MANAGE_USERS:         ['GlobalAdmin', 'UserAdmin'],
+    CREATE_MODULES:       ['GlobalAdmin', 'ModuleManager'],
+    EDIT_MODULES:         ['GlobalAdmin', 'ModuleManager'],
+    DELETE_MODULES:       ['GlobalAdmin', 'ModuleManager'],
+    VIEW_MODULES:         ['GlobalAdmin', 'ModuleManager', 'EventCreator'],
+    CREATE_EVENTS:        ['GlobalAdmin', 'EventCreator'],
+    EDIT_EVENTS:          ['GlobalAdmin', 'EventCreator'],
+    DELETE_EVENTS:        ['GlobalAdmin'],
+    VIEW_FEEDBACK:        ['GlobalAdmin', 'EventCreator', 'FeedbackManager', 'FeedbackViewer'],
+    DELETE_FEEDBACK:      ['GlobalAdmin', 'FeedbackManager'],
+    MANAGE_EVENT_MODULES: ['GlobalAdmin', 'EventCreator'],
+    VIEW_ANALYTICS:       ['GlobalAdmin', 'EventCreator', 'FeedbackManager', 'FeedbackViewer'],
+};
+
+function isAllowed(permission) {
+    if (!currentUserRoles || currentUserRoles.length === 0) return false;
+    if (currentUserRoles.includes('GlobalAdmin')) return true;
+    const allowed = PERMISSIONS[permission];
+    if (!allowed) return false;
+    return allowed.some(role => currentUserRoles.includes(role));
+}
 
 // Determine base URLs
 const FEEDBACK_BASE_URL = window.location.origin + '/feedback.html';
@@ -50,10 +77,10 @@ document.addEventListener('DOMContentLoaded', function() {
 function checkAuthentication() {
     const token = sessionStorage.getItem('adminToken');
     if (token) {
-        // Validate token (in real app, verify with server)
         const userStr = sessionStorage.getItem('adminUser');
         if (userStr) {
             currentUser = JSON.parse(userStr);
+            currentUserRoles = currentUser.roles || [];
             showMainContent();
         } else {
             showLoginScreen();
@@ -208,16 +235,23 @@ async function handleLogin(e) {
         const result = await authenticateUser(username, password);
         if (result.success) {
             currentUser = result.user;
+            currentUserRoles = result.user.roles || [];
             sessionStorage.setItem('adminToken', result.token);
             sessionStorage.setItem('adminUser', JSON.stringify(result.user));
 
             // Reset rate limiter on successful login
             loginRateLimiter.reset();
 
+            // Check if user must change password
+            if (result.user.mustChangePassword) {
+                showForceChangePassword();
+                return;
+            }
+
             showMainContent();
         } else {
             loginRateLimiter.recordAttempt();
-            loginError.textContent = 'Invalid username or password';
+            loginError.textContent = result.message || 'Invalid username or password';
         }
     } catch (error) {
         console.error('Login error:', error);
@@ -237,7 +271,7 @@ async function authenticateUser(username, password) {
                     resolve({
                         success: true,
                         token: 'mock-token-' + Date.now(),
-                        user: { username: username, fullName: 'Mock User' }
+                        user: { username: username, fullName: 'Mock User', roles: ['GlobalAdmin'], isProtected: true, mustChangePassword: false }
                     });
                 } else {
                     resolve({ success: false });
@@ -265,29 +299,129 @@ function handleLogout() {
     }
 }
 
+// Apply permission-based UI visibility
+function applyPermissionUI() {
+    // Tab visibility
+    const modulesTabBtn = document.querySelector('[data-tab="modules"]');
+    const eventsTabBtn = document.querySelector('[data-tab="events"]');
+    const feedbackTabBtn = document.querySelector('[data-tab="feedback"]');
+    const analyticsTabBtn = document.querySelector('[data-tab="analytics"]');
+    const usersTabBtn = document.getElementById('usersTabBtn');
+
+    if (modulesTabBtn) modulesTabBtn.style.display = isAllowed('VIEW_MODULES') ? '' : 'none';
+    if (eventsTabBtn) eventsTabBtn.style.display = isAllowed('CREATE_EVENTS') || currentUserRoles.includes('GlobalAdmin') ? '' : 'none';
+    if (feedbackTabBtn) feedbackTabBtn.style.display = isAllowed('VIEW_FEEDBACK') ? '' : 'none';
+    if (analyticsTabBtn) analyticsTabBtn.style.display = isAllowed('VIEW_ANALYTICS') ? '' : 'none';
+    if (usersTabBtn) usersTabBtn.style.display = isAllowed('MANAGE_USERS') ? '' : 'none';
+    const auditLogTabBtn = document.getElementById('auditLogTabBtn');
+    if (auditLogTabBtn) auditLogTabBtn.style.display = currentUserRoles.includes('GlobalAdmin') ? '' : 'none';
+
+    // Module action buttons
+    const createModuleBtn = document.getElementById('createModuleBtn');
+    const deleteModulesBtn = document.getElementById('deleteModulesBtn');
+    if (createModuleBtn) createModuleBtn.style.display = isAllowed('CREATE_MODULES') ? '' : 'none';
+
+    // Event action buttons
+    const createEventBtn = document.getElementById('createEventBtn');
+    const deleteEventsBtn = document.getElementById('deleteEventsBtn');
+    if (createEventBtn) createEventBtn.style.display = isAllowed('CREATE_EVENTS') ? '' : 'none';
+
+    // Feedback action buttons
+    const deleteFeedbackBtn = document.getElementById('deleteFeedbackBtn');
+
+    // Set the default active tab to the first visible one
+    const firstVisibleTab = document.querySelector('.tab-button:not([style*="display: none"])');
+    if (firstVisibleTab && !document.querySelector('.tab-button.active:not([style*="display: none"])')) {
+        switchTab(firstVisibleTab.dataset.tab);
+    }
+}
+
+// Show forced password change modal
+function showForceChangePassword() {
+    loginScreen.classList.add('hidden');
+    mainContent.classList.add('hidden');
+    const modal = document.getElementById('changePasswordModal');
+    const title = document.getElementById('changePasswordTitle');
+    const currentPwGroup = document.getElementById('currentPasswordGroup');
+    if (title) title.textContent = 'You must change your password';
+    if (currentPwGroup) currentPwGroup.style.display = 'block';
+    // Hide cancel button for forced change
+    const cancelBtn = document.getElementById('cancelChangePasswordBtn');
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    const closeBtn = document.getElementById('closeChangePasswordModal');
+    if (closeBtn) closeBtn.style.display = 'none';
+    if (modal) modal.classList.remove('hidden');
+}
+
 // Show login screen
 function showLoginScreen() {
     loginScreen.classList.remove('hidden');
     mainContent.classList.add('hidden');
+    // Hide header actions when not logged in
+    const headerActions = document.getElementById('headerActions');
+    if (headerActions) headerActions.style.display = 'none';
+    // Reset to login form view (in case user was on forgot password/username)
+    const loginFormView = document.getElementById('loginFormView');
+    const forgotPwView = document.getElementById('forgotPasswordView');
+    const forgotUnView = document.getElementById('forgotUsernameView');
+    if (loginFormView) loginFormView.style.display = '';
+    if (forgotPwView) forgotPwView.style.display = 'none';
+    if (forgotUnView) forgotUnView.style.display = 'none';
 }
 
 // Show main content
 async function showMainContent() {
     loginScreen.classList.add('hidden');
     mainContent.classList.remove('hidden');
+    // Show header actions when logged in
+    const headerActions = document.getElementById('headerActions');
+    if (headerActions) headerActions.style.display = 'flex';
     if (currentUser) {
         adminUser.textContent = escapeHtml(currentUser.fullName || currentUser.username);
+        // Show roles as badges
+        const rolesEl = document.getElementById('adminRoles');
+        if (rolesEl && currentUserRoles.length > 0) {
+            rolesEl.innerHTML = currentUserRoles.map(r =>
+                `<span class="role-badge role-badge-${r.toLowerCase()}">${escapeHtml(r)}</span>`
+            ).join(' ');
+        }
+        // Set header avatar (fetch profile image from API)
+        const headerAvatar = document.getElementById('headerAvatar');
+        if (headerAvatar && currentUser.userId) {
+            const initials = (currentUser.fullName || currentUser.username || '?')
+                .split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+            headerAvatar.innerHTML = initials;
+            // Try to load profile image
+            apiGet(`/users/${currentUser.userId}`).then(res => {
+                if (res.data && res.data.ProfileImage) {
+                    headerAvatar.innerHTML = `<img src="${res.data.ProfileImage}" alt="Me">`;
+                }
+            }).catch(() => {});
+        }
     }
+
+    // Apply permission-based UI visibility
+    applyPermissionUI();
 
     // Load data in parallel (optimization)
     try {
         console.log('Loading data with config:', { useMockData: CONFIG.USE_MOCK_DATA, apiBaseUrl: CONFIG.API_BASE_URL });
 
-        const [modules, events, feedback] = await Promise.all([
-            fetchModules().catch(err => { console.error('fetchModules failed:', err); throw err; }),
-            fetchEvents().catch(err => { console.error('fetchEvents failed:', err); throw err; }),
-            fetchFeedback().catch(err => { console.error('fetchFeedback failed:', err); throw err; })
-        ]);
+        const dataPromises = [];
+        // Only fetch data the user has access to
+        if (isAllowed('VIEW_MODULES')) {
+            dataPromises.push(fetchModules().catch(err => { console.error('fetchModules failed:', err); return []; }));
+        } else {
+            dataPromises.push(Promise.resolve([]));
+        }
+        dataPromises.push(fetchEvents().catch(err => { console.error('fetchEvents failed:', err); return []; }));
+        if (isAllowed('VIEW_FEEDBACK')) {
+            dataPromises.push(fetchFeedback().catch(err => { console.error('fetchFeedback failed:', err); return []; }));
+        } else {
+            dataPromises.push(Promise.resolve([]));
+        }
+
+        const [modules, events, feedback] = await Promise.all(dataPromises);
 
         console.log('Data loaded successfully:', { modules: modules.length, events: events.length, feedback: feedback.length });
 
@@ -326,6 +460,10 @@ function switchTab(tabName) {
     // Load content based on tab
     if (tabName === 'modules') {
         loadModules();
+    } else if (tabName === 'users' && isAllowed('MANAGE_USERS')) {
+        fetchUsers();
+    } else if (tabName === 'auditlog' && currentUserRoles.includes('GlobalAdmin')) {
+        fetchAuditLog(1);
     }
 }
 
@@ -2973,6 +3111,1505 @@ async function performBulkDelete(type) {
 setTimeout(() => {
     initBulkDeleteListeners();
 }, 1000);
+
+// ========================================================================
+// USER MANAGEMENT
+// ========================================================================
+
+// Fetch all users
+async function fetchUsers() {
+    if (!isAllowed('MANAGE_USERS')) return [];
+    try {
+        if (CONFIG.USE_MOCK_DATA) return [];
+        const result = await apiGet('/users');
+        allUsers = result.data || [];
+        renderUsers();
+        return allUsers;
+    } catch (err) {
+        console.error('Failed to fetch users:', err);
+        return [];
+    }
+}
+
+// Fetch available roles
+async function fetchRoles() {
+    try {
+        if (CONFIG.USE_MOCK_DATA) return [];
+        const result = await apiGet('/roles');
+        allRoles = result.data || [];
+        return allRoles;
+    } catch (err) {
+        console.error('Failed to fetch roles:', err);
+        return [];
+    }
+}
+
+// Generate a secure random password (client-side)
+function generateSecurePassword() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+    return Array.from(array, b => chars[b % chars.length]).join('');
+}
+
+// Human-readable descriptions for each role
+const ROLE_DESCRIPTIONS = {
+    GlobalAdmin:     { label: 'Full Access',       icon: '&#x2605;', desc: 'Can do everything — manages all events, modules, feedback, users, and settings' },
+    UserAdmin:       { label: 'User Manager',      icon: '&#x1F465;', desc: 'Can add, edit, and remove people and change what they have access to' },
+    ModuleManager:   { label: 'Module Manager',    icon: '&#x1F4DA;', desc: 'Can create and edit training modules in the catalog' },
+    EventCreator:    { label: 'Event Manager',     icon: '&#x1F4C5;', desc: 'Can create events and assign modules and speakers to them' },
+    FeedbackManager: { label: 'Feedback Manager',  icon: '&#x1F4AC;', desc: 'Can view and delete feedback for events they have access to' },
+    FeedbackViewer:  { label: 'Reporter',          icon: '&#x1F4CA;', desc: 'Can view feedback and analytics — read-only, no editing' },
+};
+
+// Render users as intuitive people cards
+function renderUsers(searchTerm = '', roleFilter = 'all') {
+    const container = document.getElementById('usersList');
+    if (!container) return;
+
+    const filtered = allUsers.filter(u => {
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            if (!u.Username.toLowerCase().includes(term) &&
+                !u.FullName.toLowerCase().includes(term) &&
+                !u.Email.toLowerCase().includes(term)) return false;
+        }
+        if (roleFilter && roleFilter !== 'all') {
+            const names = (u.roles || []).map(r => r.roleName);
+            if (!names.includes(roleFilter)) return false;
+        }
+        return true;
+    });
+
+    const countEl = document.getElementById('userCountDisplay');
+    if (countEl) countEl.textContent = allUsers.length;
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="um-empty">
+                <div class="um-empty-icon">&#x1F50D;</div>
+                <p>No one matches your search.</p>
+            </div>`;
+        return;
+    }
+
+    function getInitials(name) {
+        return name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+    }
+
+    function avatarGradient(roles) {
+        if (!roles || !roles.length) return '#94a3b8';
+        const map = {
+            GlobalAdmin: 'linear-gradient(135deg,#4f46e5,#7c3aed)',
+            UserAdmin: 'linear-gradient(135deg,#7c3aed,#a855f7)',
+            ModuleManager: 'linear-gradient(135deg,#059669,#10b981)',
+            EventCreator: 'linear-gradient(135deg,#2563eb,#3b82f6)',
+            FeedbackManager: 'linear-gradient(135deg,#ea580c,#f97316)',
+            FeedbackViewer: 'linear-gradient(135deg,#475569,#64748b)',
+        };
+        return map[roles[0].roleName] || map.EventCreator;
+    }
+
+    function describePermissions(roles) {
+        if (!roles || !roles.length) return '<span class="umc-no-perms">No permissions assigned yet</span>';
+        // If user has GlobalAdmin, just show Full Access — it implies everything
+        const hasGlobalAdmin = roles.some(r => r.roleName === 'GlobalAdmin');
+        if (hasGlobalAdmin) {
+            const info = ROLE_DESCRIPTIONS.GlobalAdmin;
+            return `<div class="umc-perm">
+                <span class="umc-perm-icon">${info.icon}</span>
+                <span class="umc-perm-label">${escapeHtml(info.label)}</span>
+            </div>`;
+        }
+        return roles.map(r => {
+            const info = ROLE_DESCRIPTIONS[r.roleName] || { label: r.roleName, icon: '&#x2699;', desc: '' };
+            return `<div class="umc-perm">
+                <span class="umc-perm-icon">${info.icon}</span>
+                <span class="umc-perm-label">${escapeHtml(info.label)}</span>
+            </div>`;
+        }).join('');
+    }
+
+    function lastSeenText(dateStr) {
+        if (!dateStr) return 'Has not signed in yet';
+        const d = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now - d;
+        const mins = Math.floor(diffMs / 60000);
+        if (mins < 60) return `Active ${mins < 2 ? 'just now' : mins + ' min ago'}`;
+        const hours = Math.floor(mins / 60);
+        if (hours < 24) return `Active ${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        if (days < 7) return `Active ${days} day${days > 1 ? 's' : ''} ago`;
+        return `Last seen ${formatDate(dateStr)}`;
+    }
+
+    container.innerHTML = filtered.map(user => {
+        const isInactive = !user.IsActive;
+        const cardClass = isInactive ? 'umc-card umc-inactive' : 'umc-card';
+        const protectedLabel = user.IsProtected
+            ? '<span class="umc-protected-badge">Protected Account</span>' : '';
+        const inactiveLabel = isInactive
+            ? '<span class="umc-inactive-badge">Deactivated</span>' : '';
+
+        const avatarContent = user.ProfileImage
+            ? `<div class="umc-avatar umc-avatar-img"><img src="${user.ProfileImage}" alt="${escapeHtml(user.FullName)}"></div>`
+            : `<div class="umc-avatar" style="background:${avatarGradient(user.roles)}">${getInitials(user.FullName)}</div>`;
+
+        return `
+        <div class="${cardClass}">
+            <div class="umc-top">
+                <div class="umc-identity">
+                    ${avatarContent}
+                    <div>
+                        <div class="umc-name">${escapeHtml(user.FullName)} ${protectedLabel}${inactiveLabel}</div>
+                        <div class="umc-email">${escapeHtml(user.Email)}</div>
+                    </div>
+                </div>
+                <div class="umc-seen">${lastSeenText(user.LastLoginAt)}</div>
+            </div>
+            <div class="umc-perms-section">
+                <div class="umc-perms-label">What they can do</div>
+                <div class="umc-perms-list">${describePermissions(user.roles)}</div>
+            </div>
+            <div class="umc-actions">
+                <button class="umc-btn btn-edit-user" data-user-id="${user.UserId}">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                    Edit
+                </button>
+                <button class="umc-btn btn-manage-access" data-user-id="${user.UserId}">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L2 4v4c0 3.5 2.5 6.5 6 7.5 3.5-1 6-4 6-7.5V4L8 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                    Event Access
+                </button>
+                <button class="umc-btn btn-reset-pw" data-user-id="${user.UserId}" data-username="${escapeHtml(user.Username)}">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="5" cy="11" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M7.5 8.5L13 3m0 0v3m0-3h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Reset Password
+                </button>
+                ${!user.IsProtected ? `
+                <button class="umc-btn umc-btn-danger btn-delete-user" data-user-id="${user.UserId}">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M3 4l1 10h8l1-10" stroke="currentColor" stroke-width="1.5"/></svg>
+                    Remove
+                </button>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// Open user create/edit modal
+async function openUserModal(userId = null) {
+    const modal = document.getElementById('userModal');
+    const title = document.getElementById('userModalTitle');
+    const form = document.getElementById('userForm');
+    const pwGroup = document.getElementById('userPasswordGroup');
+    const activeGroup = document.getElementById('userActiveGroup');
+    const saveBtn = document.getElementById('saveUserBtn');
+
+    form.reset();
+    form.dataset.selfEdit = 'false';
+    document.getElementById('editUserId').value = '';
+
+    // Ensure roles fieldset is visible (may have been hidden by My Profile)
+    const rolesFieldsetReset = document.getElementById('userRolesCheckboxes')?.closest('fieldset');
+    if (rolesFieldsetReset) rolesFieldsetReset.style.display = '';
+
+    // Remove any injected password change section from My Profile
+    const existingPwSection = document.getElementById('myProfilePasswordSection');
+    if (existingPwSection) existingPwSection.remove();
+
+    // Load roles for checkboxes (human-readable grid layout)
+    if (allRoles.length === 0) await fetchRoles();
+    const rolesContainer = document.getElementById('userRolesCheckboxes');
+    rolesContainer.innerHTML = allRoles.map(r => {
+        const info = ROLE_DESCRIPTIONS[r.RoleName] || { label: r.RoleName, icon: '&#x2699;', desc: r.Description || '' };
+        return `
+        <label data-rolename="${escapeHtml(r.RoleName)}">
+            <input type="checkbox" name="roleId" value="${r.RoleId}" data-rolename="${escapeHtml(r.RoleName)}">
+            <div class="um-role-info">
+                <span class="um-role-name">${info.icon} ${escapeHtml(info.label)}</span>
+                <span class="um-role-desc">${escapeHtml(info.desc)}</span>
+            </div>
+        </label>`;
+    }).join('');
+
+    // Full Access auto-check: when GlobalAdmin is checked, check and disable all others
+    setupFullAccessAutoCheck(rolesContainer);
+
+    const subtitle = document.getElementById('userModalSubtitle');
+
+    if (userId) {
+        title.textContent = 'Edit User';
+        if (subtitle) subtitle.textContent = 'Update profile and permissions';
+        saveBtn.textContent = 'Save Changes';
+        pwGroup.style.display = 'none';
+        activeGroup.style.display = 'block';
+
+        // Show avatar upload in edit mode
+        const avatarGroup = document.getElementById('avatarUploadGroup');
+        if (avatarGroup) avatarGroup.style.display = '';
+
+        try {
+            const result = await apiGet(`/users/${userId}`);
+            const user = result.data;
+            document.getElementById('editUserId').value = user.UserId;
+            document.getElementById('userUsername').value = user.Username;
+            document.getElementById('userUsername').readOnly = true;
+            document.getElementById('userFullName').value = user.FullName;
+            document.getElementById('userEmail').value = user.Email;
+            document.getElementById('userIsActive').checked = user.IsActive;
+
+            // Set avatar preview
+            const preview = document.getElementById('avatarPreview');
+            const removeBtn = document.getElementById('removeAvatarBtn');
+            const initials = user.FullName.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+            if (preview) {
+                preview.dataset.initials = initials;
+                if (user.ProfileImage) {
+                    preview.innerHTML = `<img src="${user.ProfileImage}" alt="${escapeHtml(user.FullName)}">`;
+                    preview.dataset.imageData = user.ProfileImage;
+                    if (removeBtn) removeBtn.style.display = '';
+                } else {
+                    preview.innerHTML = `<span>${initials}</span>`;
+                    preview.dataset.imageData = '';
+                    if (removeBtn) removeBtn.style.display = 'none';
+                }
+            }
+
+            // Set status toggle visual state
+            const statusToggle = document.getElementById('umStatusToggle');
+            if (statusToggle) {
+                statusToggle.querySelectorAll('.um-status-opt').forEach(b => b.classList.remove('selected-active', 'selected-inactive'));
+                const activeBtn = statusToggle.querySelector(`[data-active="${user.IsActive}"]`);
+                if (activeBtn) activeBtn.classList.add(user.IsActive ? 'selected-active' : 'selected-inactive');
+                const help = document.getElementById('umStatusHelp');
+                if (help) {
+                    help.textContent = user.IsActive
+                        ? 'This account is currently active and can sign in.'
+                        : 'This account is deactivated. The user will not be able to sign in.';
+                    help.style.color = user.IsActive ? '#94a3b8' : '#dc2626';
+                }
+            }
+
+            // Check existing roles and trigger Full Access auto-check
+            (user.roles || []).forEach(r => {
+                const cb = rolesContainer.querySelector(`input[value="${r.RoleId}"]`);
+                if (cb) { cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true })); }
+            });
+        } catch (err) {
+            showNotification('Error', 'Failed to load user details', 'error');
+            return;
+        }
+    } else {
+        title.textContent = 'Create New User';
+        if (subtitle) subtitle.textContent = 'Set up credentials and assign permissions';
+        saveBtn.textContent = 'Create User';
+        pwGroup.style.display = 'block';
+        activeGroup.style.display = 'none';
+        document.getElementById('userUsername').readOnly = false;
+        const avatarGroupCreate = document.getElementById('avatarUploadGroup');
+        if (avatarGroupCreate) avatarGroupCreate.style.display = 'none';
+
+        // Auto-generate password
+        const generatedPw = generateSecurePassword();
+        const pwDisplay = document.getElementById('userPwGenerated');
+        if (pwDisplay) pwDisplay.textContent = generatedPw;
+
+        // Reset override toggle
+        const overrideCb = document.getElementById('userPwOverride');
+        const autoView = document.getElementById('userPwAutoView');
+        const manualView = document.getElementById('userPwManualView');
+        if (overrideCb) overrideCb.checked = false;
+        if (autoView) autoView.style.display = '';
+        if (manualView) manualView.style.display = 'none';
+
+        // Reset email notification checkbox
+        const emailCb = document.getElementById('userSendEmail');
+        if (emailCb) emailCb.checked = true;
+    }
+
+    modal.classList.remove('hidden');
+}
+
+// Wire up Full Access auto-check behavior on a roles container
+function setupFullAccessAutoCheck(container) {
+    const globalAdminCb = container.querySelector('input[data-rolename="GlobalAdmin"]');
+    if (!globalAdminCb) return;
+
+    const otherCheckboxes = container.querySelectorAll('input[name="roleId"]:not([data-rolename="GlobalAdmin"])');
+
+    function syncFullAccess() {
+        if (globalAdminCb.checked) {
+            otherCheckboxes.forEach(cb => {
+                cb.checked = true;
+                cb.disabled = true;
+                cb.closest('label').style.opacity = '0.5';
+                cb.closest('label').style.pointerEvents = 'none';
+            });
+        } else {
+            otherCheckboxes.forEach(cb => {
+                cb.checked = false;
+                cb.disabled = false;
+                cb.closest('label').style.opacity = '';
+                cb.closest('label').style.pointerEvents = '';
+            });
+        }
+    }
+
+    globalAdminCb.addEventListener('change', syncFullAccess);
+    // Run once on setup in case it's already checked (edit mode)
+    syncFullAccess();
+}
+
+// Save user (create or update)
+async function handleSaveUser(e) {
+    e.preventDefault();
+
+    const userId = document.getElementById('editUserId').value;
+    const isEdit = !!userId;
+    const isSelfEdit = document.getElementById('userForm').dataset.selfEdit === 'true';
+
+    // If Full Access is checked, only send GlobalAdmin — it implies all others
+    const globalAdminCb = document.querySelector('#userRolesCheckboxes input[data-rolename="GlobalAdmin"]');
+    let selectedRoleIds;
+    if (globalAdminCb && globalAdminCb.checked) {
+        selectedRoleIds = [parseInt(globalAdminCb.value)];
+    } else {
+        selectedRoleIds = Array.from(
+            document.querySelectorAll('#userRolesCheckboxes input[name="roleId"]:checked:not(:disabled)')
+        ).map(cb => parseInt(cb.value));
+    }
+
+    // For create: determine which password to use
+    const isOverride = document.getElementById('userPwOverride')?.checked;
+    const autoPassword = document.getElementById('userPwGenerated')?.textContent;
+    const manualPassword = document.getElementById('userPassword')?.value;
+
+    try {
+        if (isEdit) {
+            const profileEndpoint = isSelfEdit ? '/users/me' : `/users/${userId}`;
+
+            if (isSelfEdit) {
+                // Self-edit: update name and email
+                await apiPut('/users/me', {
+                    fullName: document.getElementById('userFullName').value,
+                    email: document.getElementById('userEmail').value
+                });
+
+                // Handle password change if fields are filled
+                const currentPw = document.getElementById('myCurrentPassword')?.value;
+                const newPw = document.getElementById('myNewPassword')?.value;
+                const confirmPw = document.getElementById('myConfirmPassword')?.value;
+                const pwError = document.getElementById('myProfilePwError');
+
+                if (currentPw || newPw || confirmPw) {
+                    if (!currentPw) {
+                        if (pwError) { pwError.textContent = 'Current password is required to change password.'; pwError.style.display = 'block'; }
+                        return;
+                    }
+                    if (!newPw || newPw.length < 8) {
+                        if (pwError) { pwError.textContent = 'New password must be at least 8 characters.'; pwError.style.display = 'block'; }
+                        return;
+                    }
+                    if (newPw !== confirmPw) {
+                        if (pwError) { pwError.textContent = 'New passwords do not match.'; pwError.style.display = 'block'; }
+                        return;
+                    }
+
+                    try {
+                        await apiPut('/users/me/password', { currentPassword: currentPw, newPassword: newPw });
+                        showNotification('Success', 'Password changed successfully.', 'success');
+                    } catch (pwErr) {
+                        if (pwError) { pwError.textContent = pwErr.message || 'Failed to change password.'; pwError.style.display = 'block'; }
+                        return;
+                    }
+                }
+            } else {
+                // Admin edit: update profile + roles
+                await apiPut(`/users/${userId}`, {
+                    fullName: document.getElementById('userFullName').value,
+                    email: document.getElementById('userEmail').value,
+                    isActive: document.getElementById('userIsActive').checked
+                });
+
+                // Sync roles: get current, add missing, remove extra
+                const currentResult = await apiGet(`/users/${userId}`);
+                const currentRoleIds = (currentResult.data.roles || []).map(r => r.RoleId);
+
+                for (const roleId of selectedRoleIds) {
+                    if (!currentRoleIds.includes(roleId)) {
+                        await apiPost(`/users/${userId}/roles`, { roleId });
+                    }
+                }
+                for (const roleId of currentRoleIds) {
+                    if (!selectedRoleIds.includes(roleId)) {
+                        try {
+                            await apiDelete(`/users/${userId}/roles/${roleId}`);
+                        } catch (err) {
+                            console.warn('Failed to remove role:', err.message);
+                        }
+                    }
+                }
+            }
+
+            // Save avatar if changed
+            const avatarPreview = document.getElementById('avatarPreview');
+            if (avatarPreview) {
+                const newImageData = avatarPreview.dataset.imageData;
+                if (newImageData !== undefined) {
+                    try {
+                        await apiPut(`/users/${userId}/avatar`, { image: newImageData || null });
+                    } catch (avatarErr) {
+                        console.warn('Avatar save failed:', avatarErr.message);
+                    }
+                }
+            }
+
+            // Update header if self-edit
+            if (isSelfEdit) {
+                const newName = document.getElementById('userFullName').value;
+                if (currentUser) {
+                    currentUser.fullName = newName;
+                    sessionStorage.setItem('adminUser', JSON.stringify(currentUser));
+                }
+                adminUser.textContent = escapeHtml(newName);
+                // Refresh header avatar
+                const headerAvatar = document.getElementById('headerAvatar');
+                if (headerAvatar && avatarPreview?.dataset.imageData) {
+                    headerAvatar.innerHTML = `<img src="${avatarPreview.dataset.imageData}" alt="Me">`;
+                } else if (headerAvatar) {
+                    headerAvatar.innerHTML = newName.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+                }
+            }
+
+            showNotification('Success', isSelfEdit ? 'Profile updated' : 'User updated successfully', 'success');
+        } else {
+            // Create mode
+            const password = isOverride ? manualPassword : autoPassword;
+            if (!password || password.length < 8) {
+                showNotification('Error', 'Password must be at least 8 characters', 'error');
+                return;
+            }
+
+            const newUsername = document.getElementById('userUsername').value;
+            const newFullName = document.getElementById('userFullName').value;
+            const newEmail = document.getElementById('userEmail').value;
+            const sendEmail = document.getElementById('userSendEmail')?.checked;
+
+            await apiPost('/users', {
+                username: newUsername,
+                password,
+                fullName: newFullName,
+                email: newEmail,
+                roleIds: selectedRoleIds
+            });
+
+            // Build role labels for the email preview
+            const selectedRoleNames = selectedRoleIds.map(id => {
+                const role = allRoles.find(r => r.RoleId === id);
+                if (!role) return '';
+                const info = ROLE_DESCRIPTIONS[role.RoleName];
+                return info ? `${info.label} — ${info.desc}` : role.RoleName;
+            }).filter(Boolean);
+
+            // Send notification email via API
+            const loginUrl = window.location.origin + '/admin.html';
+            if (sendEmail) {
+                try {
+                    await apiPost('/notify/welcome', {
+                        recipientEmail: newEmail,
+                        recipientName: newFullName,
+                        username: newUsername,
+                        temporaryPassword: password,
+                        loginUrl,
+                        roles: selectedRoleNames,
+                        creatorEmail: currentUser?.email || ''
+                    });
+                } catch (emailErr) {
+                    console.warn('Email notification failed (expected in dev):', emailErr.message);
+                }
+            }
+
+            // Show the success modal with email preview
+            showUserCreatedModal({
+                fullName: newFullName,
+                username: newUsername,
+                email: newEmail,
+                password,
+                loginUrl,
+                roles: selectedRoleNames,
+                emailSent: sendEmail
+            });
+        }
+
+        document.getElementById('userModal').classList.add('hidden');
+        await fetchUsers();
+    } catch (err) {
+        showNotification('Error', err.message || 'Failed to save user', 'error');
+    }
+}
+
+// Open self-profile edit modal (any logged-in user)
+async function openMyProfileModal() {
+    const modal = document.getElementById('userModal');
+    const title = document.getElementById('userModalTitle');
+    const form = document.getElementById('userForm');
+    const pwGroup = document.getElementById('userPasswordGroup');
+    const activeGroup = document.getElementById('userActiveGroup');
+    const saveBtn = document.getElementById('saveUserBtn');
+    const subtitle = document.getElementById('userModalSubtitle');
+
+    form.reset();
+
+    title.textContent = 'My Profile';
+    if (subtitle) subtitle.textContent = 'Update your name, email, or profile photo';
+    saveBtn.textContent = 'Save Changes';
+    pwGroup.style.display = 'none';
+    activeGroup.style.display = 'none';
+
+    // Hide roles section — users can't change their own roles
+    const rolesContainer = document.getElementById('userRolesCheckboxes');
+    const rolesFieldset = rolesContainer?.closest('fieldset');
+    if (rolesFieldset) rolesFieldset.style.display = 'none';
+
+    // Show avatar upload
+    const avatarGroup = document.getElementById('avatarUploadGroup');
+    if (avatarGroup) avatarGroup.style.display = '';
+
+    try {
+        const result = await apiGet('/users/me');
+        const user = result.data;
+        document.getElementById('editUserId').value = user.UserId;
+        document.getElementById('userUsername').value = user.Username;
+        document.getElementById('userUsername').readOnly = true;
+        document.getElementById('userFullName').value = user.FullName;
+        document.getElementById('userEmail').value = user.Email;
+
+        // Mark this as a self-edit so handleSaveUser uses /users/me
+        form.dataset.selfEdit = 'true';
+
+        // Set avatar preview
+        const preview = document.getElementById('avatarPreview');
+        const removeBtn = document.getElementById('removeAvatarBtn');
+        const initials = user.FullName.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+        if (preview) {
+            preview.dataset.initials = initials;
+            if (user.ProfileImage) {
+                preview.innerHTML = `<img src="${user.ProfileImage}" alt="Me">`;
+                preview.dataset.imageData = user.ProfileImage;
+                if (removeBtn) removeBtn.style.display = '';
+            } else {
+                preview.innerHTML = `<span>${initials}</span>`;
+                preview.dataset.imageData = '';
+                if (removeBtn) removeBtn.style.display = 'none';
+            }
+        }
+    } catch (err) {
+        showNotification('Error', 'Failed to load your profile', 'error');
+        return;
+    }
+
+    // Inject password change section into the modal body
+    const modalBody = modal.querySelector('.um-modal-body');
+    const existingPwSection = document.getElementById('myProfilePasswordSection');
+    if (existingPwSection) existingPwSection.remove();
+
+    if (modalBody) {
+        const pwSection = document.createElement('fieldset');
+        pwSection.className = 'um-fieldset';
+        pwSection.id = 'myProfilePasswordSection';
+        pwSection.innerHTML = `
+            <legend>Change Password</legend>
+            <p class="form-help" style="margin-bottom: 12px;">Leave blank to keep your current password.</p>
+            <div class="form-group">
+                <label for="myCurrentPassword">Current Password</label>
+                <input type="password" id="myCurrentPassword" placeholder="Enter current password" autocomplete="current-password">
+            </div>
+            <div class="form-group">
+                <label for="myNewPassword">New Password</label>
+                <input type="password" id="myNewPassword" placeholder="Minimum 8 characters" autocomplete="new-password">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="myConfirmPassword">Confirm New Password</label>
+                <input type="password" id="myConfirmPassword" placeholder="Re-enter new password" autocomplete="new-password">
+            </div>
+            <div class="error-message" id="myProfilePwError" style="margin-top: 8px;"></div>
+        `;
+        modalBody.appendChild(pwSection);
+    }
+
+    modal.classList.remove('hidden');
+}
+
+// Show the user created success modal with email preview
+function showUserCreatedModal(info) {
+    const modal = document.getElementById('userCreatedModal');
+    const content = document.getElementById('userCreatedContent');
+    if (!modal || !content) return;
+
+    const rolesHtml = info.roles.length > 0
+        ? `<ul class="uc-roles-list">${info.roles.map(r => `<li>${escapeHtml(r)}</li>`).join('')}</ul>`
+        : '<p>No specific permissions assigned.</p>';
+
+    const emailStatusHtml = info.emailSent
+        ? `<div class="uc-email-sent">&#x2709; Email notifications have been queued for ${escapeHtml(info.email)} and yourself.</div>`
+        : `<div class="uc-email-fallback">&#x26A0; Email not configured. Please share the login details below with the user manually.</div>`;
+
+    content.innerHTML = `
+        ${emailStatusHtml}
+        <div class="uc-email-preview" id="welcomeEmailContent">
+            <h4>Welcome to the CAT Bootcamp Feedback System</h4>
+            <p>Hello ${escapeHtml(info.fullName)},</p>
+            <p>An account has been created for you. Here are your login details:</p>
+            <hr>
+            <div class="uc-field">
+                <span class="uc-field-label">Login URL:</span>
+                <span class="uc-field-value">${escapeHtml(info.loginUrl)}</span>
+            </div>
+            <div class="uc-field">
+                <span class="uc-field-label">Username:</span>
+                <span class="uc-field-value">${escapeHtml(info.username)}</span>
+            </div>
+            <div class="uc-field">
+                <span class="uc-field-label">Password:</span>
+                <span class="uc-pw-value">${escapeHtml(info.password)}</span>
+            </div>
+            <p style="color: #c2410c; font-weight: 600; font-size: 0.82rem; margin-top: 10px;">You will be required to change your password on first login.</p>
+            <hr>
+            <p><strong>Your permissions:</strong></p>
+            ${rolesHtml}
+            <hr>
+            <p style="font-size: 0.8rem; color: #94a3b8;">This is an automated message from the CAT Bootcamp Feedback System.</p>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+}
+
+// Delete user
+async function handleDeleteUser(userId) {
+    if (!confirm('Are you sure you want to delete this user? This cannot be undone.')) return;
+
+    try {
+        await apiDelete(`/users/${userId}`);
+        showNotification('Success', 'User deleted successfully', 'success');
+        await fetchUsers();
+    } catch (err) {
+        showNotification('Error', err.message || 'Failed to delete user', 'error');
+    }
+}
+
+// Reset user password
+async function handleResetPassword(userId, username) {
+    if (!confirm(`Reset password for ${username}? A temporary password will be generated.`)) return;
+
+    try {
+        const result = await apiPost(`/users/${userId}/reset-password`, {});
+        const modal = document.getElementById('resetPasswordModal');
+        document.getElementById('resetPasswordUsername').textContent = result.data.username;
+        document.getElementById('tempPasswordDisplay').textContent = result.data.temporaryPassword;
+        modal.classList.remove('hidden');
+    } catch (err) {
+        showNotification('Error', err.message || 'Failed to reset password', 'error');
+    }
+}
+
+// Manage user event access — redesigned for scalability
+async function openUserEventAccessModal(userId) {
+    const modal = document.getElementById('userEventAccessModal');
+    const content = document.getElementById('userEventAccessContent');
+    const title = document.getElementById('userEventAccessTitle');
+
+    content.innerHTML = '<div class="um-loading"><div class="spinner"></div><span>Loading...</span></div>';
+    modal.classList.remove('hidden');
+
+    try {
+        const [userResult, eventsResult] = await Promise.all([
+            apiGet(`/users/${userId}`),
+            apiGet('/events')
+        ]);
+
+        const user = userResult.data;
+        const allEventsData = eventsResult.data || [];
+        const userRoleNames = (user.roles || []).map(r => r.RoleName || r.roleName);
+        const isGlobalAdmin = userRoleNames.includes('GlobalAdmin');
+
+        title.textContent = `Event Access for ${escapeHtml(user.FullName)}`;
+
+        // GlobalAdmin gets automatic access to everything — show a message, not checkboxes
+        if (isGlobalAdmin) {
+            content.innerHTML = `
+                <div class="ea-global-notice">
+                    <div class="ea-global-icon">&#x2605;</div>
+                    <h4>Full Access — All Events</h4>
+                    <p>${escapeHtml(user.FullName)} has the <strong>Full Access</strong> role, which automatically grants access to every event in the system. No manual event assignments are needed.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const grantedEventIds = new Set((user.events || []).map(e => e.EventId));
+
+        // Build the scalable UI with search + two sections
+        function renderEventAccessUI(searchTerm = '') {
+            const term = searchTerm.toLowerCase();
+            const granted = allEventsData.filter(e => grantedEventIds.has(e.eventId));
+            const available = allEventsData.filter(e => !grantedEventIds.has(e.eventId));
+
+            const filteredGranted = term ? granted.filter(e =>
+                e.eventName.toLowerCase().includes(term) || e.eventCode.toLowerCase().includes(term)
+            ) : granted;
+            const filteredAvailable = term ? available.filter(e =>
+                e.eventName.toLowerCase().includes(term) || e.eventCode.toLowerCase().includes(term)
+            ) : available;
+
+            function eventRow(e, isGranted) {
+                return `
+                    <div class="ea-item ${isGranted ? 'ea-item-granted' : ''}">
+                        <label class="ea-check-label">
+                            <input type="checkbox" class="ea-checkbox" data-event-id="${e.eventId}" data-section="${isGranted ? 'granted' : 'available'}">
+                            <div class="ea-item-info">
+                                <span class="ea-item-name">${escapeHtml(e.eventName)}</span>
+                                <span class="ea-item-code">${escapeHtml(e.eventCode)}</span>
+                            </div>
+                        </label>
+                    </div>`;
+            }
+
+            content.innerHTML = `
+                <div class="ea-search-wrap">
+                    <input type="text" class="ea-search" id="eventAccessSearch" placeholder="Search events..." value="${escapeHtml(searchTerm)}">
+                </div>
+
+                <div class="ea-section">
+                    <div class="ea-section-header">
+                        <label class="ea-select-all-label">
+                            <input type="checkbox" id="eaSelectAllGranted" class="ea-checkbox-all" data-section="granted">
+                            <span class="ea-section-title ea-granted-title">&#x2705; Has Access</span>
+                        </label>
+                        <div class="ea-section-actions">
+                            <span class="ea-count">${granted.length} event${granted.length !== 1 ? 's' : ''}</span>
+                            <button class="ea-btn ea-btn-remove ea-bulk-btn" id="eaBulkRemove" disabled>Remove Selected</button>
+                        </div>
+                    </div>
+                    ${filteredGranted.length === 0
+                        ? `<p class="ea-empty">${term ? 'No matching events.' : 'No events granted yet. Select events below and click Grant.'}</p>`
+                        : `<div class="ea-list" id="eaGrantedList">${filteredGranted.map(e => eventRow(e, true)).join('')}</div>`
+                    }
+                </div>
+
+                <div class="ea-section">
+                    <div class="ea-section-header">
+                        <label class="ea-select-all-label">
+                            <input type="checkbox" id="eaSelectAllAvailable" class="ea-checkbox-all" data-section="available">
+                            <span class="ea-section-title">Available Events</span>
+                        </label>
+                        <div class="ea-section-actions">
+                            <span class="ea-count">${available.length} event${available.length !== 1 ? 's' : ''}</span>
+                            <button class="ea-btn ea-btn-add ea-bulk-btn" id="eaBulkGrant" disabled>Grant Selected</button>
+                        </div>
+                    </div>
+                    ${filteredAvailable.length === 0
+                        ? `<p class="ea-empty">${term ? 'No matching events.' : 'All events have been granted.'}</p>`
+                        : `<div class="ea-list" id="eaAvailableList">${filteredAvailable.map(e => eventRow(e, false)).join('')}</div>`
+                    }
+                </div>
+            `;
+
+            // ── Wire up interactions ──
+
+            const searchInput = document.getElementById('eventAccessSearch');
+            const bulkGrantBtn = document.getElementById('eaBulkGrant');
+            const bulkRemoveBtn = document.getElementById('eaBulkRemove');
+
+            // Search
+            if (searchInput) {
+                searchInput.addEventListener('input', debounce(() => {
+                    renderEventAccessUI(searchInput.value);
+                }, 200));
+                searchInput.focus();
+                searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+            }
+
+            // Update bulk button state when checkboxes change
+            function updateBulkButtons() {
+                const checkedGranted = content.querySelectorAll('.ea-checkbox[data-section="granted"]:checked');
+                const checkedAvailable = content.querySelectorAll('.ea-checkbox[data-section="available"]:checked');
+                if (bulkRemoveBtn) bulkRemoveBtn.disabled = checkedGranted.length === 0;
+                if (bulkGrantBtn) bulkGrantBtn.disabled = checkedAvailable.length === 0;
+                // Update button text with count
+                if (bulkRemoveBtn && checkedGranted.length > 0) bulkRemoveBtn.textContent = `Remove ${checkedGranted.length} Selected`;
+                else if (bulkRemoveBtn) bulkRemoveBtn.textContent = 'Remove Selected';
+                if (bulkGrantBtn && checkedAvailable.length > 0) bulkGrantBtn.textContent = `Grant ${checkedAvailable.length} Selected`;
+                else if (bulkGrantBtn) bulkGrantBtn.textContent = 'Grant Selected';
+            }
+
+            // Individual checkboxes
+            content.querySelectorAll('.ea-checkbox').forEach(cb => {
+                cb.addEventListener('change', updateBulkButtons);
+            });
+
+            // Select-all checkboxes
+            content.querySelectorAll('.ea-checkbox-all').forEach(allCb => {
+                allCb.addEventListener('change', () => {
+                    const section = allCb.dataset.section;
+                    content.querySelectorAll(`.ea-checkbox[data-section="${section}"]`).forEach(cb => {
+                        cb.checked = allCb.checked;
+                    });
+                    updateBulkButtons();
+                });
+            });
+
+            // Bulk Grant
+            if (bulkGrantBtn) {
+                bulkGrantBtn.addEventListener('click', async () => {
+                    const checked = Array.from(content.querySelectorAll('.ea-checkbox[data-section="available"]:checked'));
+                    if (checked.length === 0) return;
+                    bulkGrantBtn.disabled = true;
+                    bulkGrantBtn.textContent = `Granting ${checked.length}...`;
+                    let successCount = 0;
+                    for (const cb of checked) {
+                        const eventId = parseInt(cb.dataset.eventId);
+                        try {
+                            await apiPost(`/users/${userId}/events`, { eventId });
+                            grantedEventIds.add(eventId);
+                            successCount++;
+                        } catch (err) { /* continue with others */ }
+                    }
+                    if (successCount > 0) showNotification('Success', `Granted access to ${successCount} event${successCount > 1 ? 's' : ''}.`, 'success');
+                    renderEventAccessUI(searchInput ? searchInput.value : '');
+                });
+            }
+
+            // Bulk Remove
+            if (bulkRemoveBtn) {
+                bulkRemoveBtn.addEventListener('click', async () => {
+                    const checked = Array.from(content.querySelectorAll('.ea-checkbox[data-section="granted"]:checked'));
+                    if (checked.length === 0) return;
+                    if (!confirm(`Remove access to ${checked.length} event${checked.length > 1 ? 's' : ''}?`)) return;
+                    bulkRemoveBtn.disabled = true;
+                    bulkRemoveBtn.textContent = `Removing ${checked.length}...`;
+                    let successCount = 0;
+                    for (const cb of checked) {
+                        const eventId = parseInt(cb.dataset.eventId);
+                        try {
+                            await apiDelete(`/users/${userId}/events/${eventId}`);
+                            grantedEventIds.delete(eventId);
+                            successCount++;
+                        } catch (err) { /* continue with others */ }
+                    }
+                    if (successCount > 0) showNotification('Success', `Removed access to ${successCount} event${successCount > 1 ? 's' : ''}.`, 'success');
+                    renderEventAccessUI(searchInput ? searchInput.value : '');
+                });
+            }
+        }
+
+        renderEventAccessUI();
+
+    } catch (err) {
+        content.innerHTML = `<p class="error-message">Failed to load event access: ${escapeHtml(err.message)}</p>`;
+    }
+}
+
+// Handle change own password
+async function handleChangeOwnPassword(e) {
+    e.preventDefault();
+    const errorEl = document.getElementById('changePasswordError');
+    errorEl.textContent = '';
+
+    const currentPw = document.getElementById('currentPassword').value;
+    const newPw = document.getElementById('newPassword').value;
+    const confirmPw = document.getElementById('confirmNewPassword').value;
+
+    if (newPw !== confirmPw) {
+        errorEl.textContent = 'New passwords do not match.';
+        return;
+    }
+    if (newPw.length < 8) {
+        errorEl.textContent = 'New password must be at least 8 characters.';
+        return;
+    }
+
+    try {
+        await apiPut('/users/me/password', { currentPassword: currentPw, newPassword: newPw });
+        document.getElementById('changePasswordModal').classList.add('hidden');
+        showNotification('Success', 'Password changed successfully.', 'success');
+
+        // If this was a forced change, now show the main content
+        if (currentUser && currentUser.mustChangePassword) {
+            currentUser.mustChangePassword = false;
+            sessionStorage.setItem('adminUser', JSON.stringify(currentUser));
+            showMainContent();
+        }
+    } catch (err) {
+        errorEl.textContent = err.message || 'Failed to change password.';
+    }
+}
+
+// User management event listeners (setup)
+function setupUserManagementListeners() {
+    // Create user button
+    const createUserBtn = document.getElementById('createUserBtn');
+    if (createUserBtn) createUserBtn.addEventListener('click', () => openUserModal());
+
+    // User modal close/cancel
+    const closeUserModal = document.getElementById('closeUserModal');
+    if (closeUserModal) closeUserModal.addEventListener('click', () => document.getElementById('userModal').classList.add('hidden'));
+    const cancelUserBtn = document.getElementById('cancelUserBtn');
+    if (cancelUserBtn) cancelUserBtn.addEventListener('click', () => document.getElementById('userModal').classList.add('hidden'));
+
+    // User form submit
+    const userForm = document.getElementById('userForm');
+    if (userForm) userForm.addEventListener('submit', handleSaveUser);
+
+    // User search
+    const userSearch = document.getElementById('userSearch');
+    if (userSearch) userSearch.addEventListener('input', debounce(() => {
+        const activeFilter = document.querySelector('.um-pill.active');
+        const roleFilter = activeFilter ? activeFilter.dataset.role : 'all';
+        renderUsers(userSearch.value, roleFilter);
+    }, 300));
+
+    // Role filter pills
+    const filterContainer = document.getElementById('userRoleFilter');
+    if (filterContainer) {
+        filterContainer.addEventListener('click', (e) => {
+            const pill = e.target.closest('.um-pill');
+            if (!pill) return;
+            filterContainer.querySelectorAll('.um-pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            const search = document.getElementById('userSearch');
+            renderUsers(search ? search.value : '', pill.dataset.role);
+        });
+    }
+
+    // User event access modal close
+    const closeAccessModal = document.getElementById('closeUserEventAccessModal');
+    if (closeAccessModal) closeAccessModal.addEventListener('click', () => document.getElementById('userEventAccessModal').classList.add('hidden'));
+
+    // Change password modal (used only for forced password change on login)
+    const changePasswordForm = document.getElementById('changePasswordForm');
+    if (changePasswordForm) changePasswordForm.addEventListener('submit', handleChangeOwnPassword);
+
+    const cancelChangePwBtn = document.getElementById('cancelChangePasswordBtn');
+    if (cancelChangePwBtn) cancelChangePwBtn.addEventListener('click', () => document.getElementById('changePasswordModal').classList.add('hidden'));
+    const closeChangePwModal = document.getElementById('closeChangePasswordModal');
+    if (closeChangePwModal) closeChangePwModal.addEventListener('click', () => document.getElementById('changePasswordModal').classList.add('hidden'));
+
+    // Reset password modal close
+    const closeResetPwModal = document.getElementById('closeResetPasswordModal');
+    if (closeResetPwModal) closeResetPwModal.addEventListener('click', () => document.getElementById('resetPasswordModal').classList.add('hidden'));
+    const closeResetPwBtn = document.getElementById('closeResetPasswordBtn');
+    if (closeResetPwBtn) closeResetPwBtn.addEventListener('click', () => document.getElementById('resetPasswordModal').classList.add('hidden'));
+
+    // "My Profile" button in header — opens self-edit modal
+    const myProfileBtn = document.getElementById('myProfileBtn');
+    if (myProfileBtn) {
+        myProfileBtn.addEventListener('click', () => openMyProfileModal());
+    }
+
+    // Avatar upload handler
+    const avatarFileInput = document.getElementById('avatarFileInput');
+    if (avatarFileInput) {
+        avatarFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.size > 500 * 1024) {
+                showNotification('Error', 'Image is too large. Maximum size is 500KB.', 'error');
+                avatarFileInput.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                // Create a canvas to crop to square
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const size = Math.min(img.width, img.height);
+                    canvas.width = 200;
+                    canvas.height = 200;
+                    const ctx = canvas.getContext('2d');
+                    // Crop center square
+                    const sx = (img.width - size) / 2;
+                    const sy = (img.height - size) / 2;
+                    ctx.drawImage(img, sx, sy, size, size, 0, 0, 200, 200);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+                    // Show preview
+                    const preview = document.getElementById('avatarPreview');
+                    preview.innerHTML = `<img src="${dataUrl}" alt="Preview">`;
+                    preview.dataset.imageData = dataUrl;
+
+                    // Show remove button
+                    const removeBtn = document.getElementById('removeAvatarBtn');
+                    if (removeBtn) removeBtn.style.display = '';
+                };
+                img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Remove avatar button
+    const removeAvatarBtn = document.getElementById('removeAvatarBtn');
+    if (removeAvatarBtn) {
+        removeAvatarBtn.addEventListener('click', () => {
+            const preview = document.getElementById('avatarPreview');
+            const initials = preview.dataset.initials || '?';
+            preview.innerHTML = `<span>${initials}</span>`;
+            preview.dataset.imageData = '';
+            removeAvatarBtn.style.display = 'none';
+            if (avatarFileInput) avatarFileInput.value = '';
+        });
+    }
+
+    // Password override toggle
+    const pwOverrideCb = document.getElementById('userPwOverride');
+    if (pwOverrideCb) {
+        pwOverrideCb.addEventListener('change', () => {
+            const autoView = document.getElementById('userPwAutoView');
+            const manualView = document.getElementById('userPwManualView');
+            if (autoView) autoView.style.display = pwOverrideCb.checked ? 'none' : '';
+            if (manualView) manualView.style.display = pwOverrideCb.checked ? '' : 'none';
+        });
+    }
+
+    // Regenerate password button
+    const regenBtn = document.getElementById('userPwRegenBtn');
+    if (regenBtn) {
+        regenBtn.addEventListener('click', () => {
+            const display = document.getElementById('userPwGenerated');
+            if (display) display.textContent = generateSecurePassword();
+        });
+    }
+
+    // User created modal close
+    const closeCreatedModal = document.getElementById('closeUserCreatedModal');
+    if (closeCreatedModal) closeCreatedModal.addEventListener('click', () => document.getElementById('userCreatedModal').classList.add('hidden'));
+    const closeCreatedBtn = document.getElementById('closeUserCreatedBtn');
+    if (closeCreatedBtn) closeCreatedBtn.addEventListener('click', () => document.getElementById('userCreatedModal').classList.add('hidden'));
+
+    // Copy welcome email content
+    const copyWelcomeBtn = document.getElementById('copyWelcomeEmailBtn');
+    if (copyWelcomeBtn) {
+        copyWelcomeBtn.addEventListener('click', () => {
+            const content = document.getElementById('welcomeEmailContent');
+            if (!content) return;
+            // Copy as plain text
+            const text = content.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                copyWelcomeBtn.textContent = 'Copied!';
+                setTimeout(() => { copyWelcomeBtn.textContent = 'Copy Email Content'; }, 2000);
+            }).catch(() => {
+                const range = document.createRange();
+                range.selectNodeContents(content);
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+                document.execCommand('copy');
+                copyWelcomeBtn.textContent = 'Copied!';
+                setTimeout(() => { copyWelcomeBtn.textContent = 'Copy Email Content'; }, 2000);
+            });
+        });
+    }
+
+    // Forgot password/username view switching
+    const showForgotPwBtn = document.getElementById('showForgotPassword');
+    const showForgotUnBtn = document.getElementById('showForgotUsername');
+    const backToLoginFromPw = document.getElementById('backToLoginFromPw');
+    const backToLoginFromUn = document.getElementById('backToLoginFromUn');
+    const loginFormView = document.getElementById('loginFormView');
+    const forgotPwView = document.getElementById('forgotPasswordView');
+    const forgotUnView = document.getElementById('forgotUsernameView');
+
+    function showView(view) {
+        if (loginFormView) loginFormView.style.display = 'none';
+        if (forgotPwView) forgotPwView.style.display = 'none';
+        if (forgotUnView) forgotUnView.style.display = 'none';
+        if (view) view.style.display = '';
+    }
+
+    if (showForgotPwBtn) showForgotPwBtn.addEventListener('click', () => showView(forgotPwView));
+    if (showForgotUnBtn) showForgotUnBtn.addEventListener('click', () => showView(forgotUnView));
+    if (backToLoginFromPw) backToLoginFromPw.addEventListener('click', () => showView(loginFormView));
+    if (backToLoginFromUn) backToLoginFromUn.addEventListener('click', () => showView(loginFormView));
+
+    // Forgot password form submission
+    const forgotPwForm = document.getElementById('forgotPasswordForm');
+    if (forgotPwForm) forgotPwForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = document.getElementById('forgotPasswordMessage');
+        const email = document.getElementById('resetEmail').value;
+        msg.className = 'login-message';
+        msg.style.display = 'none';
+        try {
+            const result = await apiPost('/password-reset/request', { email });
+            msg.textContent = result.message || 'If an account with that email exists, a password reset has been initiated. Please contact your administrator.';
+            msg.className = 'login-message success';
+            msg.style.display = 'block';
+        } catch (err) {
+            msg.textContent = err.message || 'Something went wrong. Please try again.';
+            msg.className = 'login-message error';
+            msg.style.display = 'block';
+        }
+    });
+
+    // Forgot username form submission
+    const forgotUnForm = document.getElementById('forgotUsernameForm');
+    if (forgotUnForm) forgotUnForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = document.getElementById('forgotUsernameMessage');
+        const email = document.getElementById('usernameRecoveryEmail').value;
+        msg.className = 'login-message';
+        msg.style.display = 'none';
+        try {
+            const result = await apiPost('/username-recovery', { email });
+            msg.textContent = result.message || 'If an account with that email exists, your username has been sent. Please contact your administrator.';
+            msg.className = 'login-message success';
+            msg.style.display = 'block';
+        } catch (err) {
+            msg.textContent = err.message || 'Something went wrong. Please try again.';
+            msg.className = 'login-message error';
+            msg.style.display = 'block';
+        }
+    });
+
+    // Account status toggle buttons
+    const statusToggle = document.getElementById('umStatusToggle');
+    if (statusToggle) {
+        statusToggle.querySelectorAll('.um-status-opt').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const isActive = btn.dataset.active === 'true';
+                const checkbox = document.getElementById('userIsActive');
+                checkbox.checked = isActive;
+                // Update visuals
+                statusToggle.querySelectorAll('.um-status-opt').forEach(b => {
+                    b.classList.remove('selected-active', 'selected-inactive');
+                });
+                btn.classList.add(isActive ? 'selected-active' : 'selected-inactive');
+                // Update help text
+                const help = document.getElementById('umStatusHelp');
+                if (help) {
+                    help.textContent = isActive
+                        ? 'This account is currently active and can sign in.'
+                        : 'This account is deactivated. The user will not be able to sign in.';
+                    help.style.color = isActive ? '#94a3b8' : '#dc2626';
+                }
+            });
+        });
+    }
+
+    // Copy temp password button
+    const copyTempPwBtn = document.getElementById('copyTempPwBtn');
+    if (copyTempPwBtn) copyTempPwBtn.addEventListener('click', () => {
+        const pw = document.getElementById('tempPasswordDisplay').textContent;
+        navigator.clipboard.writeText(pw).then(() => {
+            copyTempPwBtn.textContent = 'Copied!';
+            copyTempPwBtn.classList.add('copied');
+            setTimeout(() => {
+                copyTempPwBtn.textContent = 'Copy';
+                copyTempPwBtn.classList.remove('copied');
+            }, 2000);
+        }).catch(() => {
+            // Fallback for older browsers
+            const range = document.createRange();
+            range.selectNodeContents(document.getElementById('tempPasswordDisplay'));
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            document.execCommand('copy');
+            copyTempPwBtn.textContent = 'Copied!';
+            setTimeout(() => { copyTempPwBtn.textContent = 'Copy'; }, 2000);
+        });
+    });
+
+    // Delegate clicks for user action buttons
+    document.addEventListener('click', (e) => {
+        const target = e.target.closest('button');
+        if (!target) return;
+
+        const userId = parseInt(target.dataset.userId);
+        if (isNaN(userId)) return;
+
+        if (target.classList.contains('btn-edit-user')) {
+            openUserModal(userId);
+        } else if (target.classList.contains('btn-delete-user')) {
+            handleDeleteUser(userId);
+        } else if (target.classList.contains('btn-reset-pw')) {
+            handleResetPassword(userId, target.dataset.username);
+        } else if (target.classList.contains('btn-manage-access')) {
+            openUserEventAccessModal(userId);
+        }
+    });
+}
+
+// Initialize user management listeners
+setupUserManagementListeners();
+
+// Load users if the user has permission (after a short delay to allow DOM setup)
+setTimeout(async () => {
+    if (isAllowed('MANAGE_USERS') && !CONFIG.USE_MOCK_DATA) {
+        await fetchUsers();
+    }
+}, 1500);
+
+// ========================================================================
+// AUDIT LOG
+// ========================================================================
+
+let auditCurrentPage = 1;
+let auditFilters = {};
+let auditFilterOptions = { actions: [], resourceTypes: [], usernames: [] };
+
+async function fetchAuditLog(page = 1) {
+    if (!isAllowed('DELETE_EVENTS')) return; // Only GlobalAdmin (DELETE_EVENTS is GlobalAdmin-only)
+    if (CONFIG.USE_MOCK_DATA) return;
+
+    const tbody = document.getElementById('alTableBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="al-loading">Loading...</td></tr>';
+
+    try {
+        const params = new URLSearchParams({ page, pageSize: 50 });
+        if (auditFilters.search) params.set('search', auditFilters.search);
+        if (auditFilters.action) params.set('action', auditFilters.action);
+        if (auditFilters.resourceType) params.set('resourceType', auditFilters.resourceType);
+        if (auditFilters.username) params.set('username', auditFilters.username);
+        if (auditFilters.dateFrom) params.set('dateFrom', auditFilters.dateFrom);
+        if (auditFilters.dateTo) params.set('dateTo', auditFilters.dateTo);
+
+        const result = await apiGet(`/audit-log?${params.toString()}`);
+        const { logs, pagination, filters } = result.data;
+
+        auditCurrentPage = pagination.page;
+        auditFilterOptions = filters;
+
+        renderAuditLog(logs);
+        renderAuditPagination(pagination);
+        populateAuditFilterDropdowns(filters);
+    } catch (err) {
+        console.error('Failed to fetch audit log:', err);
+        if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="al-loading">Failed to load audit log.</td></tr>';
+    }
+}
+
+function relativeTime(dateStr) {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - d;
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+    return formatDate(dateStr);
+}
+
+function actionBadgeClass(action) {
+    const key = action.toLowerCase().replace(/ /g, '_');
+    return `al-action-${key}`;
+}
+
+function renderAuditLog(logs) {
+    const tbody = document.getElementById('alTableBody');
+    if (!tbody) return;
+
+    if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="al-loading">No audit entries match your filters.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = logs.map(log => {
+        const badgeClass = actionBadgeClass(log.Action);
+        const detailsJson = log.Details ? JSON.stringify(log.Details, null, 2) : null;
+        const detailsHtml = log.Details ? Object.entries(log.Details).map(([k, v]) =>
+            `<div class="al-detail-row"><span class="al-detail-key">${escapeHtml(k)}</span><span class="al-detail-val">${escapeHtml(typeof v === 'object' ? JSON.stringify(v) : String(v))}</span></div>`
+        ).join('') : '<span class="al-detail-empty">No additional details recorded.</span>';
+
+        return `
+            <tr class="al-row-clickable" data-log-id="${log.AuditLogId}">
+                <td>
+                    <span class="al-time">${formatDateTime(log.Timestamp)}</span>
+                    <span class="al-time-relative">${relativeTime(log.Timestamp)}</span>
+                </td>
+                <td><span class="al-user">${escapeHtml(log.Username)}</span></td>
+                <td><span class="al-action-badge ${badgeClass} al-action-default">${escapeHtml(log.Action)}</span></td>
+                <td>
+                    <span class="al-resource-type">${escapeHtml(log.ResourceType)}</span>
+                    ${log.ResourceId ? `<span class="al-resource"> #${escapeHtml(log.ResourceId)}</span>` : ''}
+                </td>
+                <td><span class="al-summary">${escapeHtml(log.Summary)}</span></td>
+                <td><span class="al-ip">${escapeHtml(log.IpAddress || '')}</span></td>
+            </tr>
+            <tr class="al-detail-row-container" id="al-detail-${log.AuditLogId}" style="display: none;">
+                <td colspan="6">
+                    <div class="al-detail-panel">
+                        <div class="al-detail-grid">
+                            <div class="al-detail-section">
+                                <h4>Event Details</h4>
+                                <div class="al-detail-row"><span class="al-detail-key">Log ID</span><span class="al-detail-val">${log.AuditLogId}</span></div>
+                                <div class="al-detail-row"><span class="al-detail-key">Timestamp</span><span class="al-detail-val">${log.Timestamp}</span></div>
+                                <div class="al-detail-row"><span class="al-detail-key">User</span><span class="al-detail-val">${escapeHtml(log.Username)} (UserId: ${log.UserId})</span></div>
+                                <div class="al-detail-row"><span class="al-detail-key">Action</span><span class="al-detail-val">${escapeHtml(log.Action)}</span></div>
+                                <div class="al-detail-row"><span class="al-detail-key">Resource</span><span class="al-detail-val">${escapeHtml(log.ResourceType)}${log.ResourceId ? ' #' + escapeHtml(log.ResourceId) : ''}</span></div>
+                                <div class="al-detail-row"><span class="al-detail-key">IP Address</span><span class="al-detail-val">${escapeHtml(log.IpAddress || 'Not recorded')}</span></div>
+                            </div>
+                            <div class="al-detail-section">
+                                <h4>Action Data</h4>
+                                ${detailsHtml}
+                            </div>
+                        </div>
+                        ${detailsJson ? `<details class="al-raw-details"><summary>Raw JSON</summary><pre>${escapeHtml(detailsJson)}</pre></details>` : ''}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    // Click to expand/collapse detail rows
+    tbody.querySelectorAll('.al-row-clickable').forEach(row => {
+        row.addEventListener('click', () => {
+            const logId = row.dataset.logId;
+            const detailRow = document.getElementById(`al-detail-${logId}`);
+            if (detailRow) {
+                const isVisible = detailRow.style.display !== 'none';
+                // Collapse all others
+                tbody.querySelectorAll('.al-detail-row-container').forEach(r => r.style.display = 'none');
+                tbody.querySelectorAll('.al-row-clickable').forEach(r => r.classList.remove('al-row-expanded'));
+                if (!isVisible) {
+                    detailRow.style.display = '';
+                    row.classList.add('al-row-expanded');
+                }
+            }
+        });
+    });
+}
+
+function renderAuditPagination(pagination) {
+    const container = document.getElementById('alPagination');
+    if (!container) return;
+
+    const { page, totalPages, total, pageSize } = pagination;
+    const from = (page - 1) * pageSize + 1;
+    const to = Math.min(page * pageSize, total);
+
+    let pageButtons = '';
+    if (totalPages > 1) {
+        pageButtons += `<button class="al-page-btn" ${page <= 1 ? 'disabled' : ''} data-page="${page - 1}">&larr; Prev</button>`;
+
+        // Show at most 7 page buttons
+        let startPage = Math.max(1, page - 3);
+        let endPage = Math.min(totalPages, startPage + 6);
+        if (endPage - startPage < 6) startPage = Math.max(1, endPage - 6);
+
+        for (let p = startPage; p <= endPage; p++) {
+            pageButtons += `<button class="al-page-btn ${p === page ? 'active' : ''}" data-page="${p}">${p}</button>`;
+        }
+
+        pageButtons += `<button class="al-page-btn" ${page >= totalPages ? 'disabled' : ''} data-page="${page + 1}">Next &rarr;</button>`;
+    }
+
+    container.innerHTML = `
+        <span class="al-page-info">${total > 0 ? `Showing ${from}–${to} of ${total} entries` : 'No entries'}</span>
+        <div class="al-page-buttons">${pageButtons}</div>
+    `;
+
+    container.querySelectorAll('.al-page-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const p = parseInt(btn.dataset.page);
+            if (!isNaN(p) && p >= 1 && p <= totalPages) fetchAuditLog(p);
+        });
+    });
+}
+
+function populateAuditFilterDropdowns(filters) {
+    const actionSelect = document.getElementById('alFilterAction');
+    const resourceSelect = document.getElementById('alFilterResource');
+    const userSelect = document.getElementById('alFilterUser');
+
+    if (actionSelect && actionSelect.options.length <= 1) {
+        filters.actions.forEach(a => {
+            actionSelect.add(new Option(a, a));
+        });
+    }
+    if (resourceSelect && resourceSelect.options.length <= 1) {
+        filters.resourceTypes.forEach(r => {
+            resourceSelect.add(new Option(r, r));
+        });
+    }
+    if (userSelect && userSelect.options.length <= 1) {
+        filters.usernames.forEach(u => {
+            userSelect.add(new Option(u, u));
+        });
+    }
+}
+
+function exportAuditLogCSV() {
+    // Fetch all matching results (no pagination) for export
+    const params = new URLSearchParams({ page: 1, pageSize: 10000 });
+    if (auditFilters.search) params.set('search', auditFilters.search);
+    if (auditFilters.action) params.set('action', auditFilters.action);
+    if (auditFilters.resourceType) params.set('resourceType', auditFilters.resourceType);
+    if (auditFilters.username) params.set('username', auditFilters.username);
+    if (auditFilters.dateFrom) params.set('dateFrom', auditFilters.dateFrom);
+    if (auditFilters.dateTo) params.set('dateTo', auditFilters.dateTo);
+
+    apiGet(`/audit-log?${params.toString()}`).then(result => {
+        const logs = result.data.logs;
+        const headers = ['Timestamp', 'Username', 'Action', 'ResourceType', 'ResourceId', 'Summary', 'IP Address', 'Details'];
+        const rows = logs.map(l => [
+            l.Timestamp,
+            l.Username,
+            l.Action,
+            l.ResourceType,
+            l.ResourceId || '',
+            `"${(l.Summary || '').replace(/"/g, '""')}"`,
+            l.IpAddress || '',
+            l.Details ? `"${JSON.stringify(l.Details).replace(/"/g, '""')}"` : ''
+        ]);
+
+        const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `audit-log-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }).catch(err => {
+        showNotification('Error', 'Failed to export audit log', 'error');
+    });
+}
+
+// Setup audit log event listeners
+function setupAuditLogListeners() {
+    const searchInput = document.getElementById('alSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(() => {
+            auditFilters.search = searchInput.value;
+            fetchAuditLog(1);
+        }, 300));
+    }
+
+    ['alFilterAction', 'alFilterResource', 'alFilterUser'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', () => {
+            if (id === 'alFilterAction') auditFilters.action = el.value;
+            if (id === 'alFilterResource') auditFilters.resourceType = el.value;
+            if (id === 'alFilterUser') auditFilters.username = el.value;
+            fetchAuditLog(1);
+        });
+    });
+
+    const dateFrom = document.getElementById('alFilterDateFrom');
+    const dateTo = document.getElementById('alFilterDateTo');
+    if (dateFrom) dateFrom.addEventListener('change', () => { auditFilters.dateFrom = dateFrom.value; fetchAuditLog(1); });
+    if (dateTo) dateTo.addEventListener('change', () => { auditFilters.dateTo = dateTo.value; fetchAuditLog(1); });
+
+    const exportBtn = document.getElementById('alExportBtn');
+    if (exportBtn) exportBtn.addEventListener('click', exportAuditLogCSV);
+}
+
+setupAuditLogListeners();
 
 console.log('Admin Panel Loaded');
 console.log('Using Mock Data:', CONFIG.USE_MOCK_DATA);
