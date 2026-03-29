@@ -4,7 +4,7 @@
 
 ✅ **Operational** - Both development and production environments are fully deployed and functional.
 
-Last Updated: 2026-02-06
+Last Updated: 2026-03-29
 
 ## Resource Groups
 
@@ -20,6 +20,20 @@ Last Updated: 2026-02-06
 - SQL Server: `cat-bootcamp-sql-89082` (cat-bootcamp-sql-89082.database.windows.net)
 - SQL Database: `CATBootcampFeedback` (Initialized with sample data)
 - Storage Account: `catbootcampapi890`
+
+### QA Environment
+- **Resource Group:** `cat-bootcamp-qa-rg`
+- **Region:** East US 2
+- **Purpose:** QA/staging environment, auto-deploys on push to main
+- **Status:** ✅ Operational
+
+**Resources:**
+- Static Web App: `ashy-rock-0b254600f` (ashy-rock-0b254600f.4.azurestaticapps.net)
+- Functions App: `catbootcamp-api-qa` (catbootcamp-api-qa.azurewebsites.net)
+- SQL Server: `cat-bootcamp-sql-qa2` (cat-bootcamp-sql-qa2.database.windows.net)
+- SQL Database: `CATBootcampFeedback-QA`
+- Key Vault: `cat-bootcamp-kv-qa`
+- Storage Account: associated storage account
 
 ### Production Environment
 - **Resource Group:** `cat-bootcamp-prod-rg`
@@ -41,14 +55,15 @@ Last Updated: 2026-02-06
 
 ## Naming Convention
 
-| Resource Type | Dev Name | Prod Name |
-|---------------|----------|-----------|
-| Resource Group | cat-bootcamp-rg | cat-bootcamp-prod-rg |
-| Static Web App | cat-bootcamp-feedback | cat-bootcamp-feedback-prod |
-| Functions App | cat-bootcamp-api | cat-bootcamp-api-prod |
-| SQL Server | cat-bootcamp-sql-89082 | cat-bootcamp-sql-prod |
-| SQL Database | CATBootcampFeedback | CATBootcampFeedback-Prod |
-| Storage Account | catbootcampapi890 | catbootcampprodapi |
+| Resource Type | Dev Name | QA Name | Prod Name |
+|---------------|----------|---------|-----------|
+| Resource Group | cat-bootcamp-rg | cat-bootcamp-qa-rg | cat-bootcamp-prod-rg |
+| Static Web App | cat-bootcamp-feedback | ashy-rock-0b254600f | cat-bootcamp-feedback-prod |
+| Functions App | cat-bootcamp-api | catbootcamp-api-qa | cat-bootcamp-api-prod |
+| SQL Server | cat-bootcamp-sql-89082 | cat-bootcamp-sql-qa2 | cat-bootcamp-sql-prod |
+| SQL Database | CATBootcampFeedback | CATBootcampFeedback-QA | CATBootcampFeedback-Prod |
+| Key Vault | — | cat-bootcamp-kv-qa | — |
+| Storage Account | catbootcampapi890 | (associated) | catbootcampprodapi |
 
 ## Deployment Pipeline
 
@@ -169,6 +184,12 @@ After deployment, verify:
 - [ ] Modules tab displays correctly
 - [ ] Feedback tab displays correctly
 - [ ] Analytics tab displays correctly
+- [ ] Speakers tab displays correctly
+- [ ] Templates tab displays correctly
+- [ ] Can create speakers with bio and photo
+- [ ] Can create templates (blank and from event)
+- [ ] Can create events from templates
+- [ ] Speaker dropdown works in module assignment
 - [ ] Can create new events
 - [ ] Can submit feedback
 
@@ -235,6 +256,10 @@ Required secrets for CI/CD (already configured):
 - ✅ XSS protection via proper escaping
 
 ### Access Control
+- ✅ RBAC with 6 roles: GlobalAdmin, UserAdmin, ModuleManager, EventCreator, FeedbackManager, FeedbackViewer
+- ✅ Resource-level security (users only see events they have access to)
+- ✅ Comprehensive audit logging of all authenticated actions
+- ✅ Key Vault for secrets (QA environment)
 - ✅ Admin panel requires authentication
 - ✅ Password hashing for admin credentials
 - ✅ Session timeout (8 hours)

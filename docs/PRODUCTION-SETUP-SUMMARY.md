@@ -3,7 +3,8 @@
 ## Completion Status: ✅ COMPLETE
 
 **Setup Date:** February 6, 2026
-**Environment:** Production
+**Environment:** Production + QA
+**Version:** 5.0
 **Status:** Fully operational and ready for deployment
 
 ---
@@ -24,10 +25,10 @@ The CATBootcampFeedback application production environment has been successfully
 - **Server:** `cat-bootcamp-sql-prod.database.windows.net`
 - **Database:** `CATBootcampFeedback-Prod`
 - **Tier:** Basic (can be scaled as needed)
-- **Status:** Online and initialized with V2 schema
-- **Tables:** 4 (Events, Modules, EventModules, Feedback)
-- **Views:** 3 (vw_EventsWithModules, vw_FeedbackWithDetails, vw_EventFeedbackCounts)
-- **Stored Procedures:** 2 (sp_GetEventByCode, sp_GetFeedbackCountByEventCode)
+- **Status:** Online and initialized with V5 schema
+- **Tables:** 12 (Events, Modules, EventModules, Feedback, Users, Roles, UserRoles, UserEventAccess, AuditLog, Speakers, EventTemplates, EventTemplateModules)
+- **Views:** 4
+- **Stored Procedures:** 2
 
 ### ✅ Azure Functions App (API)
 - **Name:** `cat-bootcamp-api-prod`
@@ -96,6 +97,14 @@ The CATBootcampFeedback application production environment has been successfully
 - **Database:** cat-bootcamp-sql-89082.database.windows.net/CATBootcampFeedback
 - **Deployment:** Auto-deploy on push to main
 - **Sample Data:** Yes (for testing)
+
+### QA Environment
+- **Resource Group:** cat-bootcamp-qa-rg
+- **Frontend:** https://ashy-rock-0b254600f.4.azurestaticapps.net
+- **API:** https://catbootcamp-api-qa.azurewebsites.net
+- **Database:** cat-bootcamp-sql-qa2 / CATBootcampFeedback-QA
+- **Key Vault:** cat-bootcamp-kv-qa
+- **Deployment:** Auto-deploys on push to main
 
 ### Production Environment
 - **Resource Group:** cat-bootcamp-prod-rg
@@ -214,12 +223,24 @@ $ curl https://cat-bootcamp-api-prod.azurewebsites.net/api/health
 ### Database Verification ✅
 ```sql
 -- Schema verified via Azure Portal Query Editor:
-✅ Tables: 4 (Events, Modules, EventModules, Feedback)
-✅ Views: 3
+✅ Tables: 12 (Events, Modules, EventModules, Feedback, Users, Roles, UserRoles, UserEventAccess, AuditLog, Speakers, EventTemplates, EventTemplateModules)
+✅ Views: 4
 ✅ Stored Procedures: 2
 ✅ Indexes: All created
 ✅ Foreign Keys: All configured
 ```
+
+## Current Features (v5.0)
+
+- **RBAC with 6 roles:** GlobalAdmin, UserAdmin, ModuleManager, EventCreator, FeedbackManager, FeedbackViewer
+- **Database-backed user management** with login, password hashing, and session tokens
+- **Comprehensive audit logging** (AuditLog table tracks all significant actions)
+- **Speaker management** (standardized speaker catalog with bio/photo)
+- **Event templates** (create from scratch or from existing events)
+- **Create events from templates**
+- **Azure Communication Services email** (welcome, password reset, username recovery)
+- **Profile image upload**
+- **43+ API endpoints** across 14 function files
 
 ## Security Considerations
 
@@ -233,6 +254,10 @@ $ curl https://cat-bootcamp-api-prod.azurewebsites.net/api/health
 - Encryption at rest enabled
 - Application Insights monitoring
 - CORS configured for frontend domain only
+- RBAC with 6 roles (GlobalAdmin, UserAdmin, ModuleManager, EventCreator, FeedbackManager, FeedbackViewer)
+- Database-backed user management
+- Comprehensive audit logging
+- Key Vault for secrets (QA: cat-bootcamp-kv-qa)
 
 ### 🔄 Recommended Future Enhancements
 - ~~Migrate secrets to Azure Key Vault~~ ✅ Done (dev: `cat-bootcamp-kv-dev`, Feb 9 2026)
@@ -320,6 +345,8 @@ The production Static Web App is ready for custom domain configuration:
 | 2026-02-06 | CI/CD pipeline configured | System Admin |
 | 2026-02-06 | Documentation completed | System Admin |
 | 2026-02-09 | Dev Key Vault migration (all secrets) | Claude Code |
+| 2026-03-29 | Speaker management, event templates feature (Migration 006) | Claude Code |
+| 2026-03-29 | QA environment fully operational | System Admin |
 
 ## Sign-Off
 
@@ -331,6 +358,6 @@ The production Static Web App is ready for custom domain configuration:
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** February 6, 2026
-**Next Review:** March 6, 2026 (monthly review recommended)
+**Document Version:** 5.0
+**Last Updated:** March 29, 2026
+**Next Review:** April 29, 2026 (monthly review recommended)

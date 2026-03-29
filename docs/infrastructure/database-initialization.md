@@ -4,18 +4,20 @@
 - **Resource Group**: `cat-bootcamp-prod-rg` (Created)
 - **SQL Server**: `cat-bootcamp-sql-prod.database.windows.net` (Created)
 - **SQL Database**: `CATBootcampFeedback-Prod` (Created)
-- **Schema**: Pending initialization
+- **Schema**: Initialized (current through migration 006)
+- **QA Database**: `cat-bootcamp-sql-qa2.database.windows.net` / `CATBootcampFeedback-QA`
+- **Last Updated**: March 29, 2026
 
 ## Database Connection Details
 - **Server**: `cat-bootcamp-sql-prod.database.windows.net`
 - **Database**: `CATBootcampFeedback-Prod`
 - **Admin User**: `sqladmin`
-- **Admin Password**: Stored securely (see credentials)
+- **Admin Password**: Stored in Azure Key Vault
 - **Tier**: Basic (5 DTU, 2GB)
 
 ## Schema Initialization
 
-The database schema needs to be initialized using `database-init.sql`. This can be done using one of the following methods:
+The database schema is initialized using `database-init.sql` and then kept current by applying migrations from the `migrations/` folder. This can be done using one of the following methods:
 
 ### Method 1: Azure Portal Query Editor
 1. Navigate to the Azure Portal
@@ -27,6 +29,7 @@ The database schema needs to be initialized using `database-init.sql`. This can 
    - Password: (use the provided password)
 6. Copy and paste the contents of `database-init.sql`
 7. Click "Run" to execute the script
+8. Apply each migration script from the `migrations/` folder in order
 
 ### Method 2: SQL Server Management Studio (SSMS)
 1. Open SSMS
@@ -36,6 +39,7 @@ The database schema needs to be initialized using `database-init.sql`. This can 
 5. Password: (use the provided password)
 6. Once connected, open `database-init.sql`
 7. Execute the script against `CATBootcampFeedback-Prod` database
+8. Apply each migration script from the `migrations/` folder in order
 
 ### Method 3: sqlcmd (if available)
 ```bash
@@ -52,23 +56,77 @@ sqlcmd -S cat-bootcamp-sql-prod.database.windows.net -d CATBootcampFeedback-Prod
    - Password: (use the provided password)
 3. Open `database-init.sql`
 4. Right-click and select "Execute Query"
+5. Apply each migration script from the `migrations/` folder in order
 
 ## Schema Components
 
-The `database-init.sql` script creates:
-
 ### Tables
-- **Events**: Stores bootcamp event information
-  - EventId (PK, Identity)
-  - EventCode (Unique, for QR codes)
-  - ModuleName, ModuleDate, SpeakerName
-  - Soft delete support (IsDeleted, DeletedAt, DeletedBy)
 
-- **Feedback**: Stores participant feedback
-  - FeedbackId (PK, Identity)
-  - EventId (FK to Events)
-  - SpeakerKnowledge, ContentDepth, ModuleSatisfaction
-  - IP address and User Agent for rate limiting
+1. **Events** — Stores bootcamp event information
+   - EventId (PK, Identity), EventName, EventCode (unique), StartDate, EndDate, TrainingTrack, IsActive
+   - CreatedAt, CreatedBy
+   - Soft delete support: IsDeleted, DeletedAt, DeletedBy
+
+2. **Modules** — Stores reusable training module definitions
+   - ModuleId (PK, Identity), ModuleName, Description, IsActive
+   - CreatedAt, CreatedBy, UpdatedAt, UpdatedBy
+
+3. **EventModules** — Links modules to events with delivery details
+   - EventModuleId (PK, Identity), EventId (FK to Events), ModuleId (FK to Modules)
+   - SpeakerName, SpeakerId (FK to Speakers), DeliveryOrder, DeliveryDate, Notes
+   - CreatedAt, CreatedBy
+   - UNIQUE constraint on (EventId, ModuleId)
+
+4. **Feedback** — Stores participant feedback for event modules
+   - FeedbackId (PK, Identity), EventModuleId (FK to EventModules), EventId, EventCode
+   - SpeakerKnowledge (1-5), ContentDepth (enum), ModuleSatisfaction (1-5), AdditionalComments
+   - IpAddress, UserAgent (for rate limiting), SubmittedAt
+
+5. **Users** — Application user accounts
+   - UserId (PK, Identity), Username, PasswordHash, FullName, Email, IsActive, IsProtected
+   - MustChangePassword, PasswordResetToken, PasswordResetTokenExpiry, LastLoginAt, ProfileImage
+   - CreatedAt, CreatedBy, UpdatedAt, UpdatedBy
+
+6. **Roles** — RBAC role definitions
+   - RoleId (PK, Identity), RoleName, Description, IsSystem
+   - Seeded roles: GlobalAdmin, UserAdmin, ModuleManager, EventCreator, FeedbackManager, FeedbackViewer
+
+7. **UserRoles** — Maps users to roles
+   - UserRoleId (PK, Identity), UserId (FK to Users), RoleId (FK to Roles)
+   - AssignedAt, AssignedBy
+
+8. **UserEventAccess** — Per-event access grants for users
+   - UserEventAccessId (PK, Identity), UserId (FK to Users), EventId (FK to Events)
+   - GrantedAt, GrantedBy
+
+9. **AuditLog** — Records security and data-change audit events
+   - AuditLogId (PK, BIGINT Identity), UserId, Username, Action, ResourceType, ResourceId
+   - Summary, Details, IpAddress, Timestamp
+
+10. **Speakers** — Speaker directory
+    - SpeakerId (PK, Identity), SpeakerName (unique), Bio, ProfileImage, IsActive
+    - CreatedAt, CreatedBy, UpdatedAt, UpdatedBy
+
+11. **EventTemplates** — Reusable event templates
+    - TemplateId (PK, Identity), TemplateName, Description, TrainingTrack, IsActive
+    - CreatedAt, CreatedBy, UpdatedAt, UpdatedBy
+
+12. **EventTemplateModules** — Modules assigned to an event template
+    - TemplateModuleId (PK, Identity), TemplateId (FK to EventTemplates), ModuleId (FK to Modules)
+    - DeliveryOrder, Notes
+    - UNIQUE constraint on (TemplateId, ModuleId)
+
+### Views
+
+- **vw_EventsWithModules** — Events joined with their modules and speaker information
+- **vw_FeedbackWithDetails** — Feedback joined with event module and speaker details
+- **vw_EventFeedbackCounts** — Aggregated feedback counts per event
+- **vw_UsersWithRoles** — Users joined with their assigned roles
+
+### Stored Procedures
+
+- **sp_GetEventByCode** — Retrieve an event and its modules by event code
+- **sp_GetFeedbackCountByEventCode** — Get feedback count for a given event code
 
 ### Indexes
 - Performance indexes for analytics queries
@@ -76,43 +134,43 @@ The `database-init.sql` script creates:
 - Speaker performance tracking indexes
 - IP-based rate limiting indexes
 
-### Stored Procedures
-- `sp_RestoreEvent`: Restore soft-deleted events
-- `sp_GetEventWithCount`: Get event with feedback count
-- `sp_GetFeedbackStatistics`: Get feedback statistics by event/date
-- `sp_GetSpeakerPerformance`: Get speaker performance summary
-- `sp_ArchiveOldFeedback`: Archive old feedback data
+## Migrations
 
-### Views
-- `vw_ActiveEventsWithCounts`: Active events with feedback counts and averages
+Migrations are stored in the `migrations/` folder and should be applied in order after the base `database-init.sql` script:
 
-### Sample Data
-- 3 sample events for testing (can be removed in production)
+| Migration | Description |
+|-----------|-------------|
+| `002-add-user-management.sql` | Adds Users, Roles, UserRoles, and UserEventAccess tables; seeds RBAC roles |
+| `003-add-profile-image.sql` | Adds ProfileImage column to Users |
+| `004-add-audit-log.sql` | Adds AuditLog table for security and change tracking |
+| `005-widen-event-code.sql` | Widens the EventCode column |
+| `006-add-speakers-and-templates.sql` | Adds Speakers, EventTemplates, and EventTemplateModules tables; adds SpeakerId FK to EventModules |
+| `rename-cohort-to-training-track.sql` | Renames Cohort column to TrainingTrack in Events |
 
 ## Verification
 
-After running the initialization script, verify the schema was created:
+After running the initialization script and all migrations, verify the schema was created:
 
 ```sql
--- Check tables were created
+-- Check tables were created (should return 12 tables)
 SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE';
 
--- Check sample events exist
-SELECT * FROM Events;
+-- Check views were created (should return 4 views)
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS;
 
--- Check stored procedures were created
+-- Check stored procedures were created (should return 2 procedures)
 SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_TYPE = 'PROCEDURE';
 
--- Check views were created
-SELECT TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS;
+-- Check seeded roles exist
+SELECT * FROM Roles;
 ```
 
 ## Next Steps
 
 1. Initialize the database schema using one of the methods above
-2. Verify the schema was created successfully
-3. Optionally remove sample data if not needed for production
-4. Continue with Task 3: Create Production Functions App
+2. Apply all migrations in order
+3. Verify the schema was created successfully
+4. Continue with deployment pipeline configuration
 5. Add connection string to GitHub Secrets for deployment
 
 ## Security Notes
@@ -122,4 +180,4 @@ SELECT TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS;
   - Your current IP address (107.194.87.63)
 - Additional IP addresses can be added via Azure Portal or Azure CLI
 - Consider restricting access further once Functions App is deployed
-- Store the SQL password in GitHub Secrets as `PROD_SQL_PASSWORD`
+- All database secrets must be stored in Azure Key Vault, never in plain text
