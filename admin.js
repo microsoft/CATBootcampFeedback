@@ -4862,13 +4862,140 @@ function renderSpeakers(speakers) {
 
     // Add click handlers for edit/delete buttons via delegation
     list.querySelectorAll('.btn-edit-speaker-record').forEach(btn => {
-        btn.addEventListener('click', () => openSpeakerModal(parseInt(btn.dataset.speakerId)));
+        btn.addEventListener('click', (e) => { e.stopPropagation(); openSpeakerModal(parseInt(btn.dataset.speakerId)); });
     });
     list.querySelectorAll('.btn-delete-speaker-record').forEach(btn => {
-        btn.addEventListener('click', () => deleteSpeaker(parseInt(btn.dataset.speakerId)));
+        btn.addEventListener('click', (e) => { e.stopPropagation(); deleteSpeaker(parseInt(btn.dataset.speakerId)); });
+    });
+
+    // Click on speaker card opens detail view (but not on buttons/checkboxes)
+    list.querySelectorAll('.speaker-card').forEach(card => {
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', (e) => {
+            if (e.target.closest('button') || e.target.closest('input[type="checkbox"]')) return;
+            viewSpeakerDetails(parseInt(card.dataset.speakerId));
+        });
     });
 
     updateSpeakerBulkDeleteVisibility();
+}
+
+async function viewSpeakerDetails(speakerId) {
+    const speaker = allSpeakers.find(s => s.speakerId === speakerId);
+    if (!speaker) {
+        showNotification('Error', 'Speaker not found', 'error');
+        return;
+    }
+
+    // Show a loading modal immediately
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.id = 'speakerDetailsModal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>${escapeHtml(speaker.speakerName)}</h2>
+                <button class="modal-close" id="closeSpeakerDetailsBtn">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div class="loading-state"><div class="spinner"></div><p>Loading speaker history...</p></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    document.getElementById('closeSpeakerDetailsBtn').addEventListener('click', closeSpeakerDetailsModal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeSpeakerDetailsModal(); });
+
+    try {
+        const result = await apiGet(`/speakers/${speakerId}/events`);
+        const data = result.data || result;
+        const speakerInfo = data.speaker || speaker;
+        const events = data.events || [];
+
+        const initials = (speakerInfo.speakerName || '?').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+        const avatarHtml = speakerInfo.profileImage
+            ? `<img src="${speakerInfo.profileImage}" alt="${escapeHtml(speakerInfo.speakerName)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+            : `<span style="font-size:2rem;font-weight:600;color:white;">${initials}</span>`;
+
+        const body = modal.querySelector('.modal-body');
+        body.innerHTML = `
+            <div style="display:flex;gap:20px;align-items:flex-start;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #eee;">
+                <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;">
+                    ${avatarHtml}
+                </div>
+                <div style="flex:1;">
+                    <h3 style="margin:0 0 6px 0;font-size:1.3rem;">${escapeHtml(speakerInfo.speakerName)}</h3>
+                    ${speakerInfo.bio ? `<p style="color:#666;margin:0 0 8px 0;line-height:1.5;">${escapeHtml(speakerInfo.bio)}</p>` : ''}
+                    <div style="display:flex;gap:15px;font-size:0.9rem;color:#888;">
+                        <span>📅 ${data.totalEvents || 0} event${data.totalEvents === 1 ? '' : 's'}</span>
+                        <span>📚 ${data.totalModules || 0} module delivery${data.totalModules === 1 ? '' : 'ies'}</span>
+                        <span class="status-badge ${speakerInfo.isActive ? 'active' : 'inactive'}">${speakerInfo.isActive ? 'Active' : 'Inactive'}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;margin-bottom:15px;">
+                <button class="btn btn-primary btn-sm" id="viewSpeakerFeedbackBtn">💬 View All Feedback</button>
+            </div>
+
+            ${events.length > 0 ? `
+                <h4 style="margin:0 0 12px 0;color:#333;">Event History</h4>
+                ${events.map(event => `
+                    <div style="border:1px solid #e0e0e0;border-radius:8px;padding:15px;margin-bottom:12px;">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                            <div>
+                                <div style="font-weight:600;color:#333;">${escapeHtml(event.eventCode)}</div>
+                                <div style="font-size:0.85rem;color:#888;">${formatDate(event.startDate)}${event.trainingTrack ? ` | ${escapeHtml(event.trainingTrack)}` : ''}</div>
+                            </div>
+                            <span class="status-badge ${event.isActive ? 'active' : 'inactive'}" style="font-size:0.75rem;">${event.isActive ? 'Active' : 'Inactive'}</span>
+                        </div>
+                        <div style="background:#f8f9fa;border-radius:6px;padding:10px;">
+                            ${event.modules.map(mod => `
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;${event.modules.indexOf(mod) < event.modules.length - 1 ? 'border-bottom:1px solid #eee;' : ''}">
+                                    <div>
+                                        <span style="display:inline-block;width:24px;height:24px;border-radius:50%;background:#667eea;color:white;font-size:0.75rem;text-align:center;line-height:24px;margin-right:8px;">${mod.deliveryOrder}</span>
+                                        <span style="font-weight:500;">${escapeHtml(mod.moduleName)}</span>
+                                    </div>
+                                    <div style="display:flex;gap:12px;font-size:0.85rem;color:#888;">
+                                        <span>💬 ${mod.feedbackCount}</span>
+                                        ${mod.avgSpeakerRating ? `<span>⭐ ${mod.avgSpeakerRating}</span>` : ''}
+                                        ${mod.avgModuleSatisfaction ? `<span>👍 ${mod.avgModuleSatisfaction}</span>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+            ` : `
+                <div class="empty-state" style="padding:30px;text-align:center;">
+                    <div class="empty-state-icon">📅</div>
+                    <p>This speaker hasn't been assigned to any events yet.</p>
+                </div>
+            `}
+        `;
+
+        // "View All Feedback" button navigates to feedback tab filtered by speaker
+        document.getElementById('viewSpeakerFeedbackBtn').addEventListener('click', () => {
+            closeSpeakerDetailsModal();
+            switchTab('feedback');
+            const filterSpeakerEl = document.getElementById('filterSpeaker');
+            if (filterSpeakerEl) {
+                filterSpeakerEl.value = speakerInfo.speakerName;
+                filterAndSortFeedback();
+            }
+        });
+
+    } catch (err) {
+        console.error('Error loading speaker details:', err);
+        const body = modal.querySelector('.modal-body');
+        body.innerHTML = `<div class="empty-state" style="padding:30px;text-align:center;"><p>Error loading speaker details. Please try again.</p></div>`;
+    }
+}
+
+function closeSpeakerDetailsModal() {
+    const modal = document.getElementById('speakerDetailsModal');
+    if (modal) modal.remove();
 }
 
 function filterSpeakers() {

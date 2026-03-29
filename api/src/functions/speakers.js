@@ -175,6 +175,121 @@ app.http('speakers', {
     }
 });
 
+// GET speaker details with events/modules history
+app.http('getSpeakerEvents', {
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    route: 'speakers/{speakerId}/events',
+    handler: async (request, context) => {
+        const roleError = requireRole(request, 'ModuleManager', 'EventCreator');
+        if (roleError) return roleError;
+
+        try {
+            const speakerId = parseInt(request.params.speakerId);
+
+            if (!speakerId || isNaN(speakerId)) {
+                return { status: 400, jsonBody: { success: false, message: 'Invalid speaker ID', error: 'INVALID_ID' } };
+            }
+
+            // Get speaker info
+            const speakerResult = await query(
+                'SELECT SpeakerId, SpeakerName, Bio, ProfileImage, IsActive, CreatedAt FROM Speakers WHERE SpeakerId = @speakerId',
+                { speakerId }
+            );
+
+            if (speakerResult.length === 0) {
+                return { status: 404, jsonBody: { success: false, message: 'Speaker not found', error: 'NOT_FOUND' } };
+            }
+
+            const speaker = speakerResult[0];
+
+            // Get all events/modules this speaker has presented
+            const events = await query(`
+                SELECT
+                    e.EventId,
+                    e.EventCode,
+                    e.EventName,
+                    e.StartDate,
+                    e.EndDate,
+                    e.TrainingTrack,
+                    e.IsActive AS EventIsActive,
+                    em.EventModuleId,
+                    em.ModuleId,
+                    m.ModuleName,
+                    em.DeliveryOrder,
+                    em.DeliveryDate,
+                    em.Notes,
+                    (SELECT COUNT(*) FROM Feedback f WHERE f.EventModuleId = em.EventModuleId) AS FeedbackCount,
+                    (SELECT AVG(CAST(f.SpeakerKnowledge AS FLOAT)) FROM Feedback f WHERE f.EventModuleId = em.EventModuleId) AS AvgSpeakerRating,
+                    (SELECT AVG(CAST(f.ModuleSatisfaction AS FLOAT)) FROM Feedback f WHERE f.EventModuleId = em.EventModuleId) AS AvgModuleSatisfaction
+                FROM EventModules em
+                INNER JOIN Events e ON em.EventId = e.EventId
+                INNER JOIN Modules m ON em.ModuleId = m.ModuleId
+                WHERE em.SpeakerId = @speakerId
+                  AND e.IsDeleted = 0
+                ORDER BY e.StartDate DESC, em.DeliveryOrder ASC
+            `, { speakerId });
+
+            // Group by event
+            const eventMap = new Map();
+            for (const row of events) {
+                if (!eventMap.has(row.EventId)) {
+                    eventMap.set(row.EventId, {
+                        eventId: row.EventId,
+                        eventCode: row.EventCode,
+                        eventName: row.EventName,
+                        startDate: row.StartDate,
+                        endDate: row.EndDate,
+                        trainingTrack: row.TrainingTrack,
+                        isActive: row.EventIsActive,
+                        modules: []
+                    });
+                }
+                eventMap.get(row.EventId).modules.push({
+                    eventModuleId: row.EventModuleId,
+                    moduleId: row.ModuleId,
+                    moduleName: row.ModuleName,
+                    deliveryOrder: row.DeliveryOrder,
+                    deliveryDate: row.DeliveryDate,
+                    notes: row.Notes,
+                    feedbackCount: row.FeedbackCount || 0,
+                    avgSpeakerRating: row.AvgSpeakerRating ? parseFloat(row.AvgSpeakerRating.toFixed(2)) : null,
+                    avgModuleSatisfaction: row.AvgModuleSatisfaction ? parseFloat(row.AvgModuleSatisfaction.toFixed(2)) : null
+                });
+            }
+
+            const response = success({
+                speaker: {
+                    speakerId: speaker.SpeakerId,
+                    speakerName: speaker.SpeakerName,
+                    bio: speaker.Bio,
+                    profileImage: speaker.ProfileImage,
+                    isActive: speaker.IsActive,
+                    createdAt: speaker.CreatedAt
+                },
+                totalEvents: eventMap.size,
+                totalModules: events.length,
+                events: Array.from(eventMap.values())
+            });
+
+            return {
+                status: response.status,
+                headers: response.headers,
+                body: response.body
+            };
+
+        } catch (err) {
+            context.log('Error getting speaker events:', err);
+            const errorResponse = error(500, 'Error getting speaker events', 'SERVER_ERROR');
+            return {
+                status: errorResponse.status,
+                headers: errorResponse.headers,
+                body: errorResponse.body
+            };
+        }
+    }
+});
+
 // DELETE single speaker
 app.http('deleteSpeaker', {
     methods: ['DELETE'],
