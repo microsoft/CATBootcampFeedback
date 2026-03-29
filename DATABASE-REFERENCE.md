@@ -346,6 +346,109 @@ VALUES (1, 1, 'CSA1B2C3', 5, 'Just Right', 5, 'Excellent presentation!');
 
 ---
 
+### 5. Users Table
+
+Stores authenticated user accounts (replaces ADMIN_USERS_JSON as primary auth source).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `UserId` | INT | PRIMARY KEY, IDENTITY | Auto-increment primary key |
+| `Username` | NVARCHAR(100) | UNIQUE, NOT NULL | Unique username |
+| `PasswordHash` | NVARCHAR(255) | NOT NULL | bcrypt hash |
+| `FullName` | NVARCHAR(200) | NULL | Display name |
+| `Email` | NVARCHAR(255) | UNIQUE, NULL | Unique email |
+| `IsActive` | BIT | DEFAULT 1 | Account status |
+| `IsProtected` | BIT | DEFAULT 0 | Cannot be deleted/demoted |
+| `MustChangePassword` | BIT | DEFAULT 0 | Force password change on next login |
+| `ProfileImage` | NVARCHAR(MAX) | NULL | Base64 profile image |
+| `PasswordResetToken` | NVARCHAR(255) | NULL | Reset token |
+| `PasswordResetExpiry` | DATETIME2 | NULL | Token expiration |
+| `LastLoginAt` | DATETIME2 | NULL | Last login timestamp |
+| `CreatedAt` | DATETIME2 | DEFAULT GETDATE() | Creation timestamp |
+| `CreatedBy` | NVARCHAR(100) | NULL | User who created the account |
+| `UpdatedAt` | DATETIME2 | NULL | Last update timestamp |
+| `UpdatedBy` | NVARCHAR(100) | NULL | User who last updated the account |
+
+---
+
+### 6. Roles Table
+
+Stores available roles for RBAC.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `RoleId` | INT | PRIMARY KEY, IDENTITY | Auto-increment |
+| `RoleName` | NVARCHAR(50) | UNIQUE, NOT NULL | Unique role name |
+| `Description` | NVARCHAR(500) | NULL | Role description |
+| `IsSystem` | BIT | DEFAULT 0 | System roles cannot be deleted |
+
+**Seeded Roles:**
+- GlobalAdmin, UserAdmin, ModuleManager, EventCreator, FeedbackManager, FeedbackViewer
+
+---
+
+### 7. UserRoles Table (Junction)
+
+Links users to roles (many-to-many).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `UserRoleId` | INT | PRIMARY KEY, IDENTITY | Auto-increment |
+| `UserId` | INT | FOREIGN KEY, NOT NULL | References Users |
+| `RoleId` | INT | FOREIGN KEY, NOT NULL | References Roles |
+| `AssignedAt` | DATETIME2 | DEFAULT GETDATE() | When assigned |
+| `AssignedBy` | NVARCHAR(100) | NULL | Who assigned |
+
+**Constraints:**
+- `FK_UserRoles_Users` (UserId -> Users.UserId, CASCADE DELETE)
+- `FK_UserRoles_Roles` (RoleId -> Roles.RoleId)
+- `UQ_UserRoles_UserRole` (UNIQUE on UserId, RoleId)
+
+---
+
+### 8. UserEventAccess Table
+
+Controls per-event access for users.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `UserEventAccessId` | INT | PRIMARY KEY, IDENTITY | Auto-increment |
+| `UserId` | INT | FOREIGN KEY, NOT NULL | References Users |
+| `EventId` | INT | FOREIGN KEY, NOT NULL | References Events |
+| `GrantedAt` | DATETIME2 | DEFAULT GETDATE() | When granted |
+| `GrantedBy` | NVARCHAR(100) | NULL | Who granted |
+
+**Constraints:**
+- `FK_UserEventAccess_Users` (UserId -> Users.UserId, CASCADE DELETE)
+- `FK_UserEventAccess_Events` (EventId -> Events.EventId, CASCADE DELETE)
+- `UQ_UserEventAccess_UserEvent` (UNIQUE on UserId, EventId)
+
+---
+
+### 9. AuditLog Table
+
+Records all administrative actions for auditing.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `AuditLogId` | BIGINT | PRIMARY KEY, IDENTITY | Auto-increment |
+| `UserId` | INT | NULL | Who performed the action |
+| `Username` | NVARCHAR(100) | NULL | Denormalized username |
+| `Action` | NVARCHAR(50) | NOT NULL | Action verb (CREATE, DELETE, etc.) |
+| `ResourceType` | NVARCHAR(50) | NULL | What was acted on |
+| `ResourceId` | NVARCHAR(100) | NULL | ID of affected resource |
+| `Summary` | NVARCHAR(500) | NULL | Human-readable summary |
+| `Details` | NVARCHAR(MAX) | NULL | JSON details |
+| `IpAddress` | NVARCHAR(45) | NULL | Client IP |
+| `Timestamp` | DATETIME2 | DEFAULT GETDATE() | When it happened |
+
+**Indexes:**
+- `IX_AuditLog_Timestamp` (NONCLUSTERED)
+- `IX_AuditLog_UserId` (NONCLUSTERED)
+- `IX_AuditLog_Action_ResourceType` (NONCLUSTERED)
+
+---
+
 ## Relationships
 
 ### Primary Relationships
@@ -364,6 +467,25 @@ VALUES (1, 1, 'CSA1B2C3', 5, 'Just Right', 5, 'Excellent presentation!');
    - One module delivery can have many feedback submissions
    - Foreign key: `Feedback.EventModuleId → EventModules.EventModuleId`
 
+4. **Users -> UserRoles (One-to-Many)**
+   - One user can have multiple roles
+   - Foreign key: `UserRoles.UserId -> Users.UserId`
+   - CASCADE DELETE: Deleting a user removes all role assignments
+
+5. **Roles -> UserRoles (One-to-Many)**
+   - One role can be assigned to multiple users
+   - Foreign key: `UserRoles.RoleId -> Roles.RoleId`
+
+6. **Users -> UserEventAccess (One-to-Many)**
+   - One user can have access to multiple events
+   - Foreign key: `UserEventAccess.UserId -> Users.UserId`
+   - CASCADE DELETE: Deleting a user removes all event access grants
+
+7. **Events -> UserEventAccess (One-to-Many)**
+   - One event can be accessible by multiple users
+   - Foreign key: `UserEventAccess.EventId -> Events.EventId`
+   - CASCADE DELETE: Deleting an event removes all user access grants for it
+
 ### Cascade Rules
 
 - **EventModules**: CASCADE DELETE on both Events and Modules
@@ -373,6 +495,13 @@ VALUES (1, 1, 'CSA1B2C3', 5, 'Just Right', 5, 'Excellent presentation!');
 - **Feedback**: No CASCADE (protected)
   - Feedback is preserved even if referenced entities are deleted
   - EventModuleId can be NULL to support historical data
+
+- **UserRoles**: CASCADE DELETE on Users
+  - Deleting a User removes all their role assignments
+
+- **UserEventAccess**: CASCADE DELETE on both Users and Events
+  - Deleting a User removes all their event access grants
+  - Deleting an Event removes all user access grants for it
 
 ---
 
@@ -646,12 +775,13 @@ ORDER BY migs.avg_user_impact DESC;
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-03-29 | 3.0 | Added Users, Roles, UserRoles, UserEventAccess, AuditLog tables for RBAC |
 | 2026-02-04 | 2.0 | Added EventName field to Events table |
 | 2026-02-04 | 1.1 | Migrated to many-to-many relationship with EventModules |
 | 2026-01-15 | 1.0 | Initial database schema |
 
 ---
 
-**Document Version:** 2.0
-**Last Updated:** 2026-02-04
+**Document Version:** 3.0
+**Last Updated:** 2026-03-29
 **Maintained By:** Development Team

@@ -143,6 +143,9 @@ Once you've loaded the sample data, you can test with these event codes:
 - ✅ Export feedback to CSV
 - ✅ View live count display
 - ✅ Search and filter events
+- ✅ Test user creation and role assignment (People & Permissions tab)
+- ✅ Test RBAC restrictions (login as different roles to verify access limits)
+- ✅ View audit log (GlobalAdmin only)
 
 ---
 
@@ -210,8 +213,9 @@ You need to manually load the sample data:
 - No secrets are hardcoded in the application code
 
 ### To Update Admin Users
-1. Update the `ADMIN-USERS-JSON` secret in `cat-bootcamp-kv-dev` Key Vault
-2. Restart the Function App: `az functionapp restart --name cat-bootcamp-api-win --resource-group cat-bootcamp-rg`
+Users are now managed in the database via the **People & Permissions** tab in the admin UI. From there you can create users, assign roles (GlobalAdmin, UserAdmin, ModuleManager, EventCreator, FeedbackManager, FeedbackViewer), and grant event-level access.
+
+> **Legacy fallback:** The `ADMIN-USERS-JSON` secret in Key Vault is still read during the migration period. To update it manually: update the secret in `cat-bootcamp-kv-dev` Key Vault and restart the Function App.
 
 ### Production Recommendations
 1. ~~**Use Azure Key Vault** for storing credentials~~ ✅ Done (dev environment)
@@ -220,7 +224,7 @@ You need to manually load the sample data:
 4. **Enable MFA** for admin accounts
 5. ~~**Use proper JWT tokens** instead of simple base64~~ ✅ Done
 6. ~~**Implement session timeout** and token expiration~~ ✅ Done (8h expiry)
-7. **Add audit logging** for admin actions
+7. ~~**Add audit logging** for admin actions~~ ✅ Done (AuditLog table tracks all authenticated actions)
 
 ---
 
@@ -312,6 +316,9 @@ If you're still having issues:
 - [ ] Test QR code generation
 - [ ] Test CSV export
 - [ ] Change admin passwords for production
+- [ ] Create additional users with appropriate roles via People & Permissions tab
+- [ ] Verify RBAC by logging in with different role accounts
+- [ ] Check audit log captures actions
 
 ---
 

@@ -5,6 +5,8 @@ This document describes the security architecture of the CAT Bootcamp Feedback a
 ## Table of Contents
 
 - [Authentication System](#authentication-system)
+- [Authorization (RBAC)](#authorization-rbac)
+- [Audit Logging](#audit-logging)
 - [Azure Key Vault Integration](#azure-key-vault-integration)
 - [API Security](#api-security)
 - [Data Protection](#data-protection)
@@ -22,7 +24,7 @@ The application uses **JWT (JSON Web Tokens)** with **bcrypt password hashing** 
 ```
 1. Admin logs in with username/password
    ↓
-2. Server verifies password using bcrypt
+2. Server verifies password using bcrypt against Users table in database (with env-var fallback during migration)
    ↓
 3. Server generates JWT signed with secret from Key Vault
    ↓
@@ -35,9 +37,12 @@ The application uses **JWT (JSON Web Tokens)** with **bcrypt password hashing** 
 
 ```javascript
 {
+  "userId": 1,
   "username": "admin",
   "email": "admin@microsoft.com",
   "fullName": "CAT Admin",
+  "roles": ["GlobalAdmin"],
+  "isProtected": true,
   "iat": 1234567890,  // Issued at timestamp
   "exp": 1234596690,  // Expiration (8 hours)
   "iss": "cat-bootcamp-api",      // Issuer
@@ -64,6 +69,63 @@ The application uses **JWT (JSON Web Tokens)** with **bcrypt password hashing** 
 // Example hash (for 'CATBootcamp2026!')
 $2b$10$.QNiEI80R3baYb5/KxY.Z.O4Gsvp.FC1JXjcd0ycnqK9t10LdpgGG
 ```
+
+## Authorization (RBAC)
+
+### Role Hierarchy
+
+The application implements role-based access control (RBAC) with 6 granular roles:
+
+| Role | Description |
+|------|-------------|
+| **GlobalAdmin** | Full access to everything -- sees all events, modules, feedback, and analytics |
+| **UserAdmin** | Can manage users and their role assignments |
+| **ModuleManager** | Can create, edit, and delete modules in the catalog |
+| **EventCreator** | Can create events and manage their event-modules and speakers |
+| **FeedbackManager** | Can view and delete feedback for granted events |
+| **FeedbackViewer** | Read-only reporting: view feedback, analytics dashboards, and CSV exports for granted events |
+
+### requireRole() Middleware
+
+All protected endpoints use the `requireRole()` middleware to enforce role-based access. The middleware checks the JWT `roles` claim against the required roles for the endpoint.
+
+### Resource-Level Security
+
+Non-GlobalAdmin users are scoped to specific events via the **UserEventAccess** table. When a user with EventCreator, FeedbackManager, or FeedbackViewer roles queries events or feedback, results are automatically filtered to only include events they have been explicitly granted access to.
+
+### GlobalAdmin Bypass
+
+Users with the **GlobalAdmin** role bypass all role checks and resource-level filters. They have unrestricted access to all endpoints and all data.
+
+### Protected Account (IsProtected Flag)
+
+The primary GlobalAdmin account has `IsProtected = true` in the Users table. Protected accounts cannot be deactivated or have their GlobalAdmin role removed, ensuring there is always at least one admin who can manage the system.
+
+## Audit Logging
+
+### Overview
+
+All authenticated actions are logged to the **AuditLog** table in the database. Anonymous feedback submissions are never logged to preserve user privacy.
+
+### What Gets Logged
+
+Each audit log entry captures:
+- **UserId** and **Username** of the actor
+- **Action** performed (e.g., LOGIN, CREATE, UPDATE, DELETE)
+- **ResourceType** (e.g., User, Event, Module, Feedback)
+- **ResourceId** of the affected resource
+- **Summary** -- human-readable description
+- **Details** -- JSON object with full change details
+- **IpAddress** of the request
+- **Timestamp** (UTC)
+
+### Actions Logged
+
+`LOGIN`, `CREATE`, `UPDATE`, `DELETE`, `ACTIVATE`, `DEACTIVATE`, `ASSIGN_ROLE`, `REMOVE_ROLE`, `GRANT_ACCESS`, `REVOKE_ACCESS`, `ADD_MODULE`, `REMOVE_MODULE`, `CHANGE_PASSWORD`, `RESET_PASSWORD`, `BULK_DELETE`
+
+### Audit Log Viewer
+
+GlobalAdmin users can view the audit log via `GET /api/audit-log`. The viewer supports filtering by user, action, resource type, and date range.
 
 ## Azure Key Vault Integration
 
@@ -108,7 +170,7 @@ $2b$10$.QNiEI80R3baYb5/KxY.Z.O4Gsvp.FC1JXjcd0ycnqK9t10LdpgGG
    ```
 4. **Automatic Resolution**: Azure Functions runtime automatically fetches the secret value at startup
 5. **Application Access**: Code reads from `process.env.JWT_SECRET` as usual
-6. **Admin Users**: The `ADMIN_USERS_JSON` env var contains a JSON array of admin users with bcrypt password hashes, loaded from Key Vault
+6. **Admin Users**: Users are now primarily managed in the database **Users** table. The `ADMIN_USERS_JSON` env var is still supported as a fallback during the migration period and is loaded from Key Vault
 
 ### Security Benefits
 
@@ -152,23 +214,35 @@ These endpoints are **publicly accessible** without authentication:
 
 ### Protected Endpoints
 
-These endpoints require **JWT authentication**:
+These endpoints require **JWT authentication** and **role-based authorization**:
 
-- `POST /api/login` - Admin login (generates JWT)
-- `GET /api/modules` - List all modules (admin view)
-- `POST /api/modules` - Create module
-- `PUT /api/modules/{id}` - Update module
-- `DELETE /api/modules/{id}` - Delete module
-- `POST /api/events` - Create event
-- `PUT /api/events/{id}` - Update event
-- `DELETE /api/events/{id}` - Delete event
-- `POST /api/event-modules` - Add module to event
-- `DELETE /api/event-modules/{id}` - Remove module from event
-- `GET /api/feedback/all` - View all feedback (admin)
-- `DELETE /api/feedback/{id}` - Delete feedback
+```
+# User Management (GlobalAdmin, UserAdmin)
+GET/POST/PUT/DELETE /api/users, /api/users/{id}
+POST/DELETE /api/users/{id}/roles, /api/users/{id}/events
+
+# Module Management (GlobalAdmin, ModuleManager)
+POST/PUT/DELETE /api/modules
+
+# Event Management (GlobalAdmin, EventCreator + resource access)
+POST/PUT/DELETE /api/events
+
+# Feedback (GlobalAdmin, FeedbackManager for delete; EventCreator, FeedbackViewer for view)
+GET /api/feedback (resource-filtered)
+DELETE /api/feedback/{id} (GlobalAdmin, FeedbackManager)
+
+# Audit Log (GlobalAdmin only)
+GET /api/audit-log
+
+# Self-Service (Any authenticated user)
+GET/PUT /api/users/me
+PUT /api/users/me/password
+```
 
 **Security Measures:**
 - JWT validation on every request
+- Role-based authorization via requireRole() middleware
+- Resource-level filtering via UserEventAccess table
 - Token expiration enforced (8 hours)
 - Issuer and audience claims validated
 - HTTPS enforced in production
@@ -426,8 +500,12 @@ trustServerCertificate=false;
 
 ### Audit Trail
 
-All security-relevant events logged to **Azure Application Insights**:
+All security-relevant events are logged to the **AuditLog table** in the database and to **Azure Application Insights**:
 - Admin login attempts (success and failure)
+- All CRUD operations on users, events, modules, and feedback
+- Role assignments and revocations
+- Event access grants and revocations
+- Password changes and resets
 - JWT token generation
 - Protected endpoint access
 - Database query execution
@@ -443,5 +521,5 @@ All security-relevant events logged to **Azure Application Insights**:
 
 ---
 
-**Last Updated:** February 9, 2026
-**Version:** 4.0
+**Last Updated:** March 29, 2026
+**Version:** 5.0

@@ -9,6 +9,7 @@ This application provides a complete solution for collecting and managing feedba
 1. **Public Feedback Form** - Module-specific feedback collection via QR codes
 2. **Admin Interface** - Manage events, modules, view feedback, and generate QR codes
 3. **Live Count Display** - Real-time feedback submission count for presenters
+4. **User Management & RBAC** - Role-based access control with 6 roles and audit logging
 
 ## System Architecture
 
@@ -38,6 +39,11 @@ This application provides a complete solution for collecting and managing feedba
 │    - Modules table               │
 │    - EventModules table          │
 │    - Feedback table              │
+│    - Users table                 │
+│    - Roles table                 │
+│    - UserRoles table             │
+│    - UserEventAccess table       │
+│    - AuditLog table              │
 └─────────────────────────────────┘
 ```
 
@@ -87,6 +93,21 @@ Azure Static Web Apps' managed functions have **limited support for custom route
 - **Analytics dashboard** with filterable statistics by Event, Module, and Speaker
 - Real-time feedback counts
 
+#### User Management & RBAC
+- **6 roles:** GlobalAdmin, UserAdmin, ModuleManager, EventCreator, FeedbackManager, FeedbackViewer
+- **People & Permissions tab** for managing users
+- **Resource-level security** — users only see events they have access to
+- Profile image upload
+- Password reset and forgot password/username flows
+- Protected Global Admin account (cannot be deleted or demoted)
+
+#### Audit Log
+- Comprehensive logging of all authenticated actions
+- Expandable detail view for each log entry
+- Search, filter by action/resource/user, and date range
+- CSV export
+- Visible only to GlobalAdmin
+
 ### Live Count Display (count.html)
 
 - **Real-time feedback count** with configurable auto-refresh (5, 10, 15, or 30 seconds; default: 5 seconds)
@@ -122,6 +143,15 @@ EventModules (EventModuleId, EventId, ModuleId, SpeakerName, DeliveryOrder, ...)
 
 -- Feedback tied to specific module deliveries
 Feedback (FeedbackId, EventModuleId, EventCode, SpeakerKnowledge, ...)
+
+-- User Management (RBAC)
+Users (UserId, Username, PasswordHash, FullName, Email, IsProtected, ProfileImage, ...)
+Roles (RoleId, RoleName, Description, IsSystem)
+UserRoles (UserRoleId, UserId, RoleId, ...)
+UserEventAccess (UserEventAccessId, UserId, EventId, ...)
+
+-- Audit Logging
+AuditLog (AuditLogId, UserId, Username, Action, ResourceType, ResourceId, Summary, Details, IpAddress, Timestamp)
 ```
 
 See `DATABASE-REFERENCE.md` for complete schema.
@@ -155,6 +185,35 @@ PUT    /api/events/{id}                       # Update event
 POST   /api/event-modules                     # Add module to event
 DELETE /api/event-modules/{id}                # Remove module from event
 GET    /api/feedback/all                      # Get all feedback (admin)
+
+# User Management (GlobalAdmin/UserAdmin)
+GET    /api/users                              # List all users
+POST   /api/users                              # Create user
+GET    /api/users/{id}                         # Get user details
+PUT    /api/users/{id}                         # Update user
+DELETE /api/users/{id}                         # Delete user
+POST   /api/users/{id}/roles                   # Assign role
+DELETE /api/users/{id}/roles/{roleId}          # Remove role
+GET    /api/users/{id}/events                  # List event access
+POST   /api/users/{id}/events                  # Grant event access
+DELETE /api/users/{id}/events/{eventId}        # Revoke event access
+PUT    /api/users/{id}/avatar                  # Upload profile image
+GET    /api/roles                              # List available roles
+
+# Self-Service (Any authenticated user)
+GET    /api/users/me                           # Get own profile
+PUT    /api/users/me                           # Update own profile
+PUT    /api/users/me/password                  # Change own password
+
+# Password Recovery (Public, rate-limited)
+POST   /api/password-reset/request             # Request password reset
+POST   /api/username-recovery                  # Recover username by email
+
+# Audit Log (GlobalAdmin only)
+GET    /api/audit-log                          # Query audit logs
+
+# Notifications
+POST   /api/notify/welcome                     # Send welcome email
 ```
 
 ## Deployment
@@ -349,6 +408,33 @@ See [`docs/database-migration-strategy.md`](docs/database-migration-strategy.md)
 
 ## Development Setup
 
+### Docker Development Environment (Recommended)
+
+The fastest way to run the full stack locally:
+
+```bash
+docker compose up --build
+```
+
+This starts:
+- **SQL Edge** database on port 1433
+- **API server** on port 7071
+- **Frontend** on port 8080
+
+Open http://localhost:8080/admin.html
+
+**Test accounts** (all passwords: `Admin123!`):
+| Username | Role |
+|---|---|
+| admin | GlobalAdmin (protected) |
+| useradmin | UserAdmin |
+| modulemanager | ModuleManager |
+| eventcreator | EventCreator |
+| feedbackmgr | FeedbackManager |
+| reporter | FeedbackViewer |
+
+Tear down: `docker compose down -v`
+
 ### Local Frontend Development
 
 ```bash
@@ -471,11 +557,33 @@ feedbackapp/
 │   ├── GetEventModules/         # List modules for event
 │   ├── SubmitFeedback/          # Submit feedback endpoint
 │   ├── Login/                   # Admin authentication
+│   ├── src/functions/
+│   │   ├── users.js              # User CRUD, roles, event access
+│   │   ├── password.js           # Password change/reset/recovery
+│   │   ├── audit-log.js          # Audit log query API
+│   │   ├── notifications.js      # Welcome email notifications
+│   │   └── ...
 │   ├── src/shared/              # Shared utilities
+│   │   ├── auth.js               # JWT auth + RBAC middleware
+│   │   ├── permissions.js        # Centralized permission logic
+│   │   ├── audit.js              # Audit logging helper
 │   │   ├── database.js          # SQL connection
 │   │   └── utils.js             # Helper functions
 │   ├── host.json                # Functions runtime config
 │   └── package.json             # Node dependencies
+├── docker/                        # Docker dev environment
+│   ├── docker-compose.yml
+│   ├── Dockerfile.api
+│   ├── server.js                 # Express wrapper for Azure Functions
+│   ├── nginx.conf
+│   └── init-db.js                # DB initialization
+├── migrations/
+│   ├── 002-add-user-management.sql
+│   ├── 003-add-profile-image.sql
+│   ├── 004-add-audit-log.sql
+│   └── 005-widen-event-code.sql
+├── scripts/
+│   └── migrate-users-from-env.js # Migrate users from env var to DB
 ├── feedback.html                # Public feedback form
 ├── feedback.js                  # Feedback form logic
 ├── admin.html                   # Admin interface
@@ -499,6 +607,10 @@ feedbackapp/
 - **`api/src/shared/database.js`** - SQL connection and query helper
 - **`api/src/shared/utils.js`** - Response formatters and validation
 - **`PRIVACY.md`** - Privacy policy and data collection details
+- **`api/src/shared/permissions.js`** - RBAC permission definitions and helpers
+- **`api/src/shared/audit.js`** - Audit logging for all authenticated actions
+- **`api/src/functions/users.js`** - User management API (CRUD, roles, access)
+- **`docker-compose.yml`** - Docker development environment
 
 ## Privacy & Security
 
@@ -525,10 +637,14 @@ This application is designed with privacy as a core principle:
 - **JWT Authentication** required (bcrypt + HS256)
 - **Azure Key Vault** stores JWT secrets securely
 - Managed identities for Key Vault access (no credentials in code)
+- **Role-based access control (RBAC)** with 6 granular roles
+- **Resource-level security filtering** — users only see events/feedback they have access to
+- **Comprehensive audit logging** of all admin actions
+- **Per-email rate limiting** on password/username recovery
+- **Protected Global Admin account** (cannot be deleted or demoted)
 - Session tokens with 8-hour expiration
 - HTTPS enforced
 - CORS configured for Static Web App only
-- Audit logging via Application Insights
 
 ### Database
 - Parameterized queries (SQL injection prevention)
@@ -548,6 +664,29 @@ This application is designed with privacy as a core principle:
 - ❌ IE11 (not supported)
 
 ## Version History
+
+**Version 5.0** (Mar 29, 2026)
+- **RBAC User Management System**
+- 6 roles with granular permissions: GlobalAdmin, UserAdmin, ModuleManager, EventCreator, FeedbackManager, FeedbackViewer
+- Database-backed user accounts replacing ADMIN_USERS_JSON environment variable
+- Resource-level security — users only see events/feedback they have access to
+- Protected Global Admin account (cannot be deleted or demoted)
+- People & Permissions UI with card-based user management
+- Self-service profile editing (name, email, photo, password)
+- Auto-generated passwords with override option for new users
+- Welcome email notifications with login details
+- Forgot password and forgot username flows on login page
+- Per-email rate limiting (2 per 15 minutes)
+- Profile image upload with client-side cropping
+- **Comprehensive Audit Logging**
+- Every authenticated action logged with extensive JSON details
+- Audit Log viewer tab (GlobalAdmin only) with search, filters, pagination
+- Expandable detail rows with raw JSON inspection
+- CSV export of filtered audit entries
+- **Docker Development Environment**
+- Full-stack Docker Compose: SQL Edge + Node.js API + nginx
+- 6 test accounts, 12 modules, 5 events, 61 feedback entries
+- EventCode column widened from NVARCHAR(8) to NVARCHAR(50)
 
 **Version 4.1** (Mar 8, 2026)
 - **Gamified Celebration Levels for Live Counter**
@@ -651,6 +790,6 @@ This is a demonstration project for the CAT Bootcamp.
 
 ---
 
-**Version:** 4.1
-**Last Updated:** March 8, 2026
-**Status:** Production - Privacy-Compliant Anonymous Feedback + Security Hardened + Gamified Celebrations
+**Version:** 5.0
+**Last Updated:** March 29, 2026
+**Status:** Production - Privacy-Compliant + RBAC + Audit Logging + Docker Dev
