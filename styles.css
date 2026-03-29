@@ -590,9 +590,11 @@ textarea {
     padding: 20px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     max-width: 400px;
-    z-index: 10000;
+    z-index: 100000;
     animation: slideIn 0.3s ease-out;
     border-left: 4px solid #e74c3c;
+    cursor: pointer;
+    pointer-events: auto;
 }
 
 .error-notification.success {
@@ -638,12 +640,16 @@ textarea {
     align-self: flex-end;
     background: #ecf0f1;
     border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
+    padding: 8px 20px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 0.9rem;
+    font-weight: 600;
     color: #2c3e50;
     transition: background-color 0.2s ease;
+    pointer-events: auto;
+    position: relative;
+    z-index: 1;
 }
 
 .notification-close:hover {

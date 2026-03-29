@@ -2883,29 +2883,45 @@ function exportFeedbackToCSV() {
 // Show notification
 function showNotification(title, message, type = 'info') {
     // Remove any existing notifications
-    const existing = document.querySelector('.error-notification');
-    if (existing) {
-        existing.remove();
-    }
+    document.querySelectorAll('.error-notification').forEach(n => n.remove());
 
     const notification = document.createElement('div');
     notification.className = `error-notification ${type}`;
-    notification.innerHTML = `
-        <div class="error-content">
-            <strong>${escapeHtml(title)}</strong>
-            <p>${escapeHtml(message)}</p>
-            <button class="notification-close" onclick="this.closest('.error-notification').remove()">Close</button>
-        </div>
-    `;
+
+    const content = document.createElement('div');
+    content.className = 'error-content';
+
+    const titleEl = document.createElement('strong');
+    titleEl.textContent = title;
+
+    const msgEl = document.createElement('p');
+    msgEl.textContent = message;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'notification-close';
+    closeBtn.textContent = 'Close';
+    closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        notification.remove();
+    });
+
+    content.appendChild(titleEl);
+    content.appendChild(msgEl);
+    content.appendChild(closeBtn);
+    notification.appendChild(content);
+
+    // Clicking anywhere on the notification also dismisses it
+    notification.addEventListener('click', () => notification.remove());
 
     document.body.appendChild(notification);
 
     // Auto-remove after 5 seconds
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.remove();
-        }
+    const timer = setTimeout(() => {
+        if (notification.parentNode) notification.remove();
     }, CONFIG.TOAST_DURATION);
+
+    // Clear timer if manually closed
+    closeBtn.addEventListener('click', () => clearTimeout(timer));
 }
 
 // ============================================
