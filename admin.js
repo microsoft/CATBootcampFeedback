@@ -3625,11 +3625,16 @@ async function handleSaveUser(e) {
                 return info ? `${info.label} — ${info.desc}` : role.RoleName;
             }).filter(Boolean);
 
-            // Send notification email via API
+            // Close the create modal and refresh the user list immediately
+            document.getElementById('userModal').classList.add('hidden');
+            await fetchUsers();
+
+            // Send notification email via API (non-blocking — user is already created)
             const loginUrl = window.location.origin + '/admin.html';
+            let emailWasSent = false;
             if (sendEmail) {
                 try {
-                    await apiPost('/notify/welcome', {
+                    const emailResult = await apiPost('/notify/welcome', {
                         recipientEmail: newEmail,
                         recipientName: newFullName,
                         username: newUsername,
@@ -3638,8 +3643,9 @@ async function handleSaveUser(e) {
                         roles: selectedRoleNames,
                         creatorEmail: currentUser?.email || ''
                     });
+                    emailWasSent = emailResult?.emailSent || false;
                 } catch (emailErr) {
-                    console.warn('Email notification failed (expected in dev):', emailErr.message);
+                    console.warn('Email notification failed:', emailErr.message);
                 }
             }
 
@@ -3651,8 +3657,9 @@ async function handleSaveUser(e) {
                 password,
                 loginUrl,
                 roles: selectedRoleNames,
-                emailSent: sendEmail
+                emailSent: emailWasSent
             });
+            return; // Skip the generic close/fetch below since we already did it
         }
 
         document.getElementById('userModal').classList.add('hidden');
