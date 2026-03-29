@@ -2709,6 +2709,9 @@ function renderRatingHistograms(feedback) {
                     borderRadius: 4
                 }
             },
+            stroke: {
+                show: false
+            },
             colors: ['#dc3545', '#fd7e14', '#ffc107', '#28a745', '#20c997'],
             xaxis: {
                 categories: ['1⭐', '2⭐', '3⭐', '4⭐', '5⭐']
@@ -2754,6 +2757,9 @@ function renderRatingHistograms(feedback) {
                     distributed: true,
                     borderRadius: 4
                 }
+            },
+            stroke: {
+                show: false
             },
             colors: ['#dc3545', '#fd7e14', '#ffc107', '#28a745', '#20c997'],
             xaxis: {
