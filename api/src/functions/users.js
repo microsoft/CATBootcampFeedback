@@ -555,7 +555,7 @@ async function createUser(request, context) {
     }
 
     context.log(`User created: ${username} (UserId=${newUserId}) by ${caller.username}`);
-    await audit(request, 'CREATE', 'User', newUserId, `Created user ${username}`, { username, fullName: sanitize(fullName), email, roleIds: selectedRoleIds });
+    await audit(request, 'CREATE', 'User', newUserId, `Created user ${username}`, { username, fullName: sanitize(fullName), email, roleIds });
 
     return addSecurityHeaders({
         status: 201,
