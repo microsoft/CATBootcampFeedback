@@ -17,11 +17,12 @@ SQL_DATABASE=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-DA
 SQL_USER=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-USER)
 SQL_PASSWORD=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-PASSWORD)
 JWT_SECRET=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=JWT-SECRET)
-ADMIN_USERS_JSON=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=ADMIN-USERS-JSON)  # Fallback — users now in DB
 NODE_ENV=development
 FUNCTIONS_WORKER_RUNTIME=node
 WEBSITE_NODE_DEFAULT_VERSION=~20
 ```
+
+> **Note:** `ADMIN_USERS_JSON` is no longer used for authentication. All users are managed in the database Users table via the People & Permissions UI.
 
 **Key Vault Secrets (`cat-bootcamp-kv-dev`):**
 
@@ -32,7 +33,8 @@ WEBSITE_NODE_DEFAULT_VERSION=~20
 | `SQL-USER` | SQL login username |
 | `SQL-PASSWORD` | SQL login password |
 | `JWT-SECRET` | JWT signing secret for admin auth |
-| `ADMIN-USERS-JSON` | JSON array of admin users with bcrypt password hashes (**fallback** -- users are now managed in the database Users table; this env var is still read during the migration period) |
+
+All database connection details and secrets must be stored in Key Vault — no plain text credentials in Function App settings.
 
 ## Production Environment
 
@@ -41,16 +43,19 @@ No environment variables needed - configuration in `config.js`
 
 ### Functions App (cat-bootcamp-api-prod)
 
-**App Settings:**
+**App Settings (should use Key Vault references, same as QA/dev):**
 ```bash
-SQL_SERVER=cat-bootcamp-sql-prod.database.windows.net
-SQL_DATABASE=CATBootcampFeedback-Prod
-SQL_USER=sqladmin
-SQL_PASSWORD=<prod-password>
+SQL_SERVER=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-prod;SecretName=SQL-SERVER)
+SQL_DATABASE=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-prod;SecretName=SQL-DATABASE)
+SQL_USER=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-prod;SecretName=SQL-USER)
+SQL_PASSWORD=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-prod;SecretName=SQL-PASSWORD)
+JWT_SECRET=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-prod;SecretName=JWT-SECRET)
 NODE_ENV=production
 FUNCTIONS_WORKER_RUNTIME=node
 WEBSITE_NODE_DEFAULT_VERSION=~20
 ```
+
+> **Important:** Never store database credentials as plain text in production. All secrets must use Key Vault references.
 
 ## GitHub Secrets Required
 

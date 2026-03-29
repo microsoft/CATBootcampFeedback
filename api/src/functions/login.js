@@ -24,11 +24,6 @@ const { audit } = require('../shared/audit');
 async function authenticateFromDatabase(username) {
     try {
         // Check if the Users table has any rows (migration may not have run yet)
-        const countResult = await query('SELECT COUNT(*) AS cnt FROM Users');
-        if (countResult[0].cnt === 0) {
-            return null; // Fall back to env var
-        }
-
         // Look up user by username (case-insensitive)
         const users = await query(
             `SELECT UserId, Username, PasswordHash, FullName, Email, IsActive, IsProtected, MustChangePassword
@@ -75,37 +70,8 @@ async function authenticateFromDatabase(username) {
     }
 }
 
-/**
- * Legacy fallback: authenticate from ADMIN_USERS_JSON environment variable.
- */
-function authenticateFromEnvVar(username) {
-    const adminUsersJson = process.env.ADMIN_USERS_JSON;
-    if (!adminUsersJson) return null;
-
-    try {
-        const adminUsers = JSON.parse(adminUsersJson);
-        const user = adminUsers.find(u =>
-            u.username.toLowerCase() === username.toLowerCase()
-        );
-
-        if (!user) return null;
-
-        return {
-            user: {
-                userId: 0,
-                username: user.username,
-                passwordHash: user.passwordHash,
-                fullName: user.fullName,
-                email: user.email,
-                isProtected: true,
-                mustChangePassword: false
-            },
-            roles: ['GlobalAdmin'] // Env-var users get full admin during transition
-        };
-    } catch {
-        return null;
-    }
-}
+// ADMIN_USERS_JSON fallback removed — all users are managed in the database.
+// The env var is no longer read for authentication.
 
 app.http('login', {
     methods: ['POST'],
@@ -136,14 +102,9 @@ app.http('login', {
                 });
             }
 
-            // Try database first, fall back to env var
+            // Authenticate from database only
             let authResult = await authenticateFromDatabase(username);
             let source = 'database';
-
-            if (!authResult) {
-                authResult = authenticateFromEnvVar(username);
-                source = 'env-var';
-            }
 
             if (!authResult || !authResult.user) {
                 const message = authResult && authResult.inactive
