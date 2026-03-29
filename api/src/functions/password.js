@@ -391,12 +391,16 @@ app.http('recoverUsername', {
  * Generate a cryptographically random temporary password.
  */
 function generateTemporaryPassword() {
-    // Generate a readable temporary password: uppercase + lowercase + digits + special
+    // Generate an unbiased random password using rejection sampling.
+    // Avoids modulo bias by discarding values >= the largest multiple of charset length.
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
-    const bytes = crypto.randomBytes(16);
+    const maxValid = 256 - (256 % chars.length); // largest usable value
     let password = '';
-    for (let i = 0; i < 16; i++) {
-        password += chars[bytes[i] % chars.length];
+    while (password.length < 16) {
+        const bytes = crypto.randomBytes(1);
+        if (bytes[0] < maxValid) {
+            password += chars[bytes[0] % chars.length];
+        }
     }
     return password;
 }

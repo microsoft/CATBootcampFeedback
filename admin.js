@@ -381,9 +381,13 @@ async function showMainContent() {
         // Show roles as badges
         const rolesEl = document.getElementById('adminRoles');
         if (rolesEl && currentUserRoles.length > 0) {
-            rolesEl.innerHTML = currentUserRoles.map(r =>
-                `<span class="role-badge role-badge-${r.toLowerCase()}">${escapeHtml(r)}</span>`
-            ).join(' ');
+            rolesEl.textContent = '';
+            currentUserRoles.forEach(r => {
+                const span = document.createElement('span');
+                span.className = `role-badge role-badge-${r.toLowerCase()}`;
+                span.textContent = r;
+                rolesEl.appendChild(span);
+            });
         }
         // Set header avatar (fetch profile image from API)
         const headerAvatar = document.getElementById('headerAvatar');
@@ -3144,12 +3148,19 @@ async function fetchRoles() {
     }
 }
 
-// Generate a secure random password (client-side)
+// Generate a secure random password (client-side, rejection sampling to avoid modulo bias)
 function generateSecurePassword() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
-    const array = new Uint8Array(16);
-    crypto.getRandomValues(array);
-    return Array.from(array, b => chars[b % chars.length]).join('');
+    const maxValid = 256 - (256 % chars.length);
+    let password = '';
+    while (password.length < 16) {
+        const array = new Uint8Array(1);
+        crypto.getRandomValues(array);
+        if (array[0] < maxValid) {
+            password += chars[array[0] % chars.length];
+        }
+    }
+    return password;
 }
 
 // Human-readable descriptions for each role
@@ -3574,9 +3585,13 @@ async function handleSaveUser(e) {
                 // Refresh header avatar
                 const headerAvatar = document.getElementById('headerAvatar');
                 if (headerAvatar && avatarPreview?.dataset.imageData) {
-                    headerAvatar.innerHTML = `<img src="${avatarPreview.dataset.imageData}" alt="Me">`;
+                    headerAvatar.textContent = '';
+                    const img = document.createElement('img');
+                    img.src = avatarPreview.dataset.imageData;
+                    img.alt = 'Me';
+                    headerAvatar.appendChild(img);
                 } else if (headerAvatar) {
-                    headerAvatar.innerHTML = newName.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+                    headerAvatar.textContent = newName.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
                 }
             }
 

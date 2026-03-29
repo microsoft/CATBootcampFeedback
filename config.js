@@ -86,9 +86,9 @@ export const CONFIG = {
 
 // Environment-specific overrides
 if (typeof window !== 'undefined') {
-    // Auto-detect Azure environment
-    const isAzure = window.location.hostname.includes('azurestaticapps.net') ||
-                    window.location.hostname.includes('azurewebsites.net');
+    // Auto-detect Azure environment (use endsWith to prevent subdomain spoofing)
+    const isAzure = window.location.hostname.endsWith('.azurestaticapps.net') ||
+                    window.location.hostname.endsWith('.azurewebsites.net');
 
     // Check if running in production (not localhost)
     const isProduction = window.location.hostname !== 'localhost' &&
