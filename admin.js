@@ -2720,10 +2720,10 @@ function renderRatingHistograms(feedback) {
                 title: {
                     text: 'Number of Responses'
                 },
-                tickAmount: Math.max(...speakerCounts) + 1,
+                tickAmount: 5,
                 labels: {
                     formatter: function(value) {
-                        return Math.floor(value);
+                        return Math.round(value);
                     }
                 }
             },
@@ -2769,10 +2769,10 @@ function renderRatingHistograms(feedback) {
                 title: {
                     text: 'Number of Responses'
                 },
-                tickAmount: Math.max(...satisfactionCounts) + 1,
+                tickAmount: 5,
                 labels: {
                     formatter: function(value) {
-                        return Math.floor(value);
+                        return Math.round(value);
                     }
                 }
             },
