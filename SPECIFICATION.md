@@ -741,14 +741,17 @@ GET    /api/audit-log
 ```
 
 ##### Notification Endpoints (Authentication Required, GlobalAdmin role)
+
+Email notifications are sent via **Azure Communication Services (ACS)**. The ACS connection string is stored in Key Vault as `ACS-CONNECTION-STRING`, and emails are sent from an Azure-managed domain.
+
 ```
 POST   /api/notifications/test-email
-       - Send a test email notification
+       - Send a test email notification via Azure Communication Services
        - Body: { to: string, subject?: string }
        - Returns: { success: true, data: { message } }
 
 POST   /api/notifications/feedback-summary
-       - Send feedback summary email for an event
+       - Send feedback summary email for an event via Azure Communication Services
        - Body: { eventId: number, recipients: string[] }
        - Returns: { success: true, data: { message } }
 ```

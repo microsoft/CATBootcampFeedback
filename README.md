@@ -212,8 +212,8 @@ POST   /api/username-recovery                  # Recover username by email
 # Audit Log (GlobalAdmin only)
 GET    /api/audit-log                          # Query audit logs
 
-# Notifications
-POST   /api/notify/welcome                     # Send welcome email
+# Notifications (via Azure Communication Services)
+POST   /api/notify/welcome                     # Send welcome email via ACS
 ```
 
 ## Deployment
@@ -534,7 +534,7 @@ feedbackapp/
 │   │   ├── users.js              # User CRUD, roles, event access
 │   │   ├── password.js           # Password change/reset/recovery
 │   │   ├── audit-log.js          # Audit log query API
-│   │   ├── notifications.js      # Welcome email notifications
+│   │   ├── notifications.js      # Welcome email notifications (Azure Communication Services)
 │   │   └── ...
 │   ├── src/shared/              # Shared utilities
 │   │   ├── auth.js               # JWT auth + RBAC middleware
@@ -640,7 +640,7 @@ This application is designed with privacy as a core principle:
 - People & Permissions UI with card-based user management
 - Self-service profile editing (name, email, photo, password)
 - Auto-generated passwords with override option for new users
-- Welcome email notifications with login details
+- Welcome email notifications with login details (sent via Azure Communication Services)
 - Forgot password and forgot username flows on login page
 - Per-email rate limiting (2 per 15 minutes)
 - Profile image upload with client-side cropping

@@ -148,6 +148,7 @@ GlobalAdmin users can view the audit log via `GET /api/audit-log`. The viewer su
 │   - SQL-USER                │
 │   - SQL-PASSWORD            │
 │   - ADMIN-USERS-JSON        │
+│   - ACS-CONNECTION-STRING   │
 │   - Encrypted at rest       │
 │   - Audit logs enabled      │
 └─────────────────────────────┘
@@ -157,7 +158,7 @@ GlobalAdmin users can view the audit log via `GET /api/audit-log`. The viewer su
 
 | Environment | Key Vault Name | Function App | Secrets |
 |------------|---------------|--------------|---------|
-| Development | `cat-bootcamp-kv-dev` | `cat-bootcamp-api-win` | `JWT-SECRET`, `SQL-SERVER`, `SQL-DATABASE`, `SQL-USER`, `SQL-PASSWORD`, `ADMIN-USERS-JSON` |
+| Development | `cat-bootcamp-kv-dev` | `cat-bootcamp-api-win` | `JWT-SECRET`, `SQL-SERVER`, `SQL-DATABASE`, `SQL-USER`, `SQL-PASSWORD`, `ADMIN-USERS-JSON`, `ACS-CONNECTION-STRING` |
 | Production | `cat-bootcamp-kv-prod` | `cat-bootcamp-api-prod` | `JWT-SECRET` (TODO: migrate remaining secrets) |
 
 ### How It Works
@@ -366,6 +367,11 @@ trustServerCertificate=false;
 - `SQL_USER` - Key Vault reference → `SQL-USER`
 - `SQL_PASSWORD` - Key Vault reference → `SQL-PASSWORD`
 - `ADMIN_USERS_JSON` - Key Vault reference → `ADMIN-USERS-JSON`
+- `AZURE_COMM_CONNECTION_STRING` - Key Vault reference → `ACS-CONNECTION-STRING`
+
+### Email Notifications
+
+Email is sent via **Azure Communication Services (ACS)** using an Azure-managed email domain. The ACS connection string is stored in Key Vault as `ACS-CONNECTION-STRING` and referenced by the Function App at runtime. No email credentials are stored in code or plain-text configuration.
 
 ### Environment Isolation
 

@@ -33,6 +33,7 @@ WEBSITE_NODE_DEFAULT_VERSION=~20
 | `SQL-USER` | SQL login username |
 | `SQL-PASSWORD` | SQL login password |
 | `JWT-SECRET` | JWT signing secret for admin auth |
+| `ACS-CONNECTION-STRING` | Azure Communication Services connection string for email |
 
 All database connection details and secrets must be stored in Key Vault — no plain text credentials in Function App settings.
 
@@ -72,14 +73,13 @@ WEBSITE_NODE_DEFAULT_VERSION=~20
 - `AZURE_FUNCTIONAPP_PUBLISH_PROFILE_PROD` - Prod functions publish profile
 - `PROD_SQL_PASSWORD` - Production database password
 
-## Optional Environment Variables
-
-The following environment variables are optional and may be added when those features are enabled:
+## Email Environment Variables
 
 | Variable | Description |
 |---|---|
-| `SENDGRID_API_KEY` | Optional. API key for SendGrid email notifications (e.g., password reset emails) |
-| `AZURE_COMM_CONNECTION_STRING` | Optional. Connection string for Azure Communication Services email integration |
+| `AZURE_COMM_CONNECTION_STRING` | **Required for email.** Connection string for Azure Communication Services. Stored in Key Vault as `ACS-CONNECTION-STRING`. |
+| `EMAIL_SENDER_ADDRESS` | Sender email address for notifications. Default: `DoNotReply@{azure-managed-domain}.azurecomm.net` |
+| `SENDGRID_API_KEY` | Alternative to ACS. Not currently used — ACS is the configured email provider. |
 
 ## Configuration Files by Environment
 

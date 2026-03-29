@@ -680,7 +680,7 @@ VALUES
 - Speaker profiles table
 - Event templates
 - Bulk import/export capabilities
-- Email service integration (SendGrid/Azure Communication Services)
+- ~~Email service integration~~ -- **DONE** (Azure Communication Services configured)
 
 ---
 

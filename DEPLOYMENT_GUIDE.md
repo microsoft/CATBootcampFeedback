@@ -169,10 +169,13 @@ ADMIN_USERS_JSON=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=AD
 # via the Users, Roles, UserRoles, and UserEventAccess tables.
 # The env var is used for initial bootstrap and as a fallback if no DB users exist.
 
-# Optional: Email Notifications
-SENDGRID_API_KEY=your-sendgrid-key
-# OR
-AZURE_COMM_CONNECTION_STRING=your-connection-string
+# Email Notifications (Azure Communication Services)
+# Connection string stored in Key Vault as ACS-CONNECTION-STRING
+AZURE_COMM_CONNECTION_STRING=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-qa;SecretName=ACS-CONNECTION-STRING)
+EMAIL_SENDER_ADDRESS=DoNotReply@{your-domain}.azurecomm.net
+
+# Note: The ACS resource, Email Communication Service, and Azure-managed
+# domain must be created first. See docs/infrastructure/ for setup details.
 
 NODE_ENV=development
 FUNCTIONS_WORKER_RUNTIME=node
