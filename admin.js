@@ -3625,13 +3625,28 @@ async function handleSaveUser(e) {
             const newEmail = document.getElementById('userEmail').value;
             const sendEmail = document.getElementById('userSendEmail')?.checked;
 
-            await apiPost('/users', {
-                username: newUsername,
-                password,
-                fullName: newFullName,
-                email: newEmail,
-                roleIds: selectedRoleIds
-            });
+            // Show loading overlay on the modal
+            const saveBtn = document.getElementById('saveUserBtn');
+            const modalContent = document.querySelector('#userModal .um-modal');
+            const loadingOverlay = document.createElement('div');
+            loadingOverlay.className = 'um-creating-overlay';
+            loadingOverlay.innerHTML = '<div class="um-creating-spinner"><div class="spinner"></div><p>Creating account...</p></div>';
+            if (modalContent) modalContent.appendChild(loadingOverlay);
+            if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Creating...'; }
+
+            try {
+                await apiPost('/users', {
+                    username: newUsername,
+                    password,
+                    fullName: newFullName,
+                    email: newEmail,
+                    roleIds: selectedRoleIds
+                });
+            } catch (createErr) {
+                loadingOverlay.remove();
+                if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Create User'; }
+                throw createErr;
+            }
 
             // Build role labels for the email preview
             const selectedRoleNames = selectedRoleIds.map(id => {
@@ -3641,11 +3656,11 @@ async function handleSaveUser(e) {
                 return info ? `${info.label} — ${info.desc}` : role.RoleName;
             }).filter(Boolean);
 
-            // Close the create modal and refresh the user list immediately
-            document.getElementById('userModal').classList.add('hidden');
-            await fetchUsers();
+            // Update overlay status
+            const spinnerText = loadingOverlay.querySelector('p');
+            if (spinnerText) spinnerText.textContent = 'Sending welcome email...';
 
-            // Send notification email via API (non-blocking — user is already created)
+            // Send notification email
             const loginUrl = window.location.origin + '/admin.html';
             let emailWasSent = false;
             if (sendEmail) {
@@ -3664,6 +3679,12 @@ async function handleSaveUser(e) {
                     console.warn('Email notification failed:', emailErr.message);
                 }
             }
+
+            // Remove overlay and close modal
+            loadingOverlay.remove();
+            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Create User'; }
+            document.getElementById('userModal').classList.add('hidden');
+            await fetchUsers();
 
             // Show the success modal with email preview
             showUserCreatedModal({

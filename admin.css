@@ -1287,6 +1287,7 @@ input[type="text"].um-search:focus {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    position: relative;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.04);
 }
 
@@ -1668,6 +1669,48 @@ input[type="text"].um-search:focus {
 
 .um-avatar-upload-btn {
     cursor: pointer;
+}
+
+/* ── Creating User Overlay ─────────────────────── */
+.um-creating-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 16px;
+    backdrop-filter: blur(2px);
+}
+
+.um-creating-spinner {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+
+.um-creating-spinner .spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #4f46e5;
+    border-radius: 50%;
+    animation: um-spin 0.7s linear infinite;
+}
+
+@keyframes um-spin {
+    to { transform: rotate(360deg); }
+}
+
+.um-creating-spinner p {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #4f46e5;
+    margin: 0;
 }
 
 /* ── Auto-Generate Password ────────────────────── */
