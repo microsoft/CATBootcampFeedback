@@ -13,7 +13,7 @@ const { requireAuth, requireRole, getAuthenticatedUser } = require('../shared/au
 const { addSecurityHeaders } = require('../shared/utils');
 const { rateLimit } = require('../shared/rate-limiter');
 const { audit } = require('../shared/audit');
-const { sendEmail } = require('../shared/email');
+const { sendEmail, buildEmailHtml } = require('../shared/email');
 
 const BCRYPT_SALT_ROUNDS = 10;
 
@@ -282,17 +282,14 @@ app.http('requestPasswordReset', {
             await sendEmail({
                 to: users[0].Email,
                 subject: 'Password Reset — CAT Bootcamp Feedback',
-                text: [
-                    `Hello ${users[0].Username},`,
-                    '',
-                    'A password reset was requested for your account on the CAT Bootcamp Feedback System.',
-                    '',
-                    'Please contact your administrator to complete the reset.',
-                    '',
-                    'If you did not request this, you can safely ignore this message.',
-                    '',
-                    '— CAT Bootcamp Feedback System'
-                ].join('\n')
+                text: `Hello ${users[0].Username},\n\nA password reset was requested for your account.\nPlease contact your administrator to complete the reset.\n\nIf you did not request this, you can safely ignore this message.\n\n— CAT Bootcamp Feedback System`,
+                html: buildEmailHtml({
+                    title: 'Password Reset Request',
+                    greeting: `Hello ${users[0].Username},`,
+                    body: `<p style="font-size:14px;color:#475569;line-height:1.6;">A password reset was requested for your account on the CAT Bootcamp Feedback System.</p>
+                    <p style="font-size:14px;color:#475569;line-height:1.6;">Please contact your administrator to complete the reset.</p>`,
+                    note: 'If you did not request this, you can safely ignore this message.'
+                })
             });
 
             return successResponse;
@@ -358,18 +355,19 @@ app.http('recoverUsername', {
                 await sendEmail({
                     to: users[0].Email,
                     subject: 'Your Username — CAT Bootcamp Feedback',
-                    text: [
-                        'Hello,',
-                        '',
-                        'A username recovery was requested for this email address.',
-                        '',
-                        `Your username is: ${users[0].Username}`,
-                        '',
-                        'You can log in at the admin panel using this username.',
-                        'If you did not request this, you can safely ignore this message.',
-                        '',
-                        '— CAT Bootcamp Feedback System'
-                    ].join('\n')
+                    text: `Hello,\n\nYour username is: ${users[0].Username}\n\nYou can log in at the admin panel using this username.\nIf you did not request this, you can safely ignore this message.\n\n— CAT Bootcamp Feedback System`,
+                    html: buildEmailHtml({
+                        title: 'Username Recovery',
+                        greeting: 'Hello,',
+                        body: `<p style="font-size:14px;color:#475569;line-height:1.6;">A username recovery was requested for this email address.</p>
+                        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:16px 0;">
+                          <tr><td style="padding:16px 24px;text-align:center;">
+                            <p style="margin:0 0 4px;font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Your Username</p>
+                            <p style="margin:0;font-size:20px;color:#0f172a;font-weight:700;">${users[0].Username}</p>
+                          </td></tr>
+                        </table>`,
+                        note: 'If you did not request this, you can safely ignore this message.'
+                    })
                 });
             } else {
                 context.log(`Username recovery requested for unknown email: ${email}`);
