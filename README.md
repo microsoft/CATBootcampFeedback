@@ -408,33 +408,6 @@ See [`docs/database-migration-strategy.md`](docs/database-migration-strategy.md)
 
 ## Development Setup
 
-### Docker Development Environment (Recommended)
-
-The fastest way to run the full stack locally:
-
-```bash
-docker compose up --build
-```
-
-This starts:
-- **SQL Edge** database on port 1433
-- **API server** on port 7071
-- **Frontend** on port 8080
-
-Open http://localhost:8080/admin.html
-
-**Test accounts** (all passwords: `Admin123!`):
-| Username | Role |
-|---|---|
-| admin | GlobalAdmin (protected) |
-| useradmin | UserAdmin |
-| modulemanager | ModuleManager |
-| eventcreator | EventCreator |
-| feedbackmgr | FeedbackManager |
-| reporter | FeedbackViewer |
-
-Tear down: `docker compose down -v`
-
 ### Local Frontend Development
 
 ```bash
@@ -571,12 +544,6 @@ feedbackapp/
 │   │   └── utils.js             # Helper functions
 │   ├── host.json                # Functions runtime config
 │   └── package.json             # Node dependencies
-├── docker/                        # Docker dev environment
-│   ├── docker-compose.yml
-│   ├── Dockerfile.api
-│   ├── server.js                 # Express wrapper for Azure Functions
-│   ├── nginx.conf
-│   └── init-db.js                # DB initialization
 ├── migrations/
 │   ├── 002-add-user-management.sql
 │   ├── 003-add-profile-image.sql
@@ -610,7 +577,6 @@ feedbackapp/
 - **`api/src/shared/permissions.js`** - RBAC permission definitions and helpers
 - **`api/src/shared/audit.js`** - Audit logging for all authenticated actions
 - **`api/src/functions/users.js`** - User management API (CRUD, roles, access)
-- **`docker-compose.yml`** - Docker development environment
 
 ## Privacy & Security
 
@@ -683,9 +649,6 @@ This application is designed with privacy as a core principle:
 - Audit Log viewer tab (GlobalAdmin only) with search, filters, pagination
 - Expandable detail rows with raw JSON inspection
 - CSV export of filtered audit entries
-- **Docker Development Environment**
-- Full-stack Docker Compose: SQL Edge + Node.js API + nginx
-- 6 test accounts, 12 modules, 5 events, 61 feedback entries
 - EventCode column widened from NVARCHAR(8) to NVARCHAR(50)
 
 **Version 4.1** (Mar 8, 2026)
@@ -792,4 +755,4 @@ This is a demonstration project for the CAT Bootcamp.
 
 **Version:** 5.0
 **Last Updated:** March 29, 2026
-**Status:** Production - Privacy-Compliant + RBAC + Audit Logging + Docker Dev
+**Status:** Production - Privacy-Compliant + RBAC + Audit Logging

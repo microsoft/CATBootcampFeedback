@@ -52,6 +52,10 @@ Desktop.ini
 # Debug files
 *.stackdump
 
+# Docker local development environment (not for source control)
+docker-compose.yml
+docker/
+
 # Security - Credentials and sensitive files (kept on desktop only)
 CATBOOTCAMP_CREDENTIALS_SECURE.md
 CREDENTIALS_MASTER.md
