@@ -8,6 +8,9 @@ jobs:
   build_and_deploy_job:
     runs-on: ubuntu-latest
     name: Deploy to QA Static Web App
+    environment:
+      name: QA
+      url: https://ashy-rock-0b254600f.4.azurestaticapps.net
     steps:
       - uses: actions/checkout@v3
         with:

@@ -9,6 +9,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Deploy API to QA Function App
+    environment:
+      name: QA
+      url: https://catbootcamp-api-qa.azurewebsites.net/api/health
     steps:
       - uses: actions/checkout@v3
 
