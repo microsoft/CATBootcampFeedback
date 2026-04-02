@@ -964,7 +964,7 @@ function sizeProgressRing() {
         // Cat theme: scale counter font
         const availableW = leftSection.clientWidth - 40;
         const catCounter = document.getElementById('catCounterNumber');
-        if (catCounter) catCounter.style.fontSize = Math.max(32, Math.min(availableW * 0.18, 80)) + 'px';
+        if (catCounter) catCounter.style.fontSize = Math.max(32, Math.min(availableW * 0.14, 64)) + 'px';
     }
     sizeCat();
 }
