@@ -1,7 +1,9 @@
 # Celebration Levels for Counter Page
 
 **Date:** March 8, 2026
-**Status:** Approved
+**Status:** Implemented (v4.1)
+
+> **Note (Apr 2, 2026):** This celebration levels system coexists with the newer "Feed the Cat" counter theme (added in v5.1). Celebration levels control reaction intensity (Chill/Party/Chaos) while the theme system controls the visual indicator style (Classic progress ring vs. Feed the Cat progression). Both selectors appear in the counter footer.
 
 ## Summary
 
