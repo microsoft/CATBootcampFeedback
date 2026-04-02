@@ -94,7 +94,7 @@
             overflow: hidden;
         }
 
-        /* Left section: Counter with progress ring */
+        /* Left section: Counter with cat */
         .left-section {
             flex: 1;
             display: flex;
@@ -117,7 +117,18 @@
             font-weight: 600;
         }
 
-        /* Progress ring */
+        /* Theme views */
+        .theme-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            width: 100%;
+            min-height: 0;
+        }
+
+        /* Classic theme: Progress ring */
         .progress-ring-container {
             position: relative;
             display: flex;
@@ -142,7 +153,6 @@
             filter: drop-shadow(0 0 10px rgba(102, 126, 234, 0.5));
         }
 
-        /* Counter number centered inside ring */
         .counter-wrapper {
             position: absolute;
             display: flex;
@@ -151,6 +161,7 @@
             justify-content: center;
         }
 
+        /* Counter number (shared by both themes) */
         .counter-number {
             display: flex;
             align-items: center;
@@ -158,6 +169,43 @@
             font-weight: 800;
             color: white;
             text-shadow: 0 0 40px rgba(102, 126, 234, 0.5);
+        }
+
+        /* Cat theme counter is larger standalone */
+        .cat-counter {
+            font-size: 4rem;
+            flex-shrink: 0;
+        }
+
+        /* Progress bar (replaces ring) */
+        .progress-bar-container {
+            width: 80%;
+            max-width: 280px;
+            margin: 8px 0;
+            flex-shrink: 0;
+        }
+
+        .progress-bar-bg {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+            border-radius: 4px;
+            transition: width 1s ease-out;
+            filter: drop-shadow(0 0 6px rgba(102, 126, 234, 0.5));
+        }
+
+        .progress-bar-label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.4);
+            text-align: center;
+            margin-top: 4px;
         }
 
         /* Slot-machine digit reels */
@@ -217,6 +265,35 @@
         @keyframes milestoneGlow {
             0%, 100% { text-shadow: 0 0 15px rgba(255, 215, 0, 0.5); }
             50% { text-shadow: 0 0 30px rgba(255, 215, 0, 0.8), 0 0 60px rgba(255, 215, 0, 0.3); }
+        }
+
+        /* Cat mascot */
+        .cat-container {
+            width: 180px;
+            height: 180px;
+            margin: 5px 0;
+            flex: 1;
+            min-height: 100px;
+            max-height: 300px;
+            transition: transform 0.3s ease-out;
+            position: relative;
+        }
+
+        .cat-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 10px rgba(102, 126, 234, 0.3));
+            transition: opacity 0.8s ease-out;
+            user-select: none;
+            opacity: 0;
+        }
+
+        .cat-img.active {
+            opacity: 1;
         }
 
         /* Encouraging message */
@@ -489,22 +566,46 @@
                 <!-- Left section: Counter -->
                 <div class="left-section">
                     <div class="count-label">Total Feedback</div>
-                    <div class="progress-ring-container">
-                        <svg class="progress-ring" id="progressRing">
-                            <defs>
-                                <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" style="stop-color:#667eea" />
-                                    <stop offset="50%" style="stop-color:#764ba2" />
-                                    <stop offset="100%" style="stop-color:#f093fb" />
-                                </linearGradient>
-                            </defs>
-                            <circle class="progress-ring-bg" id="ringBg" />
-                            <circle class="progress-ring-fill" id="ringFill" />
-                        </svg>
-                        <div class="counter-wrapper">
-                            <div class="counter-number" id="counterNumber"></div>
+
+                    <!-- Classic Theme: Progress ring with counter inside -->
+                    <div id="themeClassic" class="theme-view">
+                        <div class="progress-ring-container">
+                            <svg class="progress-ring" id="progressRing">
+                                <defs>
+                                    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#667eea" />
+                                        <stop offset="50%" style="stop-color:#764ba2" />
+                                        <stop offset="100%" style="stop-color:#f093fb" />
+                                    </linearGradient>
+                                </defs>
+                                <circle class="progress-ring-bg" id="ringBg" />
+                                <circle class="progress-ring-fill" id="ringFill" />
+                            </svg>
+                            <div class="counter-wrapper">
+                                <div class="counter-number" id="counterNumber"></div>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Feed the Cat Theme: Counter + cat stages + progress bar -->
+                    <div id="themeCat" class="theme-view" style="display:none;">
+                        <div class="counter-number cat-counter" id="catCounterNumber"></div>
+                        <div class="cat-container" id="catContainer">
+                            <img class="cat-img" data-stage="0" src="cat-stage-0.png" alt="Hungry cat begging" draggable="false"/>
+                            <img class="cat-img" data-stage="10" src="cat-stage-10.png" alt="Cat with food bowl" draggable="false"/>
+                            <img class="cat-img" data-stage="25" src="cat-stage-25.png" alt="Smiling cat" draggable="false"/>
+                            <img class="cat-img" data-stage="50" src="cat-stage-50.png" alt="Dancing happy cat" draggable="false"/>
+                            <img class="cat-img" data-stage="75" src="cat-stage-75.png" alt="Tuxedo cat with platter" draggable="false"/>
+                            <img class="cat-img" data-stage="100" src="cat-stage-100.png" alt="Fat cat on couch" draggable="false"/>
+                        </div>
+                        <div class="progress-bar-container" id="progressBarContainer">
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" id="progressBarFill"></div>
+                            </div>
+                            <div class="progress-bar-label" id="progressBarLabel"></div>
+                        </div>
+                    </div>
+
                     <div class="milestone-message" id="milestoneMessage"></div>
                     <div class="encouraging-message" id="encouragingMessage"></div>
                 </div>
@@ -550,6 +651,13 @@
                         <select id="soundToggle">
                             <option value="on" selected>On</option>
                             <option value="off">Off</option>
+                        </select>
+                    </div>
+                    <div class="refresh-controls">
+                        <label for="themeSelect">Theme:</label>
+                        <select id="themeSelect">
+                            <option value="classic" selected>Classic</option>
+                            <option value="cat">Feed the Cat</option>
                         </select>
                     </div>
                 </div>
