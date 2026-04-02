@@ -116,6 +116,13 @@ export async function apiRequest(endpoint, options = {}) {
         return await response.json();
 
     } catch (error) {
+        // If token expired, clear session and redirect to login
+        if (error.statusCode === 401 && authToken) {
+            sessionStorage.removeItem('adminToken');
+            sessionStorage.removeItem('adminUser');
+            window.location.reload();
+            return;
+        }
         logError(error, { endpoint, method: options.method });
         throw error;
     }
