@@ -285,7 +285,8 @@ function initializeSoundToggle() {
         banner.id = 'soundBanner';
         banner.textContent = '🔊 Click anywhere to enable celebration sounds';
         banner.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:12px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;text-align:center;font-size:1.1rem;font-weight:600;cursor:pointer;z-index:2000;';
-        document.body.appendChild(banner);
+        const bannerTarget = document.querySelector('.count-container') || document.body;
+        bannerTarget.appendChild(banner);
 
         const dismissBanner = () => {
             unlockAudio();
@@ -676,7 +677,8 @@ function screenGlow() {
         pointer-events: none; z-index: 999; opacity: 1;
         transition: opacity 1.5s ease-out;
     `;
-    document.body.appendChild(overlay);
+    const container = document.querySelector('.count-container') || document.body;
+    container.appendChild(overlay);
     requestAnimationFrame(() => {
         overlay.style.opacity = '0';
     });
