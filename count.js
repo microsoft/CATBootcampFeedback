@@ -53,7 +53,7 @@ const MILESTONE_MESSAGES = {
     500: '500! You\'ve unleashed the mega cats! \u{1F451}\u{1F408}\u200D\u2B1B'
 };
 
-const ENCOURAGING_MESSAGES = [
+const CLASSIC_MESSAGES = [
     'Paws up if you submitted feedback! \u{1F43E}',
     'You\'re the cat\'s meow! Keep it coming! \u{1F63A}',
     'Purr-fect participation so far! \u{1F431}',
@@ -65,6 +65,23 @@ const ENCOURAGING_MESSAGES = [
     'This feedback is claw-some! Keep going! \u{1F43E}',
     'Meow is the time to share your thoughts! \u{1F63A}'
 ];
+
+const CAT_MESSAGES = [
+    'Feed the cat! Submit your feedback! \u{1F431}',
+    'The cat is hungry for your thoughts! \u{1F63F}',
+    'Every response makes the cat purr-ier! \u{1F63A}',
+    'Don\'t let the cat go hungry \u2014 share feedback! \u{1F43E}',
+    'Look how happy you\'re making the cat! \u{1F638}',
+    'Keep feeding \u2014 the cat wants more! \u{1F63B}',
+    'Your feedback is the cat\'s favorite treat! \u{1F36A}',
+    'A well-fed cat is a happy cat! \u{1F431}',
+    'The cat says: More feedback, please! \u{1F63A}',
+    'Fatten up the cat with your responses! \u{1F43E}'
+];
+
+function getEncouragingMessages() {
+    return currentTheme === 'cat' ? CAT_MESSAGES : CLASSIC_MESSAGES;
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SOUND SYSTEM (generates WAV in memory — no external files, no autoplay issues)
@@ -175,11 +192,22 @@ function generateWav(notes, totalDuration, sampleRate = 22050) {
 const SOUNDS = {};
 
 function initSounds() {
-    // Chime: rising C-E-G
+    // Munching: "nom nom nom" — short low pops with crunchy overlay
     SOUNDS.chime = URL.createObjectURL(generateWav([
-        { freq: 523, start: 0, duration: 0.25, type: 'sine', volume: 0.2 },
-        { freq: 659, start: 0.1, duration: 0.25, type: 'sine', volume: 0.2 },
-        { freq: 784, start: 0.2, duration: 0.3, type: 'sine', volume: 0.18 }
+        // Nom 1
+        { freq: 120, start: 0, duration: 0.08, type: 'square', volume: 0.18 },
+        { freq: 180, start: 0.01, duration: 0.06, type: 'sawtooth', volume: 0.12 },
+        { freq: 600, start: 0.01, duration: 0.04, type: 'square', volume: 0.06 },
+        // Nom 2
+        { freq: 140, start: 0.13, duration: 0.08, type: 'square', volume: 0.20 },
+        { freq: 200, start: 0.14, duration: 0.06, type: 'sawtooth', volume: 0.12 },
+        { freq: 700, start: 0.14, duration: 0.04, type: 'square', volume: 0.06 },
+        // Nom 3
+        { freq: 160, start: 0.26, duration: 0.08, type: 'square', volume: 0.18 },
+        { freq: 220, start: 0.27, duration: 0.06, type: 'sawtooth', volume: 0.12 },
+        { freq: 800, start: 0.27, duration: 0.04, type: 'square', volume: 0.06 },
+        // Satisfied purr tail
+        { freq: 90, start: 0.35, duration: 0.15, type: 'sine', volume: 0.10 }
     ], 0.55));
 
     // Fanfare: C-E-G-C ascending
@@ -709,6 +737,9 @@ function screenShake() {
 function triggerCelebration(count, oldCount) {
     const level = celebrationLevel;
 
+    // Drop food to the cat on every celebration
+    dropFood();
+
     if (level === 1) {
         // Chill: small confetti + floating cat + chime
         burstConfetti(20);
@@ -851,6 +882,8 @@ function showMilestone(milestone) {
     milestoneMessageEl.textContent = message;
     milestoneMessageEl.classList.add('visible');
 
+    celebrateCatMilestone();
+
     if (milestoneTimeout) clearTimeout(milestoneTimeout);
     milestoneTimeout = setTimeout(() => {
         milestoneMessageEl.classList.remove('visible');
@@ -871,15 +904,18 @@ function startEncouragingMessages() {
 function updateEncouragingMessage() {
     encouragingMessageEl.style.opacity = '0';
     setTimeout(() => {
-        encouragingMessageEl.textContent = ENCOURAGING_MESSAGES[encouragingIndex];
+        const messages = getEncouragingMessages();
+        encouragingMessageEl.textContent = messages[encouragingIndex % messages.length];
         encouragingMessageEl.style.opacity = '1';
-        encouragingIndex = (encouragingIndex + 1) % ENCOURAGING_MESSAGES.length;
+        encouragingIndex = (encouragingIndex + 1) % messages.length;
     }, 500);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PROGRESS RING
+// THEME SYSTEM & PROGRESS DISPLAY
 // ══════════════════════════════════════════════════════════════════════════════
+
+let currentTheme = 'classic'; // 'classic' or 'cat'
 
 function initProgressRing() {
     sizeProgressRing();
@@ -896,49 +932,224 @@ function sizeProgressRing() {
     const leftSection = document.querySelector('.left-section');
     if (!leftSection) return;
 
-    const availableW = leftSection.clientWidth - 40;
-    const availableH = leftSection.clientHeight * 0.62;
-    const size = Math.max(200, Math.min(availableW, availableH, 550));
-    const strokeWidth = Math.max(8, size * 0.028);
-    const radius = (size - strokeWidth * 2) / 2;
-    const circumference = 2 * Math.PI * radius;
+    if (currentTheme === 'classic') {
+        // Classic: size the SVG ring
+        const availableW = leftSection.clientWidth - 40;
+        const availableH = leftSection.clientHeight * 0.62;
+        const size = Math.max(200, Math.min(availableW, availableH, 550));
+        const strokeWidth = Math.max(8, size * 0.028);
+        const radius = (size - strokeWidth * 2) / 2;
+        const circumference = 2 * Math.PI * radius;
 
-    const svg = document.getElementById('progressRing');
-    svg.setAttribute('width', size);
-    svg.setAttribute('height', size);
+        const svg = document.getElementById('progressRing');
+        if (svg) {
+            svg.setAttribute('width', size);
+            svg.setAttribute('height', size);
+            const ringBg = document.getElementById('ringBg');
+            const ringFill = document.getElementById('ringFill');
+            [ringBg, ringFill].forEach(circle => {
+                circle.setAttribute('cx', size / 2);
+                circle.setAttribute('cy', size / 2);
+                circle.setAttribute('r', radius);
+                circle.setAttribute('stroke-width', strokeWidth);
+            });
+            ringFill.setAttribute('stroke-dasharray', circumference);
+            ringFill.dataset.circumference = circumference;
+            updateProgressRing(currentCount);
+        }
 
-    const ringBg = document.getElementById('ringBg');
-    const ringFill = document.getElementById('ringFill');
-
-    [ringBg, ringFill].forEach(circle => {
-        circle.setAttribute('cx', size / 2);
-        circle.setAttribute('cy', size / 2);
-        circle.setAttribute('r', radius);
-        circle.setAttribute('stroke-width', strokeWidth);
-    });
-
-    ringFill.setAttribute('stroke-dasharray', circumference);
-    ringFill.dataset.circumference = circumference;
-
-    updateProgressRing(currentCount);
-
-    // Scale counter font to fit inside the ring
-    const counterEl = document.getElementById('counterNumber');
-    counterEl.style.fontSize = Math.max(32, size * 0.22) + 'px';
+        const counterEl = document.getElementById('counterNumber');
+        if (counterEl) counterEl.style.fontSize = Math.max(32, size * 0.22) + 'px';
+    } else {
+        // Cat theme: scale counter font
+        const availableW = leftSection.clientWidth - 40;
+        const catCounter = document.getElementById('catCounterNumber');
+        if (catCounter) catCounter.style.fontSize = Math.max(32, Math.min(availableW * 0.18, 80)) + 'px';
+    }
+    sizeCat();
 }
 
 function updateProgressRing(count) {
-    const ringFill = document.getElementById('ringFill');
-    const circumference = parseFloat(ringFill.dataset.circumference);
-    if (!circumference) return;
+    if (currentTheme === 'classic') {
+        // Classic: update SVG ring stroke-dashoffset
+        const ringFill = document.getElementById('ringFill');
+        if (!ringFill) return;
+        const circumference = parseFloat(ringFill.dataset.circumference);
+        if (!circumference) return;
 
-    const nextMilestone = getNextMilestone(count);
-    const prevMilestone = getPrevMilestone(count);
-    const range = nextMilestone - prevMilestone;
-    const progress = range > 0 ? Math.min(1, (count - prevMilestone) / range) : 0;
+        const nextMilestone = getNextMilestone(count);
+        const prevMilestone = getPrevMilestone(count);
+        const range = nextMilestone - prevMilestone;
+        const progress = range > 0 ? Math.min(1, (count - prevMilestone) / range) : 0;
+        ringFill.style.strokeDashoffset = circumference * (1 - progress);
+    }
 
-    const offset = circumference * (1 - progress);
-    ringFill.style.strokeDashoffset = offset;
+    // Cat theme: update progress bar (always update so it's ready if switched)
+    const fill = document.getElementById('progressBarFill');
+    const label = document.getElementById('progressBarLabel');
+    if (fill) {
+        const nextMilestone = getNextMilestone(count);
+        const prevMilestone = getPrevMilestone(count);
+        const range = nextMilestone - prevMilestone;
+        const progress = range > 0 ? Math.min(1, (count - prevMilestone) / range) : 0;
+        fill.style.width = (progress * 100) + '%';
+        if (label) label.textContent = `${count} / ${nextMilestone} to next milestone`;
+    }
+}
+
+function setTheme(theme) {
+    currentTheme = theme;
+    const classicView = document.getElementById('themeClassic');
+    const catView = document.getElementById('themeCat');
+
+    if (theme === 'classic') {
+        if (classicView) classicView.style.display = '';
+        if (catView) catView.style.display = 'none';
+    } else {
+        if (classicView) classicView.style.display = 'none';
+        if (catView) catView.style.display = '';
+    }
+
+    // Resize for new layout
+    sizeProgressRing();
+    // Update displays for current count
+    updateDigitDisplay(currentCount);
+    updateProgressRing(currentCount);
+    updateCatState(currentCount);
+    // Update encouraging message for new theme
+    updateEncouragingMessage();
+}
+
+function initializeThemeSelector() {
+    const select = document.getElementById('themeSelect');
+    if (!select) return;
+
+    // Restore from sessionStorage
+    const saved = sessionStorage.getItem('counterTheme');
+    if (saved && (saved === 'classic' || saved === 'cat')) {
+        select.value = saved;
+        setTheme(saved);
+    }
+
+    select.addEventListener('change', () => {
+        const theme = select.value;
+        sessionStorage.setItem('counterTheme', theme);
+        setTheme(theme);
+    });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CAT MASCOT SYSTEM
+// ══════════════════════════════════════════════════════════════════════════════
+
+const CAT_STAGES = [0, 10, 25, 50, 75, 100];
+
+function initCat() {
+    const imgs = document.querySelectorAll('.cat-img');
+    if (!imgs.length) return;
+
+    sizeCat();
+
+    // Set initial state without animation
+    imgs.forEach(img => { img.style.transition = 'none'; });
+    updateCatState(currentCount);
+    imgs[0].getBoundingClientRect(); // force reflow
+    imgs.forEach(img => { img.style.transition = 'opacity 0.8s ease-out'; });
+}
+
+function getCatStateParam(count) {
+    // Returns 0.0 (skinniest/saddest) to 1.0 (fattest/happiest)
+    if (count <= 0) return 0;
+
+    const prevM = getPrevMilestone(count);
+    const nextM = getNextMilestone(count);
+    const tierIndex = MILESTONES.indexOf(prevM);
+    const baseTier = tierIndex >= 0 ? (tierIndex + 1) / MILESTONES.length : 0;
+
+    const range = nextM - prevM;
+    const intraProgress = range > 0 ? (count - prevM) / range : 0;
+    const intraContribution = intraProgress / MILESTONES.length;
+
+    // 0.05 base bump for any count > 0, plus tier + intra progress
+    return Math.min(1, 0.05 + baseTier * 0.85 + intraContribution * 0.85);
+}
+
+function updateCatState(count) {
+    const imgs = document.querySelectorAll('.cat-img');
+    if (!imgs.length) return;
+
+    // Find which stage to show based on count
+    let activeStage = 0;
+    for (const s of CAT_STAGES) {
+        if (count >= s) activeStage = s;
+        else break;
+    }
+
+    // Show only the active stage image
+    imgs.forEach(img => {
+        const stage = parseInt(img.dataset.stage);
+        if (stage === activeStage) {
+            img.classList.add('active');
+        } else {
+            img.classList.remove('active');
+        }
+    });
+}
+
+function sizeCat() {
+    // Cat container uses flex: 1 and sizes itself via CSS
+    // No explicit JS sizing needed — the flex layout handles it
+}
+
+function celebrateCatMilestone() {
+    const container = document.getElementById('catContainer');
+    if (!container) return;
+
+    container.style.transform = 'scale(1.2) translateY(-10px)';
+    setTimeout(() => {
+        container.style.transform = 'scale(1)';
+    }, 400);
+}
+
+const FOOD_EMOJIS = ['\u{1F41F}', '\u{1F969}', '\u{1F357}', '\u{1F356}', '\u{1F36A}', '\u{1F363}', '\u{1F35B}'];
+
+function dropFood() {
+    const counter = document.getElementById('counterNumber');
+    const cat = document.getElementById('catContainer');
+    if (!counter || !cat) return;
+
+    const counterRect = counter.getBoundingClientRect();
+    const catRect = cat.getBoundingClientRect();
+    const leftSection = document.querySelector('.left-section');
+    if (!leftSection) return;
+    const sectionRect = leftSection.getBoundingClientRect();
+
+    const food = document.createElement('div');
+    food.textContent = FOOD_EMOJIS[Math.floor(Math.random() * FOOD_EMOJIS.length)];
+    food.style.cssText = `
+        position: absolute;
+        font-size: 1.8rem;
+        pointer-events: none;
+        z-index: 100;
+        transition: none;
+        left: ${counterRect.left - sectionRect.left + counterRect.width / 2 - 14}px;
+        top: ${counterRect.bottom - sectionRect.top}px;
+        opacity: 1;
+    `;
+    leftSection.appendChild(food);
+
+    // Animate drop to cat
+    const targetY = catRect.top - sectionRect.top + catRect.height * 0.3;
+    requestAnimationFrame(() => {
+        food.style.transition = 'top 0.5s cubic-bezier(0.34, 0, 0.64, 1), opacity 0.2s ease';
+        food.style.top = targetY + 'px';
+        setTimeout(() => {
+            food.style.opacity = '0';
+            food.style.transform = 'scale(0.3)';
+            food.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+            setTimeout(() => food.remove(), 250);
+        }, 450);
+    });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -965,7 +1176,15 @@ function createDigitReel() {
 
 function updateDigitDisplay(newCount) {
     const digits = String(newCount).split('');
-    const container = document.getElementById('counterNumber');
+
+    // Update both counter elements (classic + cat theme)
+    ['counterNumber', 'catCounterNumber'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) updateDigitContainer(el, digits);
+    });
+}
+
+function updateDigitContainer(container, digits) {
     const currentReels = container.querySelectorAll('.counter-digit');
 
     // Rebuild reels if digit count changed
@@ -1047,6 +1266,7 @@ async function initialize() {
 
         showCountDisplay();
         initProgressRing();
+        initCat();
         generateQRCode();
         startEncouragingMessages();
         await updateCount();
@@ -1054,6 +1274,7 @@ async function initialize() {
         initializeRefreshIntervalSelector();
         initializeCelebrationLevelSelector();
         initializeSoundToggle();
+        initializeThemeSelector();
         initializeFullscreenButton();
 
     } catch (error) {
@@ -1288,18 +1509,24 @@ async function updateCount() {
             // Update slot-machine digit display
             updateDigitDisplay(count);
 
-            // Pulse animation
-            counterNumber.classList.remove('pulse');
-            void counterNumber.offsetWidth;
-            counterNumber.classList.add('pulse');
+            // Pulse animation on active counter
+            const activeCounter = currentTheme === 'classic'
+                ? document.getElementById('counterNumber')
+                : document.getElementById('catCounterNumber');
+            if (activeCounter) {
+                activeCounter.classList.remove('pulse');
+                void activeCounter.offsetWidth;
+                activeCounter.classList.add('pulse');
+            }
 
             // Celebrations only after initial load
             if (!isFirstLoad && count > oldCount) {
                 triggerCelebration(count, oldCount);
             }
 
-            // Update progress ring
+            // Update progress ring and cat
             updateProgressRing(count);
+            updateCatState(count);
 
             currentCount = count;
             isFirstLoad = false;
