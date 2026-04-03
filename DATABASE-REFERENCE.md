@@ -19,36 +19,36 @@ See `CATBOOTCAMP_CREDENTIALS_SECURE.md` on your local machine (NOT in repo) for 
 
 | Property | Value |
 |----------|-------|
-| **Server** | `cat-bootcamp-sql-89082.database.windows.net` |
-| **Database** | `CATBootcampFeedback` |
+| **Server** | `cat-bootcamp-sql-qa2.database.windows.net` |
+| **Database** | `CATBootcampFeedback-QA` |
 | **Username** | `sqladmin` |
 | **Password** | `[REDACTED]` |
 | **Port** | `1433` (default) |
-| **Resource Group** | `cat-bootcamp-rg` |
+| **Resource Group** | `cat-bootcamp-qa-rg` |
 | **Region** | East US 2 |
 
 ### Connection Strings
 
 #### ADO.NET
 ```
-Server=tcp:cat-bootcamp-sql-89082.database.windows.net,1433;Initial Catalog=CATBootcampFeedback;Persist Security Info=False;User ID=sqladmin;Password=[REDACTED];MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
+Server=tcp:cat-bootcamp-sql-qa2.database.windows.net,1433;Initial Catalog=CATBootcampFeedback-QA;Persist Security Info=False;User ID=sqladmin;Password=[REDACTED];MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
 ```
 
 #### ODBC
 ```
-Driver={ODBC Driver 17 for SQL Server};Server=tcp:cat-bootcamp-sql-89082.database.windows.net,1433;Database=CATBootcampFeedback;Uid=sqladmin;Pwd=[REDACTED];Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;
+Driver={ODBC Driver 17 for SQL Server};Server=tcp:cat-bootcamp-sql-qa2.database.windows.net,1433;Database=CATBootcampFeedback-QA;Uid=sqladmin;Pwd=[REDACTED];Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;
 ```
 
 #### JDBC
 ```
-jdbc:sqlserver://cat-bootcamp-sql-89082.database.windows.net:1433;database=CATBootcampFeedback;user=sqladmin;password=[REDACTED];encrypt=true;trustServerCertificate=false;loginTimeout=30;
+jdbc:sqlserver://cat-bootcamp-sql-qa2.database.windows.net:1433;database=CATBootcampFeedback-QA;user=sqladmin;password=[REDACTED];encrypt=true;trustServerCertificate=false;loginTimeout=30;
 ```
 
 #### Node.js (mssql package)
 ```javascript
 const config = {
-    server: 'cat-bootcamp-sql-89082.database.windows.net',
-    database: 'CATBootcampFeedback',
+    server: 'cat-bootcamp-sql-qa2.database.windows.net',
+    database: 'CATBootcampFeedback-QA',
     user: 'sqladmin',
     password: '[REDACTED]',
     port: 1433,
@@ -68,7 +68,7 @@ const config = {
 1. Open SQL Server Management Studio
 2. In the "Connect to Server" dialog:
    - **Server type**: Database Engine
-   - **Server name**: `cat-bootcamp-sql-89082.database.windows.net`
+   - **Server name**: `cat-bootcamp-sql-qa2.database.windows.net`
    - **Authentication**: SQL Server Authentication
    - **Login**: `sqladmin`
    - **Password**: `[REDACTED]`
@@ -80,18 +80,18 @@ const config = {
 2. Click **New Connection**
 3. Fill in the connection details:
    - **Connection type**: Microsoft SQL Server
-   - **Server**: `cat-bootcamp-sql-89082.database.windows.net`
+   - **Server**: `cat-bootcamp-sql-qa2.database.windows.net`
    - **Authentication type**: SQL Login
    - **User name**: `sqladmin`
    - **Password**: `[REDACTED]`
-   - **Database**: `CATBootcampFeedback`
+   - **Database**: `CATBootcampFeedback-QA`
    - **Encrypt**: True
 4. Click **Connect**
 
 ### 3. sqlcmd (Command Line)
 
 ```bash
-sqlcmd -S cat-bootcamp-sql-89082.database.windows.net -d CATBootcampFeedback -U sqladmin -P "[REDACTED]"
+sqlcmd -S cat-bootcamp-sql-qa2.database.windows.net -d CATBootcampFeedback-QA -U sqladmin -P "[REDACTED]"
 ```
 
 ### 4. PowerShell (SqlServer Module)
@@ -104,8 +104,8 @@ Install-Module -Name SqlServer -Force
 Import-Module SqlServer
 
 # Execute query
-$ServerName = 'cat-bootcamp-sql-89082.database.windows.net'
-$DatabaseName = 'CATBootcampFeedback'
+$ServerName = 'cat-bootcamp-sql-qa2.database.windows.net'
+$DatabaseName = 'CATBootcampFeedback-QA'
 $Username = 'sqladmin'
 $Password = '[REDACTED]'
 
@@ -120,17 +120,17 @@ Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseName `
 ```bash
 # Add firewall rule for your IP (if needed)
 az sql server firewall-rule create \
-  --resource-group cat-bootcamp-rg \
-  --server cat-bootcamp-sql-89082 \
+  --resource-group cat-bootcamp-qa-rg \
+  --server cat-bootcamp-sql-qa2 \
   --name "MyIPAddress" \
   --start-ip-address YOUR_IP \
   --end-ip-address YOUR_IP
 
 # Connect using Azure Cloud Shell or local sqlcmd
 az sql db show \
-  --name CATBootcampFeedback \
-  --server cat-bootcamp-sql-89082 \
-  --resource-group cat-bootcamp-rg
+  --name CATBootcampFeedback-QA \
+  --server cat-bootcamp-sql-qa2 \
+  --resource-group cat-bootcamp-qa-rg
 ```
 
 ### 6. Python (pyodbc)
@@ -138,8 +138,8 @@ az sql db show \
 ```python
 import pyodbc
 
-server = 'cat-bootcamp-sql-89082.database.windows.net'
-database = 'CATBootcampFeedback'
+server = 'cat-bootcamp-sql-qa2.database.windows.net'
+database = 'CATBootcampFeedback-QA'
 username = 'sqladmin'
 password = '[REDACTED]'
 
@@ -638,8 +638,8 @@ Azure SQL Database requires firewall rules to allow connections. Add your IP add
 
 ```bash
 az sql server firewall-rule create \
-  --resource-group cat-bootcamp-rg \
-  --server cat-bootcamp-sql-89082 \
+  --resource-group cat-bootcamp-qa-rg \
+  --server cat-bootcamp-sql-qa2 \
   --name "MyWorkstation" \
   --start-ip-address YOUR_IP_ADDRESS \
   --end-ip-address YOUR_IP_ADDRESS
@@ -684,12 +684,12 @@ Azure SQL Database provides automated backups:
 ```bash
 # Restore database to a point in time
 az sql db restore \
-  --dest-name CATBootcampFeedback_Restored \
+  --dest-name CATBootcampFeedback-QA-QA_Restored \
   --edition Standard \
   --service-objective S1 \
-  --resource-group cat-bootcamp-rg \
-  --server cat-bootcamp-sql-89082 \
-  --name CATBootcampFeedback \
+  --resource-group cat-bootcamp-qa-rg \
+  --server cat-bootcamp-sql-qa2 \
+  --name CATBootcampFeedback-QA \
   --time "2026-02-04T12:00:00Z"
 ```
 

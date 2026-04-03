@@ -90,36 +90,16 @@ if (typeof window !== 'undefined') {
     const isAzure = window.location.hostname.endsWith('.azurestaticapps.net') ||
                     window.location.hostname.endsWith('.azurewebsites.net');
 
-    // Check if running in production (not localhost)
-    const isProduction = window.location.hostname !== 'localhost' &&
-                        window.location.hostname !== '127.0.0.1';
-
-    // Get production Static Web App hostname pattern (handles both . and - formats)
-    const isProdHostname = window.location.hostname.includes('lively-ocean-076d52c0f') &&
-                          !window.location.hostname.includes('blue-moss');
-    const isCustomDomain = window.location.hostname === 'catbootcamp.yourdomain.com';
-
     const isQAHostname = window.location.hostname.includes('ashy-rock-0b254600f');
-    if (isQAHostname) {
+    if (isQAHostname || isAzure) {
         CONFIG.USE_MOCK_DATA = false;
         CONFIG.API_BASE_URL = 'https://catbootcamp-api-qa.azurewebsites.net/api';
         console.log('Environment: QA');
-    } else if (isProdHostname || isCustomDomain) {
-        // Production environment
-        CONFIG.USE_MOCK_DATA = false;
-        CONFIG.API_BASE_URL = 'https://cat-bootcamp-api-prod.azurewebsites.net/api';
-        console.log('Environment: PRODUCTION');
-    } else if (isProduction || isAzure) {
-        // Development environment (existing)
-        CONFIG.USE_MOCK_DATA = false;
-        CONFIG.API_BASE_URL = 'https://cat-bootcamp-api-win.azurewebsites.net/api';
-        console.log('Environment: DEVELOPMENT');
     }
 
     console.log('Environment detected:', {
         hostname: window.location.hostname,
         isAzure,
-        isProduction,
         useMockData: CONFIG.USE_MOCK_DATA,
         apiBaseUrl: CONFIG.API_BASE_URL
     });

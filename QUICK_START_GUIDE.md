@@ -10,7 +10,7 @@ The SQL Server password needs to be reset before we can initialize the database.
 1. **Open Azure Portal**
    - Navigate to: https://portal.azure.com
    - Search for "SQL servers"
-   - Click on: `cat-bootcamp-sql-89082`
+   - Click on: `cat-bootcamp-sql-qa2`
 
 2. **Reset Password**
    - In the left menu, click "Reset password"
@@ -18,7 +18,7 @@ The SQL Server password needs to be reset before we can initialize the database.
    - Click "Save"
 
 3. **Initialize Database**
-   - Navigate to: SQL databases → CATBootcampFeedback
+   - Navigate to: SQL databases → CATBootcampFeedback-QA
    - Click "Query editor" in the left menu
    - Login with:
      - Login: `sqladmin`
@@ -45,7 +45,7 @@ The SQL Server password needs to be reset before we can initialize the database.
    curl -o init-db.sql https://raw.githubusercontent.com/microsoft/CATBootcampFeedback/main/database/init-schema.sql
 
    # Run initialization
-   sqlcmd -S cat-bootcamp-sql-89082.database.windows.net -d CATBootcampFeedback -U sqladmin -P 'YOUR_PASSWORD_HERE' -i init-db.sql
+   sqlcmd -S cat-bootcamp-sql-qa2.database.windows.net -d CATBootcampFeedback-QA -U sqladmin -P 'YOUR_PASSWORD_HERE' -i init-db.sql
    ```
 
 ### Option C: Reset Password via CLI (Advanced)
@@ -53,8 +53,8 @@ The SQL Server password needs to be reset before we can initialize the database.
 ```bash
 # This requires Azure CLI to be properly configured
 az sql server update \
-  --resource-group cat-bootcamp-rg \
-  --name cat-bootcamp-sql-89082 \
+  --resource-group cat-bootcamp-qa-rg \
+  --name cat-bootcamp-sql-qa2 \
   --admin-password '[YOUR_SECURE_PASSWORD]'
 
 # See Desktop/Secure_CAT_Files/CREDENTIALS_MASTER.md for actual password
@@ -70,12 +70,12 @@ Once database is initialized, test the API endpoints:
 
 1. **Test Event Retrieval**
    ```bash
-   curl https://blue-sea-0b9be530f.1.azurestaticapps.net/api/events/CSA1B2C3
+   curl https://ashy-rock-0b254600f.4.azurestaticapps.net/api/events/CSA1B2C3
    ```
 
 2. **Test Feedback Submission**
    ```bash
-   curl -X POST https://blue-sea-0b9be530f.1.azurestaticapps.net/api/feedback \
+   curl -X POST https://ashy-rock-0b254600f.4.azurestaticapps.net/api/feedback \
      -H "Content-Type: application/json" \
      -d '{
        "eventCode": "CSA1B2C3",
@@ -89,7 +89,7 @@ Once database is initialized, test the API endpoints:
 
 3. **Test Feedback Count**
    ```bash
-   curl https://blue-sea-0b9be530f.1.azurestaticapps.net/api/events/CSA1B2C3/count
+   curl https://ashy-rock-0b254600f.4.azurestaticapps.net/api/events/CSA1B2C3/count
    ```
 
 ### Configure GitHub Secret
@@ -118,9 +118,9 @@ git push origin main
 
 After deployment completes:
 
-- **Feedback Form**: https://blue-sea-0b9be530f.1.azurestaticapps.net/feedback.html?code=CSA1B2C3
-- **Live Count Display**: https://blue-sea-0b9be530f.1.azurestaticapps.net/count.html?code=CSA1B2C3
-- **Admin Panel**: https://blue-sea-0b9be530f.1.azurestaticapps.net/admin.html
+- **Feedback Form**: https://ashy-rock-0b254600f.4.azurestaticapps.net/feedback.html?code=CSA1B2C3
+- **Live Count Display**: https://ashy-rock-0b254600f.4.azurestaticapps.net/count.html?code=CSA1B2C3
+- **Admin Panel**: https://ashy-rock-0b254600f.4.azurestaticapps.net/admin.html
 
 ---
 

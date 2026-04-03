@@ -1,7 +1,7 @@
 # CAT Bootcamp Feedback - Deployment Guide
 
-**Last Updated:** February 9, 2026
-**Architecture:** Separate Azure Functions App (v3.0)
+**Last Updated:** April 2, 2026
+**Architecture:** Separate Azure Functions App (v5.0)
 
 ## Overview
 
@@ -12,21 +12,21 @@ This application uses a **separate Azure Functions app** architecture to enable 
 ```
 ┌──────────────────────────────┐
 │ Azure Static Web App         │ Frontend hosting
-│ blue-moss-01913f80f          │ HTML/CSS/JS files
+│ ashy-rock-0b254600f          │ HTML/CSS/JS files
 └──────────────────────────────┘
            │
            │ HTTPS + CORS
            ↓
 ┌──────────────────────────────┐
 │ Azure Functions App          │ Backend API
-│ cat-bootcamp-api             │ Node.js 20 runtime
+│ catbootcamp-api-qa           │ Node.js 20 runtime
 │ Consumption Plan (Linux)     │ Full routing support
 └──────────────────────────────┘
            │
            ↓
 ┌──────────────────────────────┐
 │ Azure SQL Database           │ Data storage
-│ cat-bootcamp-sql-89082       │ Many-to-many schema
+│ cat-bootcamp-sql-qa2         │ Many-to-many schema
 └──────────────────────────────┘
 ```
 
@@ -34,25 +34,24 @@ This application uses a **separate Azure Functions app** architecture to enable 
 
 ### Frontend (Azure Static Web App)
 - **Name:** cat-bootcamp-feedback
-- **URL:** https://blue-moss-01913f80f.1.azurestaticapps.net
-- **Resource Group:** cat-bootcamp-rg
+- **URL:** https://ashy-rock-0b254600f.4.azurestaticapps.net
+- **Resource Group:** cat-bootcamp-qa-rg
 - **Region:** East US 2
 - **GitHub Integration:** Auto-deploy from `main` branch
-- **Workflow:** `.github/workflows/azure-static-web-apps-blue-moss-01913f80f.yml`
+- **Workflow:** `.github/workflows/deploy-qa.yml`
 
 ### Backend (Azure Functions App)
-- **Name:** cat-bootcamp-api
-- **URL:** https://cat-bootcamp-api.azurewebsites.net
-- **Resource Group:** cat-bootcamp-rg
+- **Name:** catbootcamp-api-qa
+- **URL:** https://catbootcamp-api-qa.azurewebsites.net
+- **Resource Group:** cat-bootcamp-qa-rg
 - **Region:** East US 2
 - **Runtime:** Node.js 20 (Linux)
 - **Plan:** Consumption (serverless, pay-per-execution)
-- **Storage:** catbootcampapi890
 - **Application Insights:** Enabled
 
 ### Database (Azure SQL)
-- **Server:** cat-bootcamp-sql-89082.database.windows.net
-- **Database:** CATBootcampFeedback
+- **Server:** cat-bootcamp-sql-qa2.database.windows.net
+- **Database:** CATBootcampFeedback-QA
 - **Schema Version:** V2 (many-to-many Events ↔ Modules)
 - **Collation:** SQL_Latin1_General_CP1_CI_AS
 
@@ -75,7 +74,7 @@ node migrate-users-from-env.js --global-admin=admin
 ### Frontend Deployment (Automatic)
 
 **Trigger:** Push to `main` branch
-**Workflow:** `.github/workflows/azure-static-web-apps-blue-moss-01913f80f.yml`
+**Workflow:** `.github/workflows/deploy-qa.yml`
 
 ```yaml
 on:
@@ -96,12 +95,12 @@ on:
 **Manual Trigger:**
 Not usually needed - pushes auto-deploy. To manually redeploy:
 ```bash
-gh workflow run azure-static-web-apps-blue-moss-01913f80f.yml
+gh workflow run deploy-qa.yml
 ```
 
-### Backend Deployment (Manual)
+### Backend Deployment
 
-**Method:** Azure Functions Core Tools
+**Workflow:** `.github/workflows/deploy-functions-app-qa.yml`
 
 ```bash
 # Navigate to API directory
@@ -111,7 +110,7 @@ cd feedbackapp/api
 npm install
 
 # Deploy to Azure
-func azure functionapp publish cat-bootcamp-api --javascript
+func azure functionapp publish catbootcamp-api-qa --javascript
 ```
 
 **Expected Output:**
@@ -122,19 +121,15 @@ Uploading package...
 Upload completed successfully.
 Deployment completed successfully.
 [timestamp] Syncing triggers...
-Functions in cat-bootcamp-api:
+Functions in catbootcamp-api-qa:
     events - [httpTrigger]
-        Invoke url: https://cat-bootcamp-api.azurewebsites.net/api/events
+        Invoke url: https://catbootcamp-api-qa.azurewebsites.net/api/events
     feedback - [httpTrigger]
-        Invoke url: https://cat-bootcamp-api.azurewebsites.net/api/feedback
+        Invoke url: https://catbootcamp-api-qa.azurewebsites.net/api/feedback
     [... other functions ...]
 ```
 
 **Deployment Time:** ~90-120 seconds
-
-### GitHub Actions for Functions (Optional)
-
-A workflow exists at `.github/workflows/deploy-functions-app.yml` but currently has authentication issues with publish profiles. Use manual deployment instead.
 
 ## Configuration
 
@@ -144,7 +139,7 @@ A workflow exists at `.github/workflows/deploy-functions-app.yml` but currently 
 
 ```javascript
 export const CONFIG = {
-    API_BASE_URL: 'https://cat-bootcamp-api.azurewebsites.net/api',
+    API_BASE_URL: 'https://catbootcamp-api-qa.azurewebsites.net/api',
     USE_MOCK_DATA: false, // Set to true for localhost development
     API_TIMEOUT: 30000,
     // ... other settings
@@ -155,16 +150,16 @@ export const CONFIG = {
 
 **Application Settings** (Azure Portal or CLI):
 
-Secrets are managed via Azure Key Vault references. The dev Function App (`cat-bootcamp-api-win`) uses Key Vault `cat-bootcamp-kv-dev`:
+Secrets are managed via Azure Key Vault references. The QA Function App (`catbootcamp-api-qa`) uses Key Vault `cat-bootcamp-kv-qa`:
 
 ```bash
-# Dev environment settings use Key Vault references:
-SQL_SERVER=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-SERVER)
-SQL_DATABASE=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-DATABASE)
-SQL_USER=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-USER)
-SQL_PASSWORD=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=SQL-PASSWORD)
-JWT_SECRET=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=JWT-SECRET)
-ADMIN_USERS_JSON=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=ADMIN-USERS-JSON)
+# QA environment settings use Key Vault references:
+SQL_SERVER=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-qa;SecretName=SQL-SERVER)
+SQL_DATABASE=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-qa;SecretName=SQL-DATABASE)
+SQL_USER=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-qa;SecretName=SQL-USER)
+SQL_PASSWORD=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-qa;SecretName=SQL-PASSWORD)
+JWT_SECRET=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-qa;SecretName=JWT-SECRET)
+ADMIN_USERS_JSON=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-qa;SecretName=ADMIN-USERS-JSON)
 # Note: ADMIN_USERS_JSON is now a fallback only. Users are managed in the database
 # via the Users, Roles, UserRoles, and UserEventAccess tables.
 # The env var is used for initial bootstrap and as a fallback if no DB users exist.
@@ -177,14 +172,14 @@ EMAIL_SENDER_ADDRESS=DoNotReply@{your-domain}.azurecomm.net
 # Note: The ACS resource, Email Communication Service, and Azure-managed
 # domain must be created first. See docs/infrastructure/ for setup details.
 
-NODE_ENV=development
+NODE_ENV=production
 FUNCTIONS_WORKER_RUNTIME=node
 ```
 
 To update a secret value, update it in Key Vault and restart the Function App:
 ```bash
-az keyvault secret set --vault-name cat-bootcamp-kv-dev --name SECRET-NAME --value "new-value"
-az functionapp restart --name cat-bootcamp-api-win --resource-group cat-bootcamp-rg
+az keyvault secret set --vault-name cat-bootcamp-kv-qa --name SECRET-NAME --value "new-value"
+az functionapp restart --name catbootcamp-api-qa --resource-group cat-bootcamp-qa-rg
 ```
 
 ### CORS Configuration
@@ -193,9 +188,9 @@ The Functions app must allow requests from the Static Web App:
 
 ```bash
 az functionapp cors add \
-  --name cat-bootcamp-api \
-  --resource-group cat-bootcamp-rg \
-  --allowed-origins "https://blue-moss-01913f80f.1.azurestaticapps.net"
+  --name catbootcamp-api-qa \
+  --resource-group cat-bootcamp-qa-rg \
+  --allowed-origins "https://ashy-rock-0b254600f.4.azurestaticapps.net"
 ```
 
 ## Local Development
@@ -233,8 +228,8 @@ cat > local.settings.json << EOF
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "node",
-    "SQL_SERVER": "cat-bootcamp-sql-89082.database.windows.net",
-    "SQL_DATABASE": "CATBootcampFeedback",
+    "SQL_SERVER": "cat-bootcamp-sql-qa2.database.windows.net",
+    "SQL_DATABASE": "CATBootcampFeedback-QA",
     "SQL_USER": "sqladmin",
     "SQL_PASSWORD": "***",
     "JWT_SECRET": "***",
@@ -274,13 +269,13 @@ API_BASE_URL: 'http://localhost:7071/api'
 **Solution:**
 ```bash
 # Add Static Web App to allowed origins
-az functionapp cors add --name cat-bootcamp-api \
-  --resource-group cat-bootcamp-rg \
-  --allowed-origins "https://blue-moss-01913f80f.1.azurestaticapps.net"
+az functionapp cors add --name catbootcamp-api-qa \
+  --resource-group cat-bootcamp-qa-rg \
+  --allowed-origins "https://ashy-rock-0b254600f.4.azurestaticapps.net"
 
 # Verify CORS settings
-az functionapp cors show --name cat-bootcamp-api \
-  --resource-group cat-bootcamp-rg
+az functionapp cors show --name catbootcamp-api-qa \
+  --resource-group cat-bootcamp-qa-rg
 ```
 
 ### API Returning 404
@@ -288,7 +283,7 @@ az functionapp cors show --name cat-bootcamp-api \
 **Symptom:** All API calls return 404
 
 **Causes & Solutions:**
-1. **Functions not deployed:** Run `func azure functionapp publish cat-bootcamp-api --javascript`
+1. **Functions not deployed:** Run `func azure functionapp publish catbootcamp-api-qa --javascript`
 2. **Wrong API URL in config:** Check `config.js` points to correct URL
 3. **Functions app not running:** Check Azure Portal → Functions App → Overview
 
@@ -313,7 +308,7 @@ const allEvents = response.data || response;
 2. **Invalid API token:** Regenerate deployment token:
    ```bash
    az staticwebapp secrets list --name cat-bootcamp-feedback \
-     --resource-group cat-bootcamp-rg --query "properties.apiKey"
+     --resource-group cat-bootcamp-qa-rg --query "properties.apiKey"
    ```
 
 ## Monitoring
@@ -323,8 +318,8 @@ const allEvents = response.data || response;
 View logs and performance:
 ```bash
 # View live logs
-az functionapp log tail --name cat-bootcamp-api \
-  --resource-group cat-bootcamp-rg
+az functionapp log tail --name catbootcamp-api-qa \
+  --resource-group cat-bootcamp-qa-rg
 ```
 
 Or in Azure Portal:
@@ -340,18 +335,18 @@ Or in Azure Portal:
 
 ```bash
 # Test frontend
-curl https://blue-moss-01913f80f.1.azurestaticapps.net/
+curl https://ashy-rock-0b254600f.4.azurestaticapps.net/
 
 # Test backend
-curl https://cat-bootcamp-api.azurewebsites.net/api/events
+curl https://catbootcamp-api-qa.azurewebsites.net/api/events
 
 # Test specific endpoint
-curl https://cat-bootcamp-api.azurewebsites.net/api/health
+curl https://catbootcamp-api-qa.azurewebsites.net/api/health
 ```
 
 ## Security Checklist
 
-- [x] SQL credentials stored in Azure Key Vault (dev: `cat-bootcamp-kv-dev`)
+- [x] SQL credentials stored in Azure Key Vault (`cat-bootcamp-kv-qa`)
 - [ ] CORS configured to allow only Static Web App URL
 - [ ] HTTPS enforced (automatic in Azure)
 - [ ] SQL firewall rules configured
@@ -375,7 +370,7 @@ curl https://cat-bootcamp-api.azurewebsites.net/api/health
 
 ### Optimization Tips
 
-1. Use Azure SQL Basic tier for development
+1. Use Azure SQL Basic tier for QA
 2. Enable Application Insights sampling
 3. Implement caching in frontend to reduce API calls
 4. Consider Azure Functions Premium plan only if needed for always-on
@@ -392,9 +387,9 @@ Automatic backups are enabled in Azure SQL:
 ```bash
 # Export database
 az sql db export \
-  --resource-group cat-bootcamp-rg \
-  --server cat-bootcamp-sql-89082 \
-  --name CATBootcampFeedback \
+  --resource-group cat-bootcamp-qa-rg \
+  --server cat-bootcamp-sql-qa2 \
+  --name CATBootcampFeedback-QA \
   --admin-user sqladmin \
   --admin-password "***" \
   --storage-key-type StorageAccessKey \
@@ -435,7 +430,7 @@ az sql db export \
 
 **Recovery Steps:**
 1. Restore database from point-in-time backup
-2. Redeploy Functions app: `func azure functionapp publish cat-bootcamp-api --javascript`
+2. Redeploy Functions app: `func azure functionapp publish catbootcamp-api-qa --javascript`
 3. Redeploy Static Web App: Push to GitHub `main` branch
 4. Verify all endpoints
 5. Test feedback submission
@@ -455,6 +450,6 @@ az sql db export \
 
 ---
 
-**Document Version:** 1.1
-**Last Reviewed:** February 9, 2026
-**Next Review:** March 2026 (or when making architectural changes)
+**Document Version:** 2.0
+**Last Reviewed:** April 2, 2026
+**Next Review:** May 2026 (or when making architectural changes)

@@ -160,8 +160,8 @@ See `DATABASE-REFERENCE.md` for complete schema.
 
 ### Base URL
 ```
-Production: https://cat-bootcamp-api.azurewebsites.net/api
-Local Dev:  http://localhost:7071/api
+QA:        https://catbootcamp-api-qa.azurewebsites.net/api
+Local Dev: http://localhost:7071/api
 ```
 
 ### Public Endpoints (No Auth Required)
@@ -225,108 +225,57 @@ POST   /api/notify/welcome                     # Send welcome email via ACS
 - Azure CLI installed
 - Azure Functions Core Tools installed
 
-### Environments
+### Environment
 
-#### Development Environment
-- **Resource Group:** `cat-bootcamp-rg`
-- **Frontend:** `https://blue-moss-01913f80f.1.azurestaticapps.net`
-- **API:** `https://cat-bootcamp-api.azurewebsites.net`
-- **Database:** `cat-bootcamp-sql-89082.database.windows.net/CATBootcampFeedback`
+#### QA Environment
+- **Resource Group:** `cat-bootcamp-qa-rg`
+- **Frontend:** `https://ashy-rock-0b254600f.4.azurestaticapps.net`
+- **API:** `https://catbootcamp-api-qa.azurewebsites.net`
+- **Database:** `cat-bootcamp-sql-qa2.database.windows.net/CATBootcampFeedback-QA`
+- **Key Vault:** `cat-bootcamp-kv-qa`
 - **Deployment:** Auto-deploy from `main` branch push
-
-#### Production Environment
-- **Resource Group:** `cat-bootcamp-prod-rg`
-- **Frontend:** `https://cat-bootcamp-feedback.azurestaticapps.net`
-- **API:** `https://cat-bootcamp-api-prod.azurewebsites.net`
-- **Database:** `cat-bootcamp-sql-prod.database.windows.net/CATBootcampFeedback-Prod`
-- **Deployment:** Manual workflow dispatch with approval
 
 ### Frontend Deployment (Azure Static Web Apps)
 
-#### Development
-- URL: `https://blue-moss-01913f80f.1.azurestaticapps.net`
+- URL: `https://ashy-rock-0b254600f.4.azurestaticapps.net`
 - Auto-deploys from GitHub `main` branch
-- Workflow: `.github/workflows/azure-static-web-apps-blue-moss-01913f80f.yml`
-
-#### Production
-- URL: `https://cat-bootcamp-feedback.azurestaticapps.net`
-- Manual deployment with approval gate
-- Workflow: `.github/workflows/deploy-production.yml`
-
-**To deploy to production:**
-1. Go to GitHub Actions tab
-2. Select "Deploy to Production" workflow
-3. Click "Run workflow"
-4. Select `main` branch
-5. Click "Run workflow"
-6. Wait for approval from designated approvers
-7. Once approved, deployment proceeds automatically
+- Workflow: `.github/workflows/deploy-qa.yml`
 
 ### Backend Deployment (Azure Functions App)
 
-#### Development
-- Functions App: `cat-bootcamp-api`
-- URL: `https://cat-bootcamp-api.azurewebsites.net`
+- Functions App: `catbootcamp-api-qa`
+- URL: `https://catbootcamp-api-qa.azurewebsites.net`
 - Runtime: Node.js 20, Linux Consumption Plan
-- Database: `cat-bootcamp-sql-89082.database.windows.net`
-
-#### Production
-- Functions App: `cat-bootcamp-api-prod`
-- URL: `https://cat-bootcamp-api-prod.azurewebsites.net`
-- Runtime: Node.js 20, Linux Consumption Plan
-- Database: `cat-bootcamp-sql-prod.database.windows.net`
+- Database: `cat-bootcamp-sql-qa2.database.windows.net`
 
 #### Deploy Functions Manually
 
-**Development:**
 ```bash
 cd api
 npm install
-func azure functionapp publish cat-bootcamp-api --javascript
-```
-
-**Production:**
-```bash
-cd api
-npm install
-func azure functionapp publish cat-bootcamp-api-prod --javascript
+func azure functionapp publish catbootcamp-api-qa --javascript
 ```
 
 #### Deploy via GitHub Actions
 
-Production deployment is automated through the "Deploy to Production" workflow:
-- Frontend and API deploy together
-- Requires manual approval before deployment
-- Uses environment-specific configurations
-- Validates health endpoints after deployment
+Deployment is automated through the QA workflow:
+- Frontend workflow: `.github/workflows/deploy-qa.yml`
+- API workflow: `.github/workflows/deploy-functions-app-qa.yml`
+- Deploys on push to `main` branch
 
 ### Configuration
 
-#### Development Frontend Config (`config.js`)
+#### Frontend Config (`config.js`)
 ```javascript
-API_BASE_URL: 'https://cat-bootcamp-api.azurewebsites.net/api'
+API_BASE_URL: 'https://catbootcamp-api-qa.azurewebsites.net/api'
 ```
 
-#### Production Frontend Config (`config.prod.js`)
-```javascript
-API_BASE_URL: 'https://cat-bootcamp-api-prod.azurewebsites.net/api'
+#### Backend Settings (Azure Portal / Key Vault)
 ```
-
-#### Development Backend Settings (Azure Portal)
-```
-SQL_SERVER=cat-bootcamp-sql-89082.database.windows.net
-SQL_DATABASE=CATBootcampFeedback
+SQL_SERVER=cat-bootcamp-sql-qa2.database.windows.net
+SQL_DATABASE=CATBootcampFeedback-QA
 SQL_USER=sqladmin
-SQL_PASSWORD=*** (configured in Azure)
-NODE_ENV=development
-```
-
-#### Production Backend Settings (Azure Portal)
-```
-SQL_SERVER=cat-bootcamp-sql-prod.database.windows.net
-SQL_DATABASE=CATBootcampFeedback-Prod
-SQL_USER=sqladmin
-SQL_PASSWORD=*** (configured in Azure)
+SQL_PASSWORD=*** (stored in Key Vault)
 NODE_ENV=production
 ```
 
@@ -336,46 +285,17 @@ The application uses **Azure Key Vault** to securely store sensitive configurati
 
 #### Key Vault Resources
 
-**Development:**
-- Key Vault: `cat-bootcamp-kv-dev`
-- Function App: `cat-bootcamp-api`
-- Secret: `JWT-SECRET` (development value)
-
-**Production:**
-- Key Vault: `cat-bootcamp-kv-prod`
-- Function App: `cat-bootcamp-api-prod`
-- Secret: `JWT-SECRET` (production value)
-
-#### Setup Key Vault
-
-Run the provisioning script to create and configure Key Vault:
-
-**Linux/macOS:**
-```bash
-cd scripts
-chmod +x provision-keyvault.sh
-./provision-keyvault.sh
-```
-
-**Windows PowerShell:**
-```powershell
-cd scripts
-.\provision-keyvault.ps1
-```
-
-The script will:
-1. Create Azure Key Vault instances for dev and prod
-2. Store JWT secrets securely in Key Vault
-3. Enable managed identities on Function Apps
-4. Grant Function Apps access to Key Vault
-5. Configure Function Apps to use Key Vault references
+**QA Environment:**
+- Key Vault: `cat-bootcamp-kv-qa`
+- Function App: `catbootcamp-api-qa`
+- Secret: `JWT-SECRET`
 
 #### How It Works
 
 Azure Functions automatically resolves Key Vault references at runtime:
 
 ```
-JWT_SECRET=@Microsoft.KeyVault(SecretUri=https://cat-bootcamp-kv-prod.vault.azure.net/secrets/JWT-SECRET)
+JWT_SECRET=@Microsoft.KeyVault(SecretUri=https://cat-bootcamp-kv-qa.vault.azure.net/secrets/JWT-SECRET)
 ```
 
 No code changes required - the application reads from `process.env.JWT_SECRET` as usual, and Azure transparently fetches the value from Key Vault.
@@ -386,25 +306,10 @@ No code changes required - the application reads from `process.env.JWT_SECRET` a
 - ✅ **Managed Identities** - No credentials stored in code or config
 - ✅ **Least Privilege** - Function Apps only have `get` and `list` permissions
 - ✅ **Audit Logs** - All secret access logged in Azure Monitor
-- ✅ **Separate Secrets** - Dev and prod environments fully isolated
-
-See [`scripts/README.md`](scripts/README.md) for complete Key Vault documentation.
 
 ### Database Initialization
 
 See [`docs/database-migration-strategy.md`](docs/database-migration-strategy.md) for complete database setup and migration procedures.
-
-**Initialize Production Database:**
-1. Navigate to Azure Portal → CATBootcampFeedback-Prod database
-2. Open Query editor (preview)
-3. Login with sqladmin credentials
-4. Run `database-init-PORTAL-ALL-IN-ONE.sql`
-
-**Restore Dev Sample Data:**
-1. Navigate to Azure Portal → CATBootcampFeedback database
-2. Open Query editor (preview)
-3. Login with sqladmin credentials
-4. Run `restore-dev-sample-data-v2.sql`
 
 ## Development Setup
 
@@ -509,27 +414,23 @@ API_BASE_URL: 'http://localhost:7071/api'
 ### Deployment Issues
 
 **Functions Not Deploying**
-- Run `func azure functionapp publish cat-bootcamp-api --javascript`
+- Run `func azure functionapp publish catbootcamp-api-qa --javascript`
 - Check for syntax errors in function code
 - Verify all dependencies in package.json
 
 **CORS Errors**
 - Add Static Web App URL to Functions app CORS settings:
   ```bash
-  az functionapp cors add --name cat-bootcamp-api \
-    --resource-group cat-bootcamp-rg \
-    --allowed-origins "https://blue-moss-01913f80f.1.azurestaticapps.net"
+  az functionapp cors add --name catbootcamp-api-qa \
+    --resource-group cat-bootcamp-qa-rg \
+    --allowed-origins "https://ashy-rock-0b254600f.4.azurestaticapps.net"
   ```
 
 ## Project Structure
 
 ```
 feedbackapp/
-├── api/                          # Azure Functions backend
-│   ├── GetEvents/               # List events endpoint
-│   ├── GetEventModules/         # List modules for event
-│   ├── SubmitFeedback/          # Submit feedback endpoint
-│   ├── Login/                   # Admin authentication
+├── api/                          # Azure Functions backend (V4)
 │   ├── src/functions/
 │   │   ├── users.js              # User CRUD, roles, event access
 │   │   ├── password.js           # Password change/reset/recovery
@@ -678,7 +579,7 @@ This application is designed with privacy as a core principle:
 - Migrated JWT secrets from hardcoded values to Azure Key Vault
 - Added provisioning scripts (Bash and PowerShell) for Key Vault setup
 - Enabled managed identities on Azure Functions for secure Key Vault access
-- Separate Key Vaults for development and production environments
+- Key Vault for QA environment (`cat-bootcamp-kv-qa`)
 - Enhanced security documentation with Key Vault best practices
 - No code changes required - secrets now managed infrastructure-side
 

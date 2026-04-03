@@ -1,18 +1,18 @@
-# Production Database Initialization
+# Database Initialization
 
 ## Status
-- **Resource Group**: `cat-bootcamp-prod-rg` (Created)
-- **SQL Server**: `cat-bootcamp-sql-prod.database.windows.net` (Created)
-- **SQL Database**: `CATBootcampFeedback-Prod` (Created)
+- **Resource Group**: `cat-bootcamp-qa-rg`
+- **SQL Server**: `cat-bootcamp-sql-qa2.database.windows.net`
+- **SQL Database**: `CATBootcampFeedback-QA`
+- **Key Vault**: `cat-bootcamp-kv-qa`
 - **Schema**: Initialized (current through migration 006)
-- **QA Database**: `cat-bootcamp-sql-qa2.database.windows.net` / `CATBootcampFeedback-QA`
-- **Last Updated**: March 29, 2026
+- **Last Updated**: April 2, 2026
 
 ## Database Connection Details
-- **Server**: `cat-bootcamp-sql-prod.database.windows.net`
-- **Database**: `CATBootcampFeedback-Prod`
+- **Server**: `cat-bootcamp-sql-qa2.database.windows.net`
+- **Database**: `CATBootcampFeedback-QA`
 - **Admin User**: `sqladmin`
-- **Admin Password**: Stored in Azure Key Vault
+- **Admin Password**: Stored in Azure Key Vault (`cat-bootcamp-kv-qa`)
 - **Tier**: Basic (5 DTU, 2GB)
 
 ## Schema Initialization
@@ -21,8 +21,8 @@ The database schema is initialized using `database-init.sql` and then kept curre
 
 ### Method 1: Azure Portal Query Editor
 1. Navigate to the Azure Portal
-2. Go to Resource Groups > `cat-bootcamp-prod-rg`
-3. Select the SQL Database `CATBootcampFeedback-Prod`
+2. Go to Resource Groups > `cat-bootcamp-qa-rg`
+3. Select the SQL Database `CATBootcampFeedback-QA`
 4. Click on "Query editor (preview)" in the left menu
 5. Login with:
    - Username: `sqladmin`
@@ -33,24 +33,24 @@ The database schema is initialized using `database-init.sql` and then kept curre
 
 ### Method 2: SQL Server Management Studio (SSMS)
 1. Open SSMS
-2. Connect to server: `cat-bootcamp-sql-prod.database.windows.net`
+2. Connect to server: `cat-bootcamp-sql-qa2.database.windows.net`
 3. Authentication: SQL Server Authentication
 4. Login: `sqladmin`
 5. Password: (use the provided password)
 6. Once connected, open `database-init.sql`
-7. Execute the script against `CATBootcampFeedback-Prod` database
+7. Execute the script against `CATBootcampFeedback-QA` database
 8. Apply each migration script from the `migrations/` folder in order
 
 ### Method 3: sqlcmd (if available)
 ```bash
-sqlcmd -S cat-bootcamp-sql-prod.database.windows.net -d CATBootcampFeedback-Prod -U sqladmin -P "<password>" -i database-init.sql
+sqlcmd -S cat-bootcamp-sql-qa2.database.windows.net -d CATBootcampFeedback-QA -U sqladmin -P "<password>" -i database-init.sql
 ```
 
 ### Method 4: Visual Studio Code with SQL Server Extension
 1. Install the "SQL Server (mssql)" extension
 2. Create a new connection:
-   - Server: `cat-bootcamp-sql-prod.database.windows.net`
-   - Database: `CATBootcampFeedback-Prod`
+   - Server: `cat-bootcamp-sql-qa2.database.windows.net`
+   - Database: `CATBootcampFeedback-QA`
    - Authentication Type: SQL Login
    - User: `sqladmin`
    - Password: (use the provided password)
@@ -62,71 +62,71 @@ sqlcmd -S cat-bootcamp-sql-prod.database.windows.net -d CATBootcampFeedback-Prod
 
 ### Tables
 
-1. **Events** — Stores bootcamp event information
+1. **Events** -- Stores bootcamp event information
    - EventId (PK, Identity), EventName, EventCode (unique), StartDate, EndDate, TrainingTrack, IsActive
    - CreatedAt, CreatedBy
    - Soft delete support: IsDeleted, DeletedAt, DeletedBy
 
-2. **Modules** — Stores reusable training module definitions
+2. **Modules** -- Stores reusable training module definitions
    - ModuleId (PK, Identity), ModuleName, Description, IsActive
    - CreatedAt, CreatedBy, UpdatedAt, UpdatedBy
 
-3. **EventModules** — Links modules to events with delivery details
+3. **EventModules** -- Links modules to events with delivery details
    - EventModuleId (PK, Identity), EventId (FK to Events), ModuleId (FK to Modules)
    - SpeakerName, SpeakerId (FK to Speakers), DeliveryOrder, DeliveryDate, Notes
    - CreatedAt, CreatedBy
    - UNIQUE constraint on (EventId, ModuleId)
 
-4. **Feedback** — Stores participant feedback for event modules
+4. **Feedback** -- Stores participant feedback for event modules
    - FeedbackId (PK, Identity), EventModuleId (FK to EventModules), EventId, EventCode
    - SpeakerKnowledge (1-5), ContentDepth (enum), ModuleSatisfaction (1-5), AdditionalComments
    - IpAddress, UserAgent (for rate limiting), SubmittedAt
 
-5. **Users** — Application user accounts
+5. **Users** -- Application user accounts
    - UserId (PK, Identity), Username, PasswordHash, FullName, Email, IsActive, IsProtected
    - MustChangePassword, PasswordResetToken, PasswordResetTokenExpiry, LastLoginAt, ProfileImage
    - CreatedAt, CreatedBy, UpdatedAt, UpdatedBy
 
-6. **Roles** — RBAC role definitions
+6. **Roles** -- RBAC role definitions
    - RoleId (PK, Identity), RoleName, Description, IsSystem
    - Seeded roles: GlobalAdmin, UserAdmin, ModuleManager, EventCreator, FeedbackManager, FeedbackViewer
 
-7. **UserRoles** — Maps users to roles
+7. **UserRoles** -- Maps users to roles
    - UserRoleId (PK, Identity), UserId (FK to Users), RoleId (FK to Roles)
    - AssignedAt, AssignedBy
 
-8. **UserEventAccess** — Per-event access grants for users
+8. **UserEventAccess** -- Per-event access grants for users
    - UserEventAccessId (PK, Identity), UserId (FK to Users), EventId (FK to Events)
    - GrantedAt, GrantedBy
 
-9. **AuditLog** — Records security and data-change audit events
+9. **AuditLog** -- Records security and data-change audit events
    - AuditLogId (PK, BIGINT Identity), UserId, Username, Action, ResourceType, ResourceId
    - Summary, Details, IpAddress, Timestamp
 
-10. **Speakers** — Speaker directory
+10. **Speakers** -- Speaker directory
     - SpeakerId (PK, Identity), SpeakerName (unique), Bio, ProfileImage, IsActive
     - CreatedAt, CreatedBy, UpdatedAt, UpdatedBy
 
-11. **EventTemplates** — Reusable event templates
+11. **EventTemplates** -- Reusable event templates
     - TemplateId (PK, Identity), TemplateName, Description, TrainingTrack, IsActive
     - CreatedAt, CreatedBy, UpdatedAt, UpdatedBy
 
-12. **EventTemplateModules** — Modules assigned to an event template
+12. **EventTemplateModules** -- Modules assigned to an event template
     - TemplateModuleId (PK, Identity), TemplateId (FK to EventTemplates), ModuleId (FK to Modules)
     - DeliveryOrder, Notes
     - UNIQUE constraint on (TemplateId, ModuleId)
 
 ### Views
 
-- **vw_EventsWithModules** — Events joined with their modules and speaker information
-- **vw_FeedbackWithDetails** — Feedback joined with event module and speaker details
-- **vw_EventFeedbackCounts** — Aggregated feedback counts per event
-- **vw_UsersWithRoles** — Users joined with their assigned roles
+- **vw_EventsWithModules** -- Events joined with their modules and speaker information
+- **vw_FeedbackWithDetails** -- Feedback joined with event module and speaker details
+- **vw_EventFeedbackCounts** -- Aggregated feedback counts per event
+- **vw_UsersWithRoles** -- Users joined with their assigned roles
 
 ### Stored Procedures
 
-- **sp_GetEventByCode** — Retrieve an event and its modules by event code
-- **sp_GetFeedbackCountByEventCode** — Get feedback count for a given event code
+- **sp_GetEventByCode** -- Retrieve an event and its modules by event code
+- **sp_GetFeedbackCountByEventCode** -- Get feedback count for a given event code
 
 ### Indexes
 - Performance indexes for analytics queries
@@ -177,7 +177,7 @@ SELECT * FROM Roles;
 
 - The firewall is currently configured to allow:
   - Azure services (0.0.0.0)
-  - Your current IP address (107.194.87.63)
+  - Your current IP address (add via Azure Portal as needed)
 - Additional IP addresses can be added via Azure Portal or Azure CLI
 - Consider restricting access further once Functions App is deployed
-- All database secrets must be stored in Azure Key Vault, never in plain text
+- All database secrets must be stored in Azure Key Vault (`cat-bootcamp-kv-qa`), never in plain text

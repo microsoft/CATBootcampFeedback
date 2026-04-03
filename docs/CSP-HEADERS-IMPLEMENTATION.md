@@ -70,7 +70,7 @@ All API responses now include the following security headers:
 The Static Web App already has CSP headers configured in `staticwebapp.config.json`:
 
 ```bash
-curl -I https://blue-moss-01913f80f.1.azurestaticapps.net/admin.html
+curl -I https://ashy-rock-0b254600f.4.azurestaticapps.net/admin.html
 ```
 
 ✅ Verified: All security headers present on frontend pages
@@ -80,10 +80,10 @@ After deployment, verify with:
 
 ```bash
 # Check API endpoint has security headers
-curl -I https://blue-moss-01913f80f.1.azurestaticapps.net/api/events
+curl -I https://ashy-rock-0b254600f.4.azurestaticapps.net/api/events
 
 # Check login endpoint
-curl -I -X POST https://blue-moss-01913f80f.1.azurestaticapps.net/api/login
+curl -I -X POST https://ashy-rock-0b254600f.4.azurestaticapps.net/api/login
 ```
 
 ## Compatibility Notes

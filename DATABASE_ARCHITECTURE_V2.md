@@ -615,17 +615,17 @@ Azure SQL Database provides:
 ```bash
 # Create manual backup
 az sql db copy \
-  --resource-group cat-bootcamp-rg \
-  --server cat-bootcamp-sql-89082 \
-  --name CATBootcampFeedback \
-  --dest-name CATBootcampFeedback_Backup_$(date +%Y%m%d)
+  --resource-group cat-bootcamp-qa-rg \
+  --server cat-bootcamp-sql-qa2 \
+  --name CATBootcampFeedback-QA \
+  --dest-name CATBootcampFeedback-QA_Backup_$(date +%Y%m%d)
 
 # Restore from backup
 az sql db restore \
-  --resource-group cat-bootcamp-rg \
-  --server cat-bootcamp-sql-89082 \
-  --name CATBootcampFeedback \
-  --dest-name CATBootcampFeedback_Restored \
+  --resource-group cat-bootcamp-qa-rg \
+  --server cat-bootcamp-sql-qa2 \
+  --name CATBootcampFeedback-QA \
+  --dest-name CATBootcampFeedback-QA_Restored \
   --time "2026-02-04T12:00:00Z"
 ```
 

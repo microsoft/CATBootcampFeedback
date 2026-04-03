@@ -25,7 +25,7 @@ See `CATBOOTCAMP_CREDENTIALS_SECURE.md` on your local machine (NOT in repo).
 - **Password:** `[REDACTED - See secure credentials file]`
 
 ### Login URL
-https://blue-sea-0b9be530f.1.azurestaticapps.net/admin.html
+https://ashy-rock-0b254600f.4.azurestaticapps.net/admin.html
 
 ---
 
@@ -37,7 +37,7 @@ Sample data has been prepared but needs to be loaded into your Azure SQL Databas
 
 1. **Open Azure Portal**
    - Go to: https://portal.azure.com
-   - Navigate to: SQL databases → CATBootcampFeedback
+   - Navigate to: SQL databases → CATBootcampFeedback-QA
 
 2. **Open Query Editor**
    - Click "Query editor" in the left menu
@@ -55,8 +55,8 @@ Sample data has been prepared but needs to be loaded into your Azure SQL Databas
 ### Option 2: Azure Data Studio
 
 1. **Open Azure Data Studio**
-   - Connect to: `cat-bootcamp-sql-89082.database.windows.net`
-   - Database: `CATBootcampFeedback`
+   - Connect to: `cat-bootcamp-sql-qa2.database.windows.net`
+   - Database: `CATBootcampFeedback-QA`
    - Authentication: Azure Active Directory
 
 2. **Open Script File**
@@ -71,8 +71,8 @@ Sample data has been prepared but needs to be loaded into your Azure SQL Databas
    - Install "SQL Server (mssql)" extension
 
 2. **Connect to Database**
-   - Server: `cat-bootcamp-sql-89082.database.windows.net`
-   - Database: `CATBootcampFeedback`
+   - Server: `cat-bootcamp-sql-qa2.database.windows.net`
+   - Database: `CATBootcampFeedback-QA`
    - Auth: Azure Active Directory
 
 3. **Execute Script**
@@ -90,21 +90,21 @@ Once you've loaded the sample data, you can test with these event codes:
 - **Module Name:** Introduction to CAT Bootcamp
 - **Speaker:** John Doe
 - **Date:** 2026-02-15
-- **Test URL:** https://blue-sea-0b9be530f.1.azurestaticapps.net/feedback.html?code=CSA1B2C3
+- **Test URL:** https://ashy-rock-0b254600f.4.azurestaticapps.net/feedback.html?code=CSA1B2C3
 
 ### Event 2: Advanced Topics in CAT
 - **Event Code:** `CSXYZ789`
 - **Module Name:** Advanced Topics in CAT
 - **Speaker:** Jane Smith
 - **Date:** 2026-02-20
-- **Test URL:** https://blue-sea-0b9be530f.1.azurestaticapps.net/feedback.html?code=CSXYZ789
+- **Test URL:** https://ashy-rock-0b254600f.4.azurestaticapps.net/feedback.html?code=CSXYZ789
 
 ### Event 3: CAT Best Practices
 - **Event Code:** `CSABC456`
 - **Module Name:** CAT Best Practices
 - **Speaker:** Mike Johnson
 - **Date:** 2026-02-25
-- **Test URL:** https://blue-sea-0b9be530f.1.azurestaticapps.net/feedback.html?code=CSABC456
+- **Test URL:** https://ashy-rock-0b254600f.4.azurestaticapps.net/feedback.html?code=CSABC456
 
 ---
 
@@ -115,7 +115,7 @@ Once you've loaded the sample data, you can test with these event codes:
 2. Verify events and feedback were created
 
 ### Step 2: Test Admin Login
-1. Navigate to: https://blue-sea-0b9be530f.1.azurestaticapps.net/admin.html
+1. Navigate to: https://ashy-rock-0b254600f.4.azurestaticapps.net/admin.html
 2. Enter credentials:
    - Username: `admin`
    - Password: `[REDACTED]`
@@ -123,7 +123,7 @@ Once you've loaded the sample data, you can test with these event codes:
 4. You should see the admin dashboard with events and feedback
 
 ### Step 3: Test Feedback Submission
-1. Navigate to: https://blue-sea-0b9be530f.1.azurestaticapps.net/feedback.html?code=CSA1B2C3
+1. Navigate to: https://ashy-rock-0b254600f.4.azurestaticapps.net/feedback.html?code=CSA1B2C3
 2. Fill out the feedback form:
    - Speaker Knowledge: 5/5
    - Content Depth: Just Right
@@ -174,7 +174,7 @@ Once you've loaded the sample data, you can test with these event codes:
 **Solution:**
 You need to manually load the sample data:
 1. Open Azure Portal
-2. Navigate to SQL database: CATBootcampFeedback
+2. Navigate to SQL database: CATBootcampFeedback-QA
 3. Use Query editor to run `load-sample-data.sql`
 4. Refresh admin panel
 
@@ -206,7 +206,7 @@ You need to manually load the sample data:
 ## 🔒 Security Notes
 
 ### Admin Credentials
-- Admin credentials are stored in **Azure Key Vault** (`cat-bootcamp-kv-dev`) as the `ADMIN-USERS-JSON` secret
+- Admin credentials are stored in **Azure Key Vault** (`cat-bootcamp-kv-qa`) as the `ADMIN-USERS-JSON` secret
 - Passwords are bcrypt-hashed (not stored in plaintext)
 - JWT signing secret is also stored in Key Vault (`JWT-SECRET`)
 - All SQL connection details are Key Vault references
@@ -215,10 +215,10 @@ You need to manually load the sample data:
 ### To Update Admin Users
 Users are now managed in the database via the **People & Permissions** tab in the admin UI. From there you can create users, assign roles (GlobalAdmin, UserAdmin, ModuleManager, EventCreator, FeedbackManager, FeedbackViewer), and grant event-level access.
 
-> **Legacy fallback:** The `ADMIN-USERS-JSON` secret in Key Vault is still read during the migration period. To update it manually: update the secret in `cat-bootcamp-kv-dev` Key Vault and restart the Function App.
+> **Legacy fallback:** The `ADMIN-USERS-JSON` secret in Key Vault is still read during the migration period. To update it manually: update the secret in `cat-bootcamp-kv-qa` Key Vault and restart the Function App.
 
 ### Production Recommendations
-1. ~~**Use Azure Key Vault** for storing credentials~~ ✅ Done (dev environment)
+1. ~~**Use Azure Key Vault** for storing credentials~~ ✅ Done (QA environment)
 2. ~~**Implement proper password hashing** (bcrypt, scrypt)~~ ✅ Done
 3. **Add Azure AD authentication** for enterprise security
 4. **Enable MFA** for admin accounts
@@ -290,14 +290,14 @@ If you're still having issues:
 
 1. **Check deployment status:**
    ```bash
-   az staticwebapp show --name cat-bootcamp-feedback --resource-group cat-bootcamp-rg
+   az staticwebapp show --name cat-bootcamp-feedback --resource-group cat-bootcamp-qa-rg
    ```
 
 2. **View deployment logs:**
    - Azure Portal → Static Web Apps → cat-bootcamp-feedback → Deployment History
 
 3. **Check database connectivity:**
-   - Azure Portal → SQL databases → CATBootcampFeedback → Query editor
+   - Azure Portal → SQL databases → CATBootcampFeedback-QA → Query editor
 
 4. **Review documentation:**
    - DEPLOYMENT_SUCCESS_FINAL.md
@@ -315,7 +315,7 @@ If you're still having issues:
 - [ ] Verify feedback appears in admin panel
 - [ ] Test QR code generation
 - [ ] Test CSV export
-- [ ] Change admin passwords for production
+- [ ] Change admin passwords for QA
 - [ ] Create additional users with appropriate roles via People & Permissions tab
 - [ ] Verify RBAC by logging in with different role accounts
 - [ ] Check audit log captures actions

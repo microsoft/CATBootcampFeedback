@@ -2,12 +2,12 @@
 
 **Version:** 5.0
 **Last Updated:** March 29, 2026
-**Status:** Production (Deployed)
+**Status:** QA (Deployed)
 
-## Production Deployment
+## QA Deployment
 
-**Frontend:** https://blue-moss-01913f80f.1.azurestaticapps.net
-**Backend API:** https://cat-bootcamp-api.azurewebsites.net/api
+**Frontend:** https://ashy-rock-0b254600f.4.azurestaticapps.net
+**Backend API:** https://catbootcamp-api-qa.azurewebsites.net/api
 **Architecture:** Azure Static Web App + Separate Azure Functions App
 **Database:** Azure SQL (V2 Schema - Many-to-Many)
 
@@ -552,16 +552,16 @@ Events (1) ←→ (many) EventModules (many) ←→ (1) Modules
 ### Backend API
 
 #### Technology Stack
-- **Platform**: **Separate Azure Functions App** (cat-bootcamp-api)
+- **Platform**: **Separate Azure Functions App** (catbootcamp-api-qa)
   - **Why Separate?** Azure Static Web Apps' managed functions have limited support for custom routes with path parameters. A separate Functions app provides full RESTful routing capabilities.
 - **Runtime**: Node.js 20 (Linux Consumption Plan)
-- **URL**: https://cat-bootcamp-api.azurewebsites.net/api
-- **Database**: Azure SQL Database (cat-bootcamp-sql-89082)
+- **URL**: https://catbootcamp-api-qa.azurewebsites.net/api
+- **Database**: Azure SQL Database (cat-bootcamp-sql-qa2)
 - **Authentication**: Simple token-based for admin endpoints
 
 #### API Endpoints
 
-**Base URL:** https://cat-bootcamp-api.azurewebsites.net/api
+**Base URL:** https://catbootcamp-api-qa.azurewebsites.net/api
 
 **Note:** The frontend calls `/api/events` and filters client-side to get specific event/module data. This approach works around the limitation that some custom route parameters didn't deploy properly with the separate Functions app.
 
@@ -759,7 +759,7 @@ POST   /api/notifications/feedback-summary
 ##### Environment Detection
 The application automatically detects the environment and uses appropriate data sources:
 - **Development** (localhost/127.0.0.1): Uses mock data stored in localStorage
-- **Production** (azurestaticapps.net): Uses real Azure SQL database via API
+- **QA** (azurestaticapps.net): Uses real Azure SQL database via API
 - Detection logic: `const USE_MOCK_DATA = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';`
 
 ##### API Response Format
@@ -1083,7 +1083,7 @@ The application implements client-side rate limiting to prevent abuse and enhanc
 
 ### Deployment Architecture
 
-#### Current Deployment (Production)
+#### Current Deployment (QA)
 
 **Architecture:** Azure Static Web App + Separate Azure Functions App
 
@@ -1092,8 +1092,8 @@ The application implements client-side rate limiting to prevent abuse and enhanc
 │ Azure Static Web App             │
 │ (Frontend Hosting)               │
 │ - Name: cat-bootcamp-feedback    │
-│ - URL: blue-moss-01913f80f       │
-│   .1.azurestaticapps.net         │
+│ - URL: ashy-rock-0b254600f       │
+│   .4.azurestaticapps.net         │
 │ - Auto-deploy from GitHub        │
 └──────────────────────────────────┘
             │
@@ -1102,8 +1102,8 @@ The application implements client-side rate limiting to prevent abuse and enhanc
 ┌──────────────────────────────────┐
 │ Azure Functions App              │
 │ (Separate Backend)               │
-│ - Name: cat-bootcamp-api         │
-│ - URL: cat-bootcamp-api          │
+│ - Name: catbootcamp-api-qa       │
+│ - URL: catbootcamp-api-qa        │
 │   .azurewebsites.net             │
 │ - Runtime: Node.js 20 (Linux)    │
 │ - Plan: Consumption (Serverless) │
@@ -1113,8 +1113,8 @@ The application implements client-side rate limiting to prevent abuse and enhanc
             ↓
 ┌──────────────────────────────────┐
 │ Azure SQL Database               │
-│ - Server: cat-bootcamp-sql-89082 │
-│ - Database: CATBootcampFeedback  │
+│ - Server: cat-bootcamp-sql-qa2   │
+│ - Database: CATBootcampFeedback-QA │
 │ - Schema: V2 (Many-to-Many)      │
 └──────────────────────────────────┘
 ```
@@ -1534,10 +1534,10 @@ Are you sure you want to continue?
 The application is deployed using Azure Static Web Apps with integrated Azure Functions:
 
 **Resources**:
-- Resource Group: `cat-bootcamp-rg`
-- SQL Server: `cat-bootcamp-sql-89082.database.windows.net`
-- Database: `CATBootcampFeedback`
-- Static Web App: `cat-bootcamp-feedback` (blue-sea-0b9be530f.1.azurestaticapps.net)
+- Resource Group: `cat-bootcamp-qa-rg`
+- SQL Server: `cat-bootcamp-sql-qa2.database.windows.net`
+- Database: `CATBootcampFeedback-QA`
+- Static Web App: `cat-bootcamp-feedback` (ashy-rock-0b254600f.4.azurestaticapps.net)
 
 **Stack**:
 - Frontend: HTML5, CSS3, Vanilla JavaScript (served by Azure Static Web Apps)

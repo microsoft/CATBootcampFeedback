@@ -2,35 +2,29 @@
 
 ## Overview
 
-This document outlines the strategy for managing database schema changes and data migrations for the CATBootcampFeedback application across development and production environments.
+This document outlines the strategy for managing database schema changes and data migrations for the CATBootcampFeedback application.
 
 ## Environment Details
 
-### Development Environment
-- **Server:** cat-bootcamp-sql-89082.database.windows.net
-- **Database:** CATBootcampFeedback
-- **Resource Group:** cat-bootcamp-rg
-- **Purpose:** Testing, development, and sample data validation
-- **Data:** Contains sample data for testing
-
-### Production Environment
-- **Server:** cat-bootcamp-sql-prod.database.windows.net
-- **Database:** CATBootcampFeedback-Prod
-- **Resource Group:** cat-bootcamp-prod-rg
-- **Purpose:** Live application data
-- **Data:** Real event and feedback data only
+### QA Environment
+- **Server:** cat-bootcamp-sql-qa2.database.windows.net
+- **Database:** CATBootcampFeedback-QA
+- **Resource Group:** cat-bootcamp-qa-rg
+- **Key Vault:** cat-bootcamp-kv-qa
+- **Purpose:** Application environment for testing and live use
+- **Data:** Event and feedback data
 
 ## Database Schema Management
 
 ### Schema Initialization
 
-**Production Database Setup:**
+**Database Setup:**
 1. Navigate to Azure Portal (https://portal.azure.com)
-2. Open **CATBootcampFeedback-Prod** database
+2. Open **CATBootcampFeedback-QA** database
 3. Open **Query editor (preview)**
 4. Login with SQL authentication:
    - Username: `sqladmin`
-   - Password: (stored in Azure Key Vault or secure location)
+   - Password: (stored in Azure Key Vault `cat-bootcamp-kv-qa`)
 5. Run: `database-init-PORTAL-ALL-IN-ONE.sql`
 
 **What gets created:**
@@ -51,7 +45,7 @@ CATBootcampFeedback/
 ├── database-init-part4-views3.sql
 ├── database-init-part5-sp1.sql
 ├── database-init-part6-sp2.sql
-├── restore-dev-sample-data-v2.sql       (Dev sample data only)
+├── restore-dev-sample-data-v2.sql       (Sample data)
 ├── database-cleanup.sql                 (Drop all objects)
 ├── migrations/
 │   ├── rename-cohort-to-training-track.sql
@@ -65,59 +59,30 @@ CATBootcampFeedback/
 
 **Making Schema Changes:**
 
-1. **Develop in Dev First:**
-   - Make and test changes in development database
-   - Document changes in SQL script files
-   - Test with sample data
-
-2. **Create Migration Script:**
+1. **Create Migration Script:**
    - Create new migration script with clear naming: `migration-YYYY-MM-DD-description.sql`
    - Include DROP IF EXISTS for modified objects
    - Use EXEC() wrapper for CREATE VIEW/PROCEDURE statements
 
-3. **Test Migration:**
-   - Test on dev database first
+2. **Test Migration:**
+   - Test on QA database
    - Verify existing data remains intact
    - Verify API functions correctly
 
-4. **Apply to Production:**
+3. **Apply Migration:**
    - Schedule maintenance window (if needed)
-   - Backup production database first
+   - Backup database first
    - Run migration script via Azure Portal Query Editor
-   - Verify production API functionality
+   - Verify API functionality
    - Document completion in deployment log
 
 ## Data Migration Strategy
 
-### Development to Production
-
-**IMPORTANT:** Sample data should NEVER be migrated to production.
-
-**Real Data Migration (if needed):**
-
-1. **Export from Dev:**
-   ```sql
-   -- Export specific events/modules (not sample data)
-   SELECT * FROM Events WHERE EventCode IN ('REALCODE1', 'REALCODE2');
-   SELECT * FROM Modules WHERE ModuleId IN (real_ids);
-   ```
-
-2. **Manual Entry in Production:**
-   - Use admin UI to create events
-   - Use admin UI to assign modules
-   - Never use `restore-dev-sample-data-v2.sql` in production
-
-3. **Bulk Import (if needed):**
-   - Create production-specific data script
-   - Follow same OUTPUT/table variable pattern as sample data script
-   - Test thoroughly in dev first
-   - Review all data before running in production
-
 ### Data Seeding
 
-**Development:** Use `restore-dev-sample-data-v2.sql` to populate sample data
+Use `restore-dev-sample-data-v2.sql` to populate sample data for testing.
 
-**Production:** No automatic seeding. Data comes from:
+Real data comes from:
 - Admin UI for creating events and modules
 - Public feedback form submissions
 - Manual SQL scripts for specific scenarios (approved by admin)
@@ -137,9 +102,9 @@ Before any schema migration:
 ```bash
 # Via Azure CLI
 az sql db export \
-  --resource-group cat-bootcamp-prod-rg \
-  --server cat-bootcamp-sql-prod \
-  --name CATBootcampFeedback-Prod \
+  --resource-group cat-bootcamp-qa-rg \
+  --server cat-bootcamp-sql-qa2 \
+  --name CATBootcampFeedback-QA \
   --admin-user sqladmin \
   --admin-password <password> \
   --storage-key-type SharedAccessKey \
@@ -162,7 +127,7 @@ az sql db export \
 
 **Data Rollback:**
 
-1. Navigate to Azure Portal → CATBootcampFeedback-Prod
+1. Navigate to Azure Portal -> CATBootcampFeedback-QA
 2. Select **Restore** from top menu
 3. Choose point-in-time or manual backup
 4. Restore to new database name first, verify, then swap
@@ -171,29 +136,20 @@ az sql db export \
 
 ### Environment Variables
 
-**Development Functions App (cat-bootcamp-api):**
+**Functions App (catbootcamp-api-qa) -- resolved from Key Vault:**
 ```
-SQL_SERVER=cat-bootcamp-sql-89082.database.windows.net
-SQL_DATABASE=CATBootcampFeedback
-SQL_USER=sqladmin
-SQL_PASSWORD=<dev-password>
-```
-
-**Production Functions App (cat-bootcamp-api-prod):**
-```
-SQL_SERVER=cat-bootcamp-sql-prod.database.windows.net
-SQL_DATABASE=CATBootcampFeedback-Prod
-SQL_USER=sqladmin
-SQL_PASSWORD=<prod-password>
+SQL_SERVER=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-qa;SecretName=SQL-SERVER)
+SQL_DATABASE=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-qa;SecretName=SQL-DATABASE)
+SQL_USER=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-qa;SecretName=SQL-USER)
+SQL_PASSWORD=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-qa;SecretName=SQL-PASSWORD)
 ```
 
 ### Security Best Practices
 
 1. **Never commit passwords** to version control
-2. **Use different passwords** for dev and prod
-3. **Rotate passwords** quarterly
-4. **Use Azure Key Vault** for production secrets (future enhancement)
-5. **Enable SQL auditing** in production
+2. **Rotate passwords** quarterly
+3. **Use Azure Key Vault** for all secrets (`cat-bootcamp-kv-qa`)
+4. **Enable SQL auditing**
 
 ## Azure Portal Query Editor Limitations
 
@@ -227,12 +183,12 @@ After any schema change, verify:
 
 1. **API Health:**
    ```bash
-   curl https://cat-bootcamp-api-prod.azurewebsites.net/api/health
+   curl https://catbootcamp-api-qa.azurewebsites.net/api/health
    ```
 
 2. **Event Retrieval:**
    ```bash
-   curl https://cat-bootcamp-api-prod.azurewebsites.net/api/events
+   curl https://catbootcamp-api-qa.azurewebsites.net/api/events
    ```
 
 3. **Database Objects:**
@@ -245,7 +201,7 @@ After any schema change, verify:
    SELECT 'Stored Procedures', COUNT(*)
    FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_TYPE = 'PROCEDURE';
 
-   -- Expected: Tables=9, Views=4, Stored Procedures=2
+   -- Expected: Tables=12, Views=4, Stored Procedures=2
    ```
 
 4. **Sample Query:**
@@ -260,40 +216,40 @@ Monitor Azure Functions logs for database errors:
 
 ```bash
 az functionapp logs tail \
-  --name cat-bootcamp-api-prod \
-  --resource-group cat-bootcamp-prod-rg
+  --name catbootcamp-api-qa \
+  --resource-group cat-bootcamp-qa-rg
 ```
 
 ## Change Log
 
-| Date | Environment | Change Description | Script Used | Applied By |
-|------|-------------|-------------------|-------------|------------|
-| 2026-02-06 | Production | Initial schema setup | database-init-PORTAL-ALL-IN-ONE.sql | System Admin |
-| 2026-02-06 | Development | Sample data restoration | restore-dev-sample-data-v2.sql | System Admin |
-| 2026-03 | Both | User management & RBAC tables | migrations/002-add-user-management.sql | System Admin |
-| 2026-03 | Both | ProfileImage column on Users | migrations/003-add-profile-image.sql | System Admin |
-| 2026-03 | Both | AuditLog table | migrations/004-add-audit-log.sql | System Admin |
-| 2026-03 | Both | Widen EventCode to NVARCHAR(50) | migrations/005-widen-event-code.sql | System Admin |
+| Date | Change Description | Script Used | Applied By |
+|------|-------------------|-------------|------------|
+| 2026-02-06 | Initial schema setup | database-init-PORTAL-ALL-IN-ONE.sql | System Admin |
+| 2026-02-06 | Sample data restoration | restore-dev-sample-data-v2.sql | System Admin |
+| 2026-03 | User management & RBAC tables | migrations/002-add-user-management.sql | System Admin |
+| 2026-03 | ProfileImage column on Users | migrations/003-add-profile-image.sql | System Admin |
+| 2026-03 | AuditLog table | migrations/004-add-audit-log.sql | System Admin |
+| 2026-03 | Widen EventCode to NVARCHAR(50) | migrations/005-widen-event-code.sql | System Admin |
 
 ---
 
 ## Quick Reference
 
-**Initialize Production Schema:**
+**Initialize Schema:**
 ```sql
--- Run in Azure Portal Query Editor on CATBootcampFeedback-Prod
+-- Run in Azure Portal Query Editor on CATBootcampFeedback-QA
 -- Use: database-init-PORTAL-ALL-IN-ONE.sql
 ```
 
-**Restore Dev Sample Data:**
+**Restore Sample Data:**
 ```sql
--- Run in Azure Portal Query Editor on CATBootcampFeedback (dev)
+-- Run in Azure Portal Query Editor on CATBootcampFeedback-QA
 -- Use: restore-dev-sample-data-v2.sql
 ```
 
 **Backup Before Changes:**
 ```bash
-az sql db export --resource-group cat-bootcamp-prod-rg --server cat-bootcamp-sql-prod --name CATBootcampFeedback-Prod ...
+az sql db export --resource-group cat-bootcamp-qa-rg --server cat-bootcamp-sql-qa2 --name CATBootcampFeedback-QA ...
 ```
 
 **Verify Schema:**

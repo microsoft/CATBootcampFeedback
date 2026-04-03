@@ -156,10 +156,9 @@ GlobalAdmin users can view the audit log via `GET /api/audit-log`. The viewer su
 
 ### Key Vault Resources
 
-| Environment | Key Vault Name | Function App | Secrets |
-|------------|---------------|--------------|---------|
-| Development | `cat-bootcamp-kv-dev` | `cat-bootcamp-api-win` | `JWT-SECRET`, `SQL-SERVER`, `SQL-DATABASE`, `SQL-USER`, `SQL-PASSWORD`, `ADMIN-USERS-JSON`, `ACS-CONNECTION-STRING` |
-| Production | `cat-bootcamp-kv-prod` | `cat-bootcamp-api-prod` | `JWT-SECRET` (TODO: migrate remaining secrets) |
+| Key Vault Name | Function App | Secrets |
+|---------------|--------------|---------|
+| `cat-bootcamp-kv-qa` | `catbootcamp-api-qa` | `JWT-SECRET`, `SQL-SERVER`, `SQL-DATABASE`, `SQL-USER`, `SQL-PASSWORD`, `ADMIN-USERS-JSON`, `ACS-CONNECTION-STRING` |
 
 ### How It Works
 
@@ -167,7 +166,7 @@ GlobalAdmin users can view the audit log via `GET /api/audit-log`. The viewer su
 2. **Access Policy**: Key Vault grants the identity `get` and `list` permissions
 3. **Key Vault Reference**: Function App settings use special syntax:
    ```
-   JWT_SECRET=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-dev;SecretName=JWT-SECRET)
+   JWT_SECRET=@Microsoft.KeyVault(VaultName=cat-bootcamp-kv-qa;SecretName=JWT-SECRET)
    ```
 4. **Automatic Resolution**: Azure Functions runtime automatically fetches the secret value at startup
 5. **Application Access**: Code reads from `process.env.JWT_SECRET` as usual
@@ -179,7 +178,7 @@ GlobalAdmin users can view the audit log via `GET /api/audit-log`. The viewer su
 2. **Encryption at Rest**: All secrets encrypted in Key Vault
 3. **Least Privilege**: Function Apps only have read access to specific secrets
 4. **Audit Trail**: All secret access logged to Azure Monitor
-5. **Separate Secrets**: Dev and prod environments completely isolated
+5. **Isolated Secrets**: Secrets stored securely in dedicated Key Vault
 6. **Automatic Rotation**: Secrets can be rotated without code deployment
 
 ### Provisioning
@@ -246,19 +245,14 @@ PUT /api/users/me/password
 - Resource-level filtering via UserEventAccess table
 - Token expiration enforced (8 hours)
 - Issuer and audience claims validated
-- HTTPS enforced in production
+- HTTPS enforced
 - CORS restricted to admin frontend origin
 
 ### CORS Configuration
 
-**Development:**
+**QA Environment:**
 ```
-Allowed Origins: https://blue-moss-01913f80f.1.azurestaticapps.net
-```
-
-**Production:**
-```
-Allowed Origins: https://lively-ocean-076d52c0f.2.azurestaticapps.net
+Allowed Origins: https://ashy-rock-0b254600f.4.azurestaticapps.net
 ```
 
 **Methods Allowed:**
@@ -305,8 +299,8 @@ Authentication errors return consistent responses:
 **Connection Security:**
 ```javascript
 // Encrypted connection string
-server=cat-bootcamp-sql-prod.database.windows.net;
-database=CATBootcampFeedback-Prod;
+server=cat-bootcamp-sql-qa2.database.windows.net;
+database=CATBootcampFeedback-QA;
 user id=sqladmin;
 password=***;
 encrypt=true;
@@ -354,12 +348,10 @@ trustServerCertificate=false;
 ### Secrets Management
 
 **GitHub Secrets (for CI/CD):**
-- `AZURE_FUNCTIONAPP_PUBLISH_PROFILE` - Dev Function App deployment
-- `AZURE_FUNCTIONAPP_PUBLISH_PROFILE_PROD` - Prod Function App deployment
-- `AZURE_STATIC_WEB_APPS_API_TOKEN` - Dev Static Web App deployment
-- `AZURE_STATIC_WEB_APPS_API_TOKEN_PROD` - Prod Static Web App deployment
+- `AZURE_FUNCTIONAPP_PUBLISH_PROFILE` - QA Function App deployment
+- `AZURE_STATIC_WEB_APPS_API_TOKEN` - QA Static Web App deployment
 
-**Azure Function App Settings (resolved from Key Vault in dev):**
+**Azure Function App Settings (resolved from Key Vault):**
 - `JWT_SECRET` - Key Vault reference → `JWT-SECRET`
 - `JWT_EXPIRY` - Token expiration time (plain text, not secret)
 - `SQL_SERVER` - Key Vault reference → `SQL-SERVER`
@@ -375,17 +367,11 @@ Email is sent via **Azure Communication Services (ACS)** using an Azure-managed 
 
 ### Environment Isolation
 
-**Development Environment:**
-- Separate Azure resources
-- Test data only
-- Less restrictive branch protection
+**QA Environment:**
+- Dedicated Azure resource group (`cat-bootcamp-qa-rg`)
+- All secrets in Key Vault (`cat-bootcamp-kv-qa`)
 - Auto-deployment from main branch
-
-**Production Environment:**
-- Dedicated Azure resources
-- Real user data
-- Strict branch protection (1 required approval)
-- Manual deployment with approval gate
+- HTTPS enforced on all endpoints
 
 ### HTTPS Enforcement
 
@@ -404,7 +390,7 @@ Email is sent via **Azure Communication Services (ACS)** using an Azure-managed 
 3. **Validate all inputs** on both client and server
 4. **Follow principle of least privilege** for permissions
 5. **Keep dependencies updated** (npm audit regularly)
-6. **Test authentication** before deploying to production
+6. **Test authentication** before deploying
 
 ### For Administrators
 
@@ -419,7 +405,7 @@ Email is sent via **Azure Communication Services (ACS)** using an Azure-managed 
 
 1. **Require pull request reviews** before merging
 2. **Run security scans** in CI/CD pipeline
-3. **Separate dev and prod** GitHub secrets
+3. **Secure** GitHub secrets for QA deployment
 4. **Use managed identities** wherever possible
 5. **Enable Azure Defender** for all resources
 6. **Configure alerts** for suspicious activity
@@ -440,12 +426,7 @@ Email is sent via **Azure Communication Services (ACS)** using an Azure-managed 
 
 2. **Update Key Vault:**
    ```bash
-   # Development
-   az keyvault secret set --vault-name cat-bootcamp-kv-dev \
-     --name JWT-SECRET --value "NEW_SECRET_HERE"
-
-   # Production
-   az keyvault secret set --vault-name cat-bootcamp-kv-prod \
+   az keyvault secret set --vault-name cat-bootcamp-kv-qa \
      --name JWT-SECRET --value "NEW_SECRET_HERE"
    ```
 
@@ -471,7 +452,7 @@ Email is sent via **Azure Communication Services (ACS)** using an Azure-managed 
 
 ### Suspected JWT Secret Compromise
 
-1. **Immediately rotate secret** in Key Vault (both dev and prod)
+1. **Immediately rotate secret** in Key Vault (`cat-bootcamp-kv-qa`)
 2. **Review audit logs** for unauthorized access
 3. **Force logout all admins** (secrets change invalidates all tokens)
 4. **Investigate attack vector** and patch vulnerability
@@ -527,5 +508,5 @@ All security-relevant events are logged to the **AuditLog table** in the databas
 
 ---
 
-**Last Updated:** March 29, 2026
+**Last Updated:** April 2, 2026
 **Version:** 5.0
