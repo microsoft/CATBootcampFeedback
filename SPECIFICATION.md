@@ -1,7 +1,7 @@
 # CAT Bootcamp Feedback Application - Specification
 
-**Version:** 5.0
-**Last Updated:** March 29, 2026
+**Version:** 5.1
+**Last Updated:** April 2, 2026
 **Status:** Production (Deployed)
 
 ## Production Deployment
@@ -322,6 +322,21 @@ Each feedback submission should be associated with:
     - Too Low Level (percentage and count)
   - **Auto-refresh**: Updates every 30 seconds with smooth animations
   - **Last Updated**: Timestamp showing when data was last refreshed
+- **Theme System**:
+  - **Classic** (default): Progress ring counter with confetti-based celebrations
+  - **Feed the Cat**: Cartoon cat progresses through 6 visual stages as feedback count grows:
+    - Stage 0%: Skinny sad cat begging for food
+    - Stage 10%: Cat with food bowl, hopeful
+    - Stage 25%: Smiling chubby cat, content
+    - Stage 50%: Happy dancing cat celebrating
+    - Stage 75%: Tuxedo cat holding platter of gourmet food
+    - Stage 100%: Extremely fat cat on couch eating cheetos
+  - Theme selector in footer to switch between themes
+  - Each theme has its own set of encouraging messages
+  - Theme choice persists via sessionStorage
+  - Cat theme includes: food drop animation, "nom nom" munching sound, progress bar, and milestone cat bounce animation
+  - Cat images fill available vertical space via responsive flex layout
+  - Image assets: `cat-stage-0.png`, `cat-stage-10.png`, `cat-stage-25.png`, `cat-stage-50.png`, `cat-stage-75.png`, `cat-stage-100.png`
 - **Display Features**:
   - QR code for attendees to quickly access feedback form
   - Event and module information header
@@ -332,7 +347,7 @@ Each feedback submission should be associated with:
     - 10 seconds (moderate)
     - 15 seconds (default, balanced)
     - 30 seconds (conserves bandwidth)
-  - Fullscreen mode toggle for projection
+  - Fullscreen mode toggle for projection — all celebration visuals (confetti, screen glow, sound banner) render inside the fullscreen container
   - Visual status indicator showing live update status
   - Responsive layout optimized for projection displays
   - High-contrast design for visibility in presentation environments
@@ -1071,6 +1086,7 @@ The application implements client-side rate limiting to prevent abuse and enhanc
   - JWT tokens with expiration
   - Secure, httpOnly cookies
   - Session stored in sessionStorage (not localStorage)
+  - Auto-redirect to login on token expiry — `apiRequest` detects 401 expired-token responses, clears session, and redirects to login page
 - **HTTPS Only**: Force SSL/TLS
 - **Audit Logging**: Track all admin actions
 
@@ -1293,9 +1309,18 @@ Where:
   - [ ] If module-level selected, show module selector
   - [ ] Update URL with selected parameters after selection
   - [ ] Hide selection interface after setup for clean presentation view
+- [x] **Theme System**:
+  - [x] Classic theme with progress ring (default)
+  - [x] Feed the Cat theme with 6-stage cat progression
+  - [x] Theme selector in footer
+  - [x] Theme-specific encouraging messages
+  - [x] Theme persistence via sessionStorage
+  - [x] Cat theme: food drop animation, "nom nom" sound, progress bar, milestone bounce
+  - [x] Cat images scale responsively via flex layout
 - [ ] **General Display Behavior**:
   - [x] Handle zero feedback gracefully (display 0)
   - [x] Fullscreen mode toggle for presentations
+  - [x] Celebration visuals (confetti, glow, sound banner) render inside fullscreen container
   - [x] Last updated timestamp display
   - [x] Animated count transitions when numbers change
   - [ ] Responsive design for various screen sizes

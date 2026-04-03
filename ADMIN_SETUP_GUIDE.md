@@ -141,7 +141,7 @@ Once you've loaded the sample data, you can test with these event codes:
 - ✅ Create a new event
 - ✅ Generate QR code
 - ✅ Export feedback to CSV
-- ✅ View live count display
+- ✅ View live count display (test both Classic and Feed the Cat themes via footer selector)
 - ✅ Search and filter events
 - ✅ Test user creation and role assignment (People & Permissions tab)
 - ✅ Test RBAC restrictions (login as different roles to verify access limits)

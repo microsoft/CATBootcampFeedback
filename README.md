@@ -110,20 +110,24 @@ Azure Static Web Apps' managed functions have **limited support for custom route
 
 ### Live Count Display (count.html)
 
+- **Dual theme system** — selectable from the footer:
+  - **Classic** (default): Progress ring counter with confetti celebrations
+  - **Feed the Cat**: Cute cartoon cat progresses through 6 stages as feedback grows — from a skinny hungry cat (0%) to an extremely full cat on the couch (100%). Includes food drop animation, "nom nom" munching sound, progress bar, and milestone bounce animation
+- **Theme persistence** — selected theme saved to sessionStorage across page refreshes
 - **Real-time feedback count** with configurable auto-refresh (5, 10, 15, or 30 seconds; default: 5 seconds)
 - **3 Celebration Levels** — selectable from the footer:
   - **Chill** (default): Small confetti burst + floating cat emoji + gentle chime
   - **Party**: Medium confetti + cat parade + duck waddling across screen + screen glow + fanfare
   - **Chaos**: Massive confetti + cat army + duck squad + bonus emojis + screen shake + wild sounds
 - **Fireworks at milestones** (10, 25, 50, 75, 100, 150, 200, 300, 500) — scaled by celebration level
-- **Cat-themed encouragement messages** — rotating puns displayed in large, room-readable font
+- **Cat-themed encouragement messages** — each theme has its own rotating puns displayed in large, room-readable font
 - **Cat-themed milestone messages** — celebratory cat puns at each threshold
-- **Sound effects** — toggle on/off from footer; includes chimes, fanfares, firework launches and explosions
+- **Sound effects** — toggle on/off from footer; Classic theme uses chimes, fanfares, and firework sounds; Feed the Cat theme uses "nom nom" munching sounds
 - **Module or Event view modes:**
   - Module-specific: Stats for a single module delivery
   - Event-level: Aggregate stats across all modules in an event
 - **Configurable refresh interval** - Select update frequency from dropdown (default: 5 seconds)
-- **Fullscreen mode** for projection during presentations
+- **Fullscreen mode** for projection during presentations — all celebration visuals (confetti, glow, sound banner) render correctly inside fullscreen
 - **Visual indicators** for live update status
 - **QR code display** for easy attendee access (fireworks constrained to left panel to keep QR scannable)
 
@@ -555,10 +559,11 @@ feedbackapp/
 ├── feedback.js                  # Feedback form logic
 ├── admin.html                   # Admin interface
 ├── admin.js                     # Admin functionality
-├── count.html                   # Live analytics dashboard
-├── count.js                     # Real-time analytics and count logic
+├── count.html                   # Live analytics dashboard (Classic + Feed the Cat themes)
+├── count.js                     # Real-time analytics, count logic, and theme management
+├── cat-stage-*.png              # Cat mascot images for Feed the Cat theme (6 stages: 0–100%)
 ├── config.js                    # Centralized configuration
-├── api.js                       # API client with retry logic
+├── api.js                       # API client with retry logic and token expiry handling
 ├── styles.css                   # Shared styling
 ├── staticwebapp.config.json     # Static Web App config
 ├── README.md                    # This file
@@ -568,7 +573,7 @@ feedbackapp/
 ## Key Files
 
 - **`config.js`** - Central configuration (API URLs, validation rules)
-- **`api.js`** - API client with error handling and retry logic
+- **`api.js`** - API client with error handling, retry logic, and auto-redirect on token expiry
 - **`staticwebapp.config.json`** - Routing, CORS, security headers
 - **`api/host.json`** - Azure Functions runtime settings
 - **`api/src/shared/database.js`** - SQL connection and query helper
@@ -608,7 +613,7 @@ This application is designed with privacy as a core principle:
 - **Comprehensive audit logging** of all admin actions
 - **Per-email rate limiting** on password/username recovery
 - **Protected Global Admin account** (cannot be deleted or demoted)
-- Session tokens with 8-hour expiration
+- Session tokens with 8-hour expiration (auto-redirect to login on expiry)
 - HTTPS enforced
 - CORS configured for Static Web App only
 
@@ -630,6 +635,17 @@ This application is designed with privacy as a core principle:
 - ❌ IE11 (not supported)
 
 ## Version History
+
+**Version 5.1** (Apr 2, 2026)
+- **Feed the Cat Counter Theme**
+- New "Feed the Cat" theme for the live counter page with a cartoon cat that progresses through 6 stages (0%, 10%, 25%, 50%, 75%, 100%) as feedback count grows
+- Theme selector in footer to switch between Classic (progress ring) and Feed the Cat
+- Each theme has its own encouraging messages and sound effects
+- "Nom nom" munching sound, food drop animation, progress bar, and milestone cat bounce animation
+- Cat images fill available vertical space via responsive flex layout
+- Theme choice persists via sessionStorage
+- **Auto-redirect on token expiry** — expired JWT sessions now automatically clear and redirect to login instead of showing broken admin panel
+- **Fullscreen celebration fix** — confetti, screen glow, and sound banner now render correctly inside fullscreen mode
 
 **Version 5.0** (Mar 29, 2026)
 - **RBAC User Management System**

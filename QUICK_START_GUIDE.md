@@ -119,7 +119,7 @@ git push origin main
 After deployment completes:
 
 - **Feedback Form**: https://blue-sea-0b9be530f.1.azurestaticapps.net/feedback.html?code=CSA1B2C3
-- **Live Count Display**: https://blue-sea-0b9be530f.1.azurestaticapps.net/count.html?code=CSA1B2C3
+- **Live Count Display**: https://blue-sea-0b9be530f.1.azurestaticapps.net/count.html?code=CSA1B2C3 (supports Classic and Feed the Cat themes via footer selector)
 - **Admin Panel**: https://blue-sea-0b9be530f.1.azurestaticapps.net/admin.html
 
 ---

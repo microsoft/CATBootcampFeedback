@@ -1,6 +1,6 @@
 # CAT Bootcamp Feedback - Deployment Guide
 
-**Last Updated:** February 9, 2026
+**Last Updated:** April 2, 2026
 **Architecture:** Separate Azure Functions App (v3.0)
 
 ## Overview
@@ -89,7 +89,7 @@ on:
 **Process:**
 1. GitHub Actions detects push to `main`
 2. Checks out code
-3. Builds static assets (none required - vanilla HTML/CSS/JS)
+3. Builds static assets (none required - vanilla HTML/CSS/JS, includes cat theme images `cat-stage-*.png`)
 4. Deploys to Azure Static Web Apps
 5. Updates live site (~90 seconds total)
 
@@ -282,6 +282,12 @@ az functionapp cors add --name cat-bootcamp-api \
 az functionapp cors show --name cat-bootcamp-api \
   --resource-group cat-bootcamp-rg
 ```
+
+### Admin Session Expires Unexpectedly
+
+**Symptom:** User is automatically redirected to login page while using admin panel
+
+**Explanation:** JWT tokens have an 8-hour expiration. As of v5.1, `apiRequest` in `api.js` detects 401 expired-token responses and automatically clears the session and redirects to the login page. This is expected behavior — the user simply needs to log in again.
 
 ### API Returning 404
 
