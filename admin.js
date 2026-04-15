@@ -2966,9 +2966,39 @@ function navigateToFeedbackWithFilters() {
 }
 
 // Export feedback to CSV (with proper escaping)
+// Exports only filtered data when filters are active, otherwise all feedback
 function exportFeedbackToCSV() {
     if (allFeedback.length === 0) {
         showNotification('Info', 'No feedback to export.', 'info');
+        return;
+    }
+
+    // Apply current filters to determine what to export
+    const eventFilter = document.getElementById('filterEvent').value;
+    const moduleFilter = document.getElementById('filterModule').value;
+    const speakerFilter = document.getElementById('filterSpeaker').value;
+    const ratingFilter = document.getElementById('filterRating').value;
+    const sortOption = document.getElementById('sortFeedback').value;
+
+    let feedbackToExport = allFeedback;
+
+    if (eventFilter) {
+        feedbackToExport = feedbackToExport.filter(fb => fb.eventCode === eventFilter);
+    }
+    if (moduleFilter) {
+        feedbackToExport = feedbackToExport.filter(fb => fb.moduleName === moduleFilter);
+    }
+    if (speakerFilter) {
+        feedbackToExport = feedbackToExport.filter(fb => fb.speakerName === speakerFilter);
+    }
+    if (ratingFilter) {
+        feedbackToExport = feedbackToExport.filter(fb => fb.moduleSatisfaction == ratingFilter);
+    }
+
+    feedbackToExport = sortFeedback(feedbackToExport, sortOption);
+
+    if (feedbackToExport.length === 0) {
+        showNotification('Info', 'No feedback matches the current filters.', 'info');
         return;
     }
 
@@ -2987,7 +3017,7 @@ function exportFeedbackToCSV() {
                     'Speaker Knowledge', 'Content Depth', 'Module Satisfaction',
                     'Additional Comments', 'Submitted At'];
 
-    const rows = allFeedback.map(fb => [
+    const rows = feedbackToExport.map(fb => [
         escapeCsvValue(fb.moduleName),
         escapeCsvValue(fb.eventCode),
         escapeCsvValue(fb.speakerName),
@@ -3012,7 +3042,11 @@ function exportFeedbackToCSV() {
     link.click();
     URL.revokeObjectURL(url);
 
-    showNotification('Success', 'Feedback exported successfully!', 'success');
+    const isFiltered = eventFilter || moduleFilter || speakerFilter || ratingFilter;
+    const msg = isFiltered
+        ? `Exported ${feedbackToExport.length} of ${allFeedback.length} feedback entries (filtered).`
+        : `Exported all ${feedbackToExport.length} feedback entries.`;
+    showNotification('Success', msg, 'success');
 }
 
 // Show notification
