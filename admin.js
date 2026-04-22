@@ -31,6 +31,10 @@ let allTemplates = [];
 let currentEditingSpeakerId = null;
 let currentEditingTemplateId = null;
 let templateModulesList = []; // modules being built in the template modal
+// Set to 'template-event' when the speaker modal is opened from the
+// event-from-template bulk-assign bar, so handleSaveSpeaker knows to
+// refresh the template-modal dropdowns instead of the standalone ones.
+let inlineSpeakerCreationContext = null;
 
 // ── Permission helper ────────────────────────────
 const PERMISSIONS = {
@@ -47,6 +51,7 @@ const PERMISSIONS = {
     MANAGE_EVENT_MODULES: ['GlobalAdmin', 'EventCreator'],
     VIEW_ANALYTICS:       ['GlobalAdmin', 'EventCreator', 'FeedbackManager', 'FeedbackViewer'],
     MANAGE_SPEAKERS:      ['GlobalAdmin', 'ModuleManager'],
+    CREATE_SPEAKERS:      ['GlobalAdmin', 'ModuleManager', 'EventCreator'],
     VIEW_SPEAKERS:        ['GlobalAdmin', 'ModuleManager', 'EventCreator'],
     MANAGE_TEMPLATES:     ['GlobalAdmin', 'ModuleManager'],
     VIEW_TEMPLATES:       ['GlobalAdmin', 'ModuleManager', 'EventCreator'],
@@ -407,7 +412,7 @@ function applyPermissionUI() {
 
     // Speaker action buttons
     const createSpeakerBtn = document.getElementById('createSpeakerBtn');
-    if (createSpeakerBtn) createSpeakerBtn.style.display = isAllowed('MANAGE_SPEAKERS') ? '' : 'none';
+    if (createSpeakerBtn) createSpeakerBtn.style.display = isAllowed('CREATE_SPEAKERS') ? '' : 'none';
 
     // Template action buttons
     const createTemplateBtn = document.getElementById('createTemplateBtn');
@@ -1645,12 +1650,33 @@ function formatDateForInput(dateString) {
 
 // Close event modal
 function closeEventModal() {
-    document.getElementById('eventModal').classList.add('hidden');
+    const modal = document.getElementById('eventModal');
+    modal.classList.add('hidden');
+    // The template flow opts into a wider modal-content via modal-large;
+    // strip it on close so the plain create-event flow opens at default width.
+    const content = modal.querySelector('.modal-content');
+    if (content) content.classList.remove('modal-large');
+    // Clear any template-mode state so a subsequent "+ Create New Event"
+    // doesn't silently submit to /events/from-template with an empty modules list.
+    const form = document.getElementById('eventForm');
+    if (form) {
+        delete form.dataset.templateId;
+        form.onsubmit = null;
+    }
 }
 
 // Handle save event
 async function handleSaveEvent(e) {
     e.preventDefault();
+
+    // Template flow routes through the same listener so it can't race a
+    // second inline form.onsubmit. The template id is the mode discriminator.
+    const form = document.getElementById('eventForm');
+    const templateIdAttr = form && form.dataset ? form.dataset.templateId : '';
+    if (templateIdAttr) {
+        await handleSaveEventFromTemplate(parseInt(templateIdAttr));
+        return;
+    }
 
     const formData = {
         eventId: document.getElementById('eventId').value || null,
@@ -5088,6 +5114,9 @@ function openSpeakerModal(speakerId = null) {
 function closeSpeakerModal() {
     document.getElementById('speakerModal').classList.add('hidden');
     currentEditingSpeakerId = null;
+    // If user cancels an inline create, clear the flag so a subsequent
+    // unrelated open doesn't wrongly refresh the template modal.
+    inlineSpeakerCreationContext = null;
 }
 
 async function handleSaveSpeaker(e) {
@@ -5108,6 +5137,8 @@ async function handleSaveSpeaker(e) {
         const payload = { speakerName: name, bio: bio || null, profileImage, isActive };
         let result;
 
+        const wasEditing = !!currentEditingSpeakerId;
+
         if (currentEditingSpeakerId) {
             result = await apiPut(`/speakers/${currentEditingSpeakerId}`, payload);
         } else {
@@ -5115,11 +5146,20 @@ async function handleSaveSpeaker(e) {
         }
 
         if (result.success !== false) {
+            // Capture the inline-context before closeSpeakerModal clears it.
+            const context = inlineSpeakerCreationContext;
+            const newSpeakerId = (!wasEditing && result.speaker) ? result.speaker.speakerId : null;
+
             closeSpeakerModal();
             await loadSpeakers();
-            // Also refresh speaker dropdowns
-            populateSpeakerDropdowns();
-            showNotification('Success', currentEditingSpeakerId ? 'Speaker updated!' : 'Speaker created!', 'success');
+
+            if (context === 'template-event') {
+                refreshTemplateSpeakerDropdowns(newSpeakerId);
+            } else {
+                populateSpeakerDropdowns();
+            }
+
+            showNotification('Success', wasEditing ? 'Speaker updated!' : 'Speaker created!', 'success');
         } else {
             showNotification('Error', result.message || 'Error saving speaker', 'error');
         }
@@ -5701,8 +5741,10 @@ function handleCreateEventFromTemplate(templateId) {
     // Close the selection modal if open
     closeTemplateSelectionModal();
 
-    // Open the event creation modal
+    // Open the event creation modal, sized wider for the bulk-assign bar + modules list.
     openEventModal();
+    const eventModalContent = document.querySelector('#eventModal .modal-content');
+    if (eventModalContent) eventModalContent.classList.add('modal-large');
 
     // Pre-fill training track from template
     const trackInput = document.getElementById('trainingTrack');
@@ -5723,16 +5765,24 @@ function handleCreateEventFromTemplate(templateId) {
             populateSpeakerDropdowns(); // Ensure speakers are loaded
             const templateModules = (template.modules || []).sort((a, b) => a.deliveryOrder - b.deliveryOrder);
 
-            const activeSpeakers = allSpeakers.filter(s => s.isActive);
-            const speakerOptions = '<option value="">-- Select --</option>' +
-                activeSpeakers.map(s => `<option value="${s.speakerId}">${escapeHtml(s.speakerName)}</option>`).join('');
+            const speakerOptions = buildTemplateSpeakerOptions();
+            const canCreateSpeakers = isAllowed('CREATE_SPEAKERS');
 
             modulesList.innerHTML = `
                 <div style="margin-bottom: 10px; padding: 10px; background: #e8f4fd; border-radius: 6px; font-size: 0.9em; color: #333;">
                     <strong>Template: ${escapeHtml(template.templateName)}</strong> — Assign a speaker to each module below.
                 </div>
+                <div class="template-bulk-assign">
+                    <label for="bulkAssignSpeakerSelect">Quick assign</label>
+                    <select id="bulkAssignSpeakerSelect">${speakerOptions}</select>
+                    <button type="button" id="bulkAssignAllBtn" class="btn btn-secondary btn-sm">Apply to all</button>
+                    <button type="button" id="bulkAssignUnassignedBtn" class="btn btn-secondary btn-sm">Apply to unassigned</button>
+                    <button type="button" id="bulkAssignSelectedBtn" class="btn btn-secondary btn-sm">Apply to selected</button>
+                    ${canCreateSpeakers ? '<button type="button" id="bulkAssignAddNewBtn" class="btn btn-primary btn-sm">+ Add new speaker</button>' : ''}
+                </div>
                 ${templateModules.map(mod => `
                 <div class="template-event-module-row" data-module-id="${mod.moduleId}" data-delivery-order="${mod.deliveryOrder}">
+                    <input type="checkbox" class="template-module-check" aria-label="Select for bulk assign">
                     <div class="template-event-module-order">${mod.deliveryOrder}</div>
                     <div class="template-event-module-name">${escapeHtml(mod.moduleName)}</div>
                     <div class="template-event-module-speaker">
@@ -5743,14 +5793,100 @@ function handleCreateEventFromTemplate(templateId) {
                 </div>
                 `).join('')}
             `;
+
+            wireTemplateBulkAssignHandlers();
         }
     }
+    // Template mode is signalled purely via form.dataset.templateId (set above).
+    // handleSaveEvent checks that flag and delegates. No form.onsubmit override
+    // so we never coexist with the permanent submit listener.
+}
 
-    // Override the form submit to use the from-template endpoint
-    form.onsubmit = async function(e) {
-        e.preventDefault();
-        await handleSaveEventFromTemplate(templateId);
-    };
+// ── Event-from-template bulk assign helpers ──────────────────────────────
+function buildTemplateSpeakerOptions() {
+    const activeSpeakers = allSpeakers.filter(s => s.isActive);
+    return '<option value="">-- Select --</option>' +
+        activeSpeakers.map(s => `<option value="${s.speakerId}">${escapeHtml(s.speakerName)}</option>`).join('');
+}
+
+function applyBulkSpeakerToRows(rows) {
+    const bulkSel = document.getElementById('bulkAssignSpeakerSelect');
+    if (!bulkSel) return;
+    const speakerId = bulkSel.value;
+    if (!speakerId) {
+        showNotification('Info', 'Pick a speaker first', 'info');
+        return;
+    }
+    rows.forEach(row => {
+        const sel = row.querySelector('.template-speaker-select');
+        if (sel) sel.value = speakerId;
+    });
+}
+
+function handleBulkApplyAll() {
+    const rows = Array.from(document.querySelectorAll('.template-event-module-row'));
+    applyBulkSpeakerToRows(rows);
+}
+
+function handleBulkApplyUnassigned() {
+    const rows = Array.from(document.querySelectorAll('.template-event-module-row')).filter(r => {
+        const sel = r.querySelector('.template-speaker-select');
+        return sel && !sel.value;
+    });
+    if (rows.length === 0) {
+        showNotification('Info', 'All modules already have a speaker', 'info');
+        return;
+    }
+    applyBulkSpeakerToRows(rows);
+}
+
+function handleBulkApplySelected() {
+    const rows = Array.from(document.querySelectorAll('.template-event-module-row')).filter(r => {
+        const cb = r.querySelector('.template-module-check');
+        return cb && cb.checked;
+    });
+    if (rows.length === 0) {
+        showNotification('Info', 'Select at least one module', 'info');
+        return;
+    }
+    applyBulkSpeakerToRows(rows);
+}
+
+function handleInlineAddSpeaker() {
+    inlineSpeakerCreationContext = 'template-event';
+    openSpeakerModal();
+}
+
+function wireTemplateBulkAssignHandlers() {
+    const allBtn = document.getElementById('bulkAssignAllBtn');
+    const unBtn = document.getElementById('bulkAssignUnassignedBtn');
+    const selBtn = document.getElementById('bulkAssignSelectedBtn');
+    const addBtn = document.getElementById('bulkAssignAddNewBtn');
+    if (allBtn) allBtn.addEventListener('click', handleBulkApplyAll);
+    if (unBtn) unBtn.addEventListener('click', handleBulkApplyUnassigned);
+    if (selBtn) selBtn.addEventListener('click', handleBulkApplySelected);
+    if (addBtn) addBtn.addEventListener('click', handleInlineAddSpeaker);
+}
+
+// Rebuild option lists for the template-modal speaker selects and the bulk
+// picker, preserving each row's current selection. Pass a speakerId in
+// preselectSpeakerId to pre-select that speaker in the bulk picker — used
+// after an inline-create to jump straight to "Apply to all/selected".
+function refreshTemplateSpeakerDropdowns(preselectSpeakerId) {
+    const options = buildTemplateSpeakerOptions();
+
+    document.querySelectorAll('.template-speaker-select').forEach(sel => {
+        const current = sel.value;
+        sel.innerHTML = options;
+        sel.value = current;
+    });
+
+    const bulkSel = document.getElementById('bulkAssignSpeakerSelect');
+    if (bulkSel) {
+        const current = bulkSel.value;
+        bulkSel.innerHTML = options;
+        bulkSel.value = preselectSpeakerId != null ? String(preselectSpeakerId) : current;
+    }
 }
 
 async function handleSaveEventFromTemplate(templateId) {
@@ -5803,12 +5939,7 @@ async function handleSaveEventFromTemplate(templateId) {
 
         if (result.success !== false) {
             closeEventModal();
-            // Restore normal form submit
-            const form = document.getElementById('eventForm');
-            delete form.dataset.templateId;
-            form.onsubmit = null;
-            document.getElementById('eventForm').addEventListener('submit', handleSaveEvent);
-
+            // closeEventModal already clears form.dataset.templateId and form.onsubmit.
             await loadEvents();
             await loadModules();
             showNotification('Success', 'Event created from template!', 'success');
