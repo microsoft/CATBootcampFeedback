@@ -2734,3 +2734,40 @@ input[type="text"].um-search:focus {
 .template-event-module-speaker select {
     width: 100%;
 }
+
+.template-module-check {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #667eea;
+}
+
+.template-bulk-assign {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    background: #f7f7fb;
+    border: 1px solid #e5e7f0;
+    border-radius: 6px;
+}
+
+.template-bulk-assign label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #444;
+    margin-right: 4px;
+}
+
+.template-bulk-assign select {
+    flex: 1 1 200px;
+    min-width: 160px;
+    padding: 6px 8px;
+}
+
+.template-bulk-assign button {
+    flex-shrink: 0;
+}

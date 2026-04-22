@@ -21,7 +21,9 @@ app.http('speakers', {
             const roleError = requireRole(request, 'ModuleManager', 'EventCreator');
             if (roleError) return roleError;
         } else {
-            const roleError = requireRole(request, 'ModuleManager');
+            // POST = create; EventCreator may create a speaker (e.g. inline during
+            // event-from-template). PUT/DELETE/bulk-delete stay ModuleManager-only.
+            const roleError = requireRole(request, 'ModuleManager', 'EventCreator');
             if (roleError) return roleError;
         }
 

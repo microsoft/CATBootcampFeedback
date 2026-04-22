@@ -25,7 +25,8 @@ const PERMISSIONS = {
     VIEW_MODULES:           ['ModuleManager', 'EventCreator'],
 
     // Speaker management
-    MANAGE_SPEAKERS:        ['ModuleManager'],
+    MANAGE_SPEAKERS:        ['ModuleManager'],              // edit/delete
+    CREATE_SPEAKERS:        ['ModuleManager', 'EventCreator'], // create only
     VIEW_SPEAKERS:          ['ModuleManager', 'EventCreator'],
 
     // Template management
