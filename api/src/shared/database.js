@@ -102,6 +102,52 @@ async function execute(procedureName, params = {}) {
 }
 
 /**
+ * Run `fn` inside a SQL transaction. `fn` receives a tx object exposing
+ * `query` and `mutate` that execute against the transaction. If `fn` throws,
+ * the transaction is rolled back and the original error is re-thrown; if
+ * `fn` returns, the transaction is committed and its return value forwarded.
+ *
+ * Use this for multi-statement writes that must be atomic — e.g., inserting
+ * an Event and its EventModules together so a mid-flight failure can't leave
+ * an orphaned parent row behind.
+ */
+async function withTransaction(fn) {
+    const connectedPool = await getPool();
+    const transaction = new sql.Transaction(connectedPool);
+    await transaction.begin();
+
+    const txQuery = async (queryString, params = {}) => {
+        const request = new sql.Request(transaction);
+        for (const [key, value] of Object.entries(params)) {
+            request.input(key, value);
+        }
+        const result = await request.query(queryString);
+        return result.recordset;
+    };
+
+    const txMutate = async (queryString, params = {}) => {
+        const request = new sql.Request(transaction);
+        for (const [key, value] of Object.entries(params)) {
+            request.input(key, value);
+        }
+        return await request.query(queryString);
+    };
+
+    try {
+        const result = await fn({ query: txQuery, mutate: txMutate });
+        await transaction.commit();
+        return result;
+    } catch (err) {
+        try {
+            await transaction.rollback();
+        } catch (rollbackErr) {
+            console.error('Transaction rollback failed:', rollbackErr);
+        }
+        throw err;
+    }
+}
+
+/**
  * Close database connection
  */
 async function close() {
@@ -115,6 +161,7 @@ module.exports = {
     query,
     mutate,
     execute,
+    withTransaction,
     close,
     sql
 };

@@ -7,7 +7,7 @@
  */
 
 const { app } = require('@azure/functions');
-const { query, mutate } = require('../shared/database');
+const { query, withTransaction } = require('../shared/database');
 const { success, error } = require('../shared/utils');
 const { requireRole, getAuthenticatedUser, isAuthenticated } = require('../shared/auth');
 const { getAccessibleEventIds } = require('../shared/permissions');
@@ -63,38 +63,41 @@ app.http('events', {
                     };
                 }
 
-                // Insert event
-                const result = await query(`
-                    INSERT INTO Events (EventName, EventCode, StartDate, EndDate, TrainingTrack, IsActive, CreatedAt, CreatedBy)
-                    OUTPUT INSERTED.EventId, INSERTED.EventName, INSERTED.EventCode,
-                           INSERTED.StartDate, INSERTED.EndDate, INSERTED.TrainingTrack,
-                           INSERTED.IsActive, INSERTED.CreatedAt
-                    VALUES (@eventName, @eventCode, @startDate, @endDate, @trainingTrack, @isActive, GETDATE(), @createdBy)
-                `, {
-                    eventName: eventName.trim(),
-                    eventCode: eventCode.trim().toUpperCase(),
-                    startDate: startDate,
-                    endDate: endDate || null,
-                    trainingTrack: trainingTrack ? trainingTrack.trim() : null,
-                    isActive: isActive ? 1 : 0,
-                    createdBy: (getAuthenticatedUser(request) || {}).username || 'admin'
-                });
-
-                const createdEvent = result[0];
-
-                // Auto-grant event access to the creator
                 const caller = getAuthenticatedUser(request);
-                if (caller && caller.userId) {
-                    try {
-                        await mutate(
+                const username = (caller || {}).username || 'admin';
+
+                // Create the event and grant the creator resource access atomically.
+                // If the access grant fails, the event insert must roll back too —
+                // otherwise the creator ends up locked out of their own event.
+                const createdEvent = await withTransaction(async (tx) => {
+                    const result = await tx.query(`
+                        INSERT INTO Events (EventName, EventCode, StartDate, EndDate, TrainingTrack, IsActive, CreatedAt, CreatedBy)
+                        OUTPUT INSERTED.EventId, INSERTED.EventName, INSERTED.EventCode,
+                               INSERTED.StartDate, INSERTED.EndDate, INSERTED.TrainingTrack,
+                               INSERTED.IsActive, INSERTED.CreatedAt
+                        VALUES (@eventName, @eventCode, @startDate, @endDate, @trainingTrack, @isActive, GETDATE(), @createdBy)
+                    `, {
+                        eventName: eventName.trim(),
+                        eventCode: eventCode.trim().toUpperCase(),
+                        startDate: startDate,
+                        endDate: endDate || null,
+                        trainingTrack: trainingTrack ? trainingTrack.trim() : null,
+                        isActive: isActive ? 1 : 0,
+                        createdBy: username
+                    });
+
+                    const newEvent = result[0];
+
+                    if (caller && caller.userId) {
+                        await tx.mutate(
                             `INSERT INTO UserEventAccess (UserId, EventId, GrantedBy)
                              VALUES (@userId, @eventId, @grantedBy)`,
-                            { userId: caller.userId, eventId: createdEvent.EventId, grantedBy: caller.username }
+                            { userId: caller.userId, eventId: newEvent.EventId, grantedBy: username }
                         );
-                    } catch (accessErr) {
-                        context.log('Warning: Failed to auto-grant event access:', accessErr.message);
                     }
-                }
+
+                    return newEvent;
+                });
 
                 await audit(request, 'CREATE', 'Event', createdEvent.EventId, `Created event "${eventName.trim()}" (${eventCode.trim().toUpperCase()})`, { eventId: createdEvent.EventId, eventName: eventName.trim(), eventCode: eventCode.trim().toUpperCase(), startDate, endDate, trainingTrack, isActive });
 

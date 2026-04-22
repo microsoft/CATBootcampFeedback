@@ -6,7 +6,7 @@
  */
 
 const { app } = require('@azure/functions');
-const { query, mutate } = require('../shared/database');
+const { query, withTransaction } = require('../shared/database');
 const { success, error } = require('../shared/utils');
 const { requireRole, getAuthenticatedUser } = require('../shared/auth');
 const { audit } = require('../shared/audit');
@@ -72,43 +72,45 @@ app.http('updateTemplate', {
 
             const username = (getAuthenticatedUser(request) || {}).username || 'admin';
 
-            // Update template metadata
-            await query(`
-                UPDATE EventTemplates
-                SET TemplateName = @templateName,
-                    Description = @description,
-                    TrainingTrack = @trainingTrack,
-                    IsActive = @isActive,
-                    UpdatedAt = SYSUTCDATETIME(),
-                    UpdatedBy = @updatedBy
-                WHERE TemplateId = @templateId
-            `, {
-                templateId: parseInt(templateId),
-                templateName: trimmedName,
-                description: description ? description.trim() : null,
-                trainingTrack: trainingTrack ? trainingTrack.trim() : null,
-                isActive: isActive !== undefined ? (isActive ? 1 : 0) : 1,
-                updatedBy: username
-            });
-
-            // Replace template modules: delete existing, insert new
-            await mutate(
-                'DELETE FROM EventTemplateModules WHERE TemplateId = @templateId',
-                { templateId: parseInt(templateId) }
-            );
-
-            for (const mod of modules) {
-                if (!mod.moduleId) continue;
-                await mutate(`
-                    INSERT INTO EventTemplateModules (TemplateId, ModuleId, DeliveryOrder, Notes)
-                    VALUES (@templateId, @moduleId, @deliveryOrder, @notes)
+            // Update metadata and replace module list atomically so a mid-flight
+            // failure can't leave the template with its old modules wiped.
+            await withTransaction(async (tx) => {
+                await tx.query(`
+                    UPDATE EventTemplates
+                    SET TemplateName = @templateName,
+                        Description = @description,
+                        TrainingTrack = @trainingTrack,
+                        IsActive = @isActive,
+                        UpdatedAt = SYSUTCDATETIME(),
+                        UpdatedBy = @updatedBy
+                    WHERE TemplateId = @templateId
                 `, {
                     templateId: parseInt(templateId),
-                    moduleId: mod.moduleId,
-                    deliveryOrder: mod.deliveryOrder || 1,
-                    notes: mod.notes ? mod.notes.trim() : null
+                    templateName: trimmedName,
+                    description: description ? description.trim() : null,
+                    trainingTrack: trainingTrack ? trainingTrack.trim() : null,
+                    isActive: isActive !== undefined ? (isActive ? 1 : 0) : 1,
+                    updatedBy: username
                 });
-            }
+
+                await tx.mutate(
+                    'DELETE FROM EventTemplateModules WHERE TemplateId = @templateId',
+                    { templateId: parseInt(templateId) }
+                );
+
+                for (const mod of modules) {
+                    if (!mod.moduleId) continue;
+                    await tx.mutate(`
+                        INSERT INTO EventTemplateModules (TemplateId, ModuleId, DeliveryOrder, Notes)
+                        VALUES (@templateId, @moduleId, @deliveryOrder, @notes)
+                    `, {
+                        templateId: parseInt(templateId),
+                        moduleId: mod.moduleId,
+                        deliveryOrder: mod.deliveryOrder || 1,
+                        notes: mod.notes ? mod.notes.trim() : null
+                    });
+                }
+            });
 
             context.log(`Template ${templateId} updated successfully`);
 
