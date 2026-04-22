@@ -7,7 +7,7 @@
  */
 
 const { app } = require('@azure/functions');
-const { query, mutate } = require('../shared/database');
+const { query, withTransaction } = require('../shared/database');
 const { success, error } = require('../shared/utils');
 const { requireRole, getAuthenticatedUser } = require('../shared/auth');
 const { audit } = require('../shared/audit');
@@ -84,82 +84,86 @@ app.http('createEventFromTemplate', {
             const caller = getAuthenticatedUser(request);
             const username = (caller || {}).username || 'admin';
 
-            // Create the event
-            const eventResult = await query(`
-                INSERT INTO Events (EventName, EventCode, StartDate, EndDate, TrainingTrack, IsActive, CreatedAt, CreatedBy)
-                OUTPUT INSERTED.EventId, INSERTED.EventName, INSERTED.EventCode,
-                       INSERTED.StartDate, INSERTED.EndDate, INSERTED.TrainingTrack,
-                       INSERTED.IsActive, INSERTED.CreatedAt
-                VALUES (@eventName, @eventCode, @startDate, @endDate, @trainingTrack, @isActive, GETDATE(), @createdBy)
-            `, {
-                eventName: eventName.trim(),
-                eventCode: eventCode.trim().toUpperCase(),
-                startDate,
-                endDate: endDate || null,
-                trainingTrack: trainingTrack ? trainingTrack.trim() : null,
-                isActive: isActive ? 1 : 0,
-                createdBy: username
-            });
-
-            const createdEvent = eventResult[0];
-
-            // Auto-grant event access to the creator
-            if (caller && caller.userId) {
-                try {
-                    await mutate(
-                        `INSERT INTO UserEventAccess (UserId, EventId, GrantedBy)
-                         VALUES (@userId, @eventId, @grantedBy)`,
-                        { userId: caller.userId, eventId: createdEvent.EventId, grantedBy: username }
-                    );
-                } catch (accessErr) {
-                    context.log('Warning: Failed to auto-grant event access:', accessErr.message);
-                }
-            }
-
-            // Add modules with speaker assignments
-            const createdModules = [];
+            // Pre-resolve speaker names outside the transaction so a bad
+            // speakerId fails fast with a 400 instead of aborting mid-commit.
+            const moduleSpeakerNames = new Map();
             for (const mod of modules) {
-                // Look up speaker name for denormalized column
                 const speakerResult = await query(
                     'SELECT SpeakerName FROM Speakers WHERE SpeakerId = @speakerId',
                     { speakerId: parseInt(mod.speakerId) }
                 );
 
                 if (speakerResult.length === 0) {
-                    // Skip modules with invalid speaker IDs but continue
-                    context.log(`Warning: Speaker ID ${mod.speakerId} not found, skipping module ${mod.moduleId}`);
-                    continue;
+                    const errorResponse = error(400, `Speaker with ID ${mod.speakerId} not found`, 'INVALID_SPEAKER');
+                    return { status: errorResponse.status, headers: errorResponse.headers, body: errorResponse.body };
                 }
 
-                const speakerName = speakerResult[0].SpeakerName;
+                moduleSpeakerNames.set(parseInt(mod.moduleId), speakerResult[0].SpeakerName);
+            }
 
-                const emResult = await query(`
-                    INSERT INTO EventModules (EventId, ModuleId, SpeakerName, SpeakerId, DeliveryOrder, DeliveryDate, Notes, CreatedBy)
-                    OUTPUT INSERTED.EventModuleId, INSERTED.ModuleId, INSERTED.SpeakerName,
-                           INSERTED.SpeakerId, INSERTED.DeliveryOrder, INSERTED.DeliveryDate
-                    VALUES (@eventId, @moduleId, @speakerName, @speakerId, @deliveryOrder, @deliveryDate, @notes, @createdBy)
+            // Create event, grant access, and add modules atomically.
+            const { createdEvent, createdModules } = await withTransaction(async (tx) => {
+                const eventResult = await tx.query(`
+                    INSERT INTO Events (EventName, EventCode, StartDate, EndDate, TrainingTrack, IsActive, CreatedAt, CreatedBy)
+                    OUTPUT INSERTED.EventId, INSERTED.EventName, INSERTED.EventCode,
+                           INSERTED.StartDate, INSERTED.EndDate, INSERTED.TrainingTrack,
+                           INSERTED.IsActive, INSERTED.CreatedAt
+                    VALUES (@eventName, @eventCode, @startDate, @endDate, @trainingTrack, @isActive, GETDATE(), @createdBy)
                 `, {
-                    eventId: createdEvent.EventId,
-                    moduleId: parseInt(mod.moduleId),
-                    speakerName,
-                    speakerId: parseInt(mod.speakerId),
-                    deliveryOrder: mod.deliveryOrder || 1,
-                    deliveryDate: mod.deliveryDate || null,
-                    notes: mod.notes || null,
+                    eventName: eventName.trim(),
+                    eventCode: eventCode.trim().toUpperCase(),
+                    startDate,
+                    endDate: endDate || null,
+                    trainingTrack: trainingTrack ? trainingTrack.trim() : null,
+                    isActive: isActive ? 1 : 0,
                     createdBy: username
                 });
 
-                if (emResult.length > 0) {
-                    createdModules.push({
-                        eventModuleId: emResult[0].EventModuleId,
-                        moduleId: emResult[0].ModuleId,
-                        speakerName: emResult[0].SpeakerName,
-                        speakerId: emResult[0].SpeakerId,
-                        deliveryOrder: emResult[0].DeliveryOrder,
-                        deliveryDate: emResult[0].DeliveryDate
-                    });
+                const newEvent = eventResult[0];
+
+                if (caller && caller.userId) {
+                    await tx.mutate(
+                        `INSERT INTO UserEventAccess (UserId, EventId, GrantedBy)
+                         VALUES (@userId, @eventId, @grantedBy)`,
+                        { userId: caller.userId, eventId: newEvent.EventId, grantedBy: username }
+                    );
                 }
-            }
+
+                const newModules = [];
+                for (const mod of modules) {
+                    const moduleId = parseInt(mod.moduleId);
+                    const speakerName = moduleSpeakerNames.get(moduleId);
+
+                    const emResult = await tx.query(`
+                        INSERT INTO EventModules (EventId, ModuleId, SpeakerName, SpeakerId, DeliveryOrder, DeliveryDate, Notes, CreatedBy)
+                        OUTPUT INSERTED.EventModuleId, INSERTED.ModuleId, INSERTED.SpeakerName,
+                               INSERTED.SpeakerId, INSERTED.DeliveryOrder, INSERTED.DeliveryDate
+                        VALUES (@eventId, @moduleId, @speakerName, @speakerId, @deliveryOrder, @deliveryDate, @notes, @createdBy)
+                    `, {
+                        eventId: newEvent.EventId,
+                        moduleId,
+                        speakerName,
+                        speakerId: parseInt(mod.speakerId),
+                        deliveryOrder: mod.deliveryOrder || 1,
+                        deliveryDate: mod.deliveryDate || null,
+                        notes: mod.notes || null,
+                        createdBy: username
+                    });
+
+                    if (emResult.length > 0) {
+                        newModules.push({
+                            eventModuleId: emResult[0].EventModuleId,
+                            moduleId: emResult[0].ModuleId,
+                            speakerName: emResult[0].SpeakerName,
+                            speakerId: emResult[0].SpeakerId,
+                            deliveryOrder: emResult[0].DeliveryOrder,
+                            deliveryDate: emResult[0].DeliveryDate
+                        });
+                    }
+                }
+
+                return { createdEvent: newEvent, createdModules: newModules };
+            });
 
             await audit(request, 'CREATE', 'Event', createdEvent.EventId,
                 `Created event "${eventName.trim()}" (${eventCode.trim().toUpperCase()}) from template "${templateCheck[0].TemplateName}" with ${createdModules.length} module(s)`,
