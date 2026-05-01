@@ -53,8 +53,13 @@ Desktop.ini
 *.stackdump
 
 # Docker local development environment (not for source control)
+Dockerfile
 docker-compose.yml
 docker/
+.dockerignore
+
+# Docker testing notes (local reference, not committed)
+docs/DOCKER-LOCAL-TESTING.md
 
 # Security - Credentials and sensitive files (kept on desktop only)
 CATBOOTCAMP_CREDENTIALS_SECURE.md

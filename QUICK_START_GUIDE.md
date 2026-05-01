@@ -120,6 +120,18 @@ After deployment completes:
 
 - **Feedback Form**: https://blue-sea-0b9be530f.1.azurestaticapps.net/feedback.html?code=CSA1B2C3
 - **Live Count Display**: https://blue-sea-0b9be530f.1.azurestaticapps.net/count.html?code=CSA1B2C3 (supports Classic and Feed the Cat themes via footer selector)
+
+### Switching modules during a live event
+
+When the live counter is opened in per-module mode (URL contains `?module=<id>`), the header above the counter shows a **dropdown of every module in the current event**. To switch to a different module mid-event:
+
+1. Click the module name in the header — it's a dropdown.
+2. Pick the next module from the list (sorted by delivery order).
+3. The counter, QR code, and feedback submission URL switch in place — no need to close the browser or open a new URL.
+4. Fullscreen, theme, sound, refresh-interval, and celebration settings stay exactly as you set them.
+5. The browser URL updates so refresh / share-link / "send to my other monitor" continue to work.
+
+A brief "Loading…" overlay appears during the switch and disappears once the new QR code finishes rendering. If a module fails to load (network blip, etc.), the dropdown reverts to the previous selection and a message appears in the header. Try again once the network recovers. The dropdown is hidden in event-level mode (`?code=...` only).
 - **Admin Panel**: https://blue-sea-0b9be530f.1.azurestaticapps.net/admin.html
 
 ---

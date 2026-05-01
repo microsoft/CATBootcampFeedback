@@ -25,6 +25,26 @@ let currentCount = 0;
 let isFirstLoad = true;
 let celebrationLevel = 1; // 1=Chill, 2=Party, 3=Chaos
 
+// ── Session state container ───────────────────────────────────────────────────
+// Single source of truth for the live counter view. All "show this event/module"
+// transitions go through applySession(). See docs/superpowers/specs/2026-04-29-module-switcher-design.md
+const session = {
+    eventCode: null,
+    event: null,           // full event object including modules array
+    moduleId: null,        // string from URL or null in event mode
+    module: null,          // resolved module object or null in event mode
+    count: 0,
+    isFirstLoad: true,     // suppresses celebrations on next updateCount()
+    refreshTimer: null,
+    isApplying: false,     // race guard for applySession()
+    settings: {
+        theme: 'classic',
+        refreshInterval: CONFIG.COUNT_REFRESH_INTERVAL,
+        celebrationLevel: 1,
+        soundEnabled: true
+    }
+};
+
 // ── DOM elements ──────────────────────────────────────────────────────────────
 const loadingState = document.getElementById('loadingState');
 const countDisplay = document.getElementById('countDisplay');
@@ -298,11 +318,13 @@ function initializeSoundToggle() {
     const saved = sessionStorage.getItem('soundEnabled');
     if (saved !== null) {
         soundEnabled = saved === 'true';
+        session.settings.soundEnabled = soundEnabled;
         soundToggle.value = soundEnabled ? 'on' : 'off';
     }
 
     soundToggle.addEventListener('change', (e) => {
         soundEnabled = e.target.value === 'on';
+        session.settings.soundEnabled = soundEnabled;
         sessionStorage.setItem('soundEnabled', soundEnabled.toString());
         if (soundEnabled) playChime();
     });
@@ -955,7 +977,7 @@ function sizeProgressRing() {
             });
             ringFill.setAttribute('stroke-dasharray', circumference);
             ringFill.dataset.circumference = circumference;
-            updateProgressRing(currentCount);
+            updateProgressRing(session.count);
         }
 
         const counterEl = document.getElementById('counterNumber');
@@ -999,6 +1021,7 @@ function updateProgressRing(count) {
 
 function setTheme(theme) {
     currentTheme = theme;
+    session.settings.theme = currentTheme;
     const classicView = document.getElementById('themeClassic');
     const catView = document.getElementById('themeCat');
 
@@ -1013,9 +1036,9 @@ function setTheme(theme) {
     // Resize for new layout
     sizeProgressRing();
     // Update displays for current count
-    updateDigitDisplay(currentCount);
-    updateProgressRing(currentCount);
-    updateCatState(currentCount);
+    updateDigitDisplay(session.count);
+    updateProgressRing(session.count);
+    updateCatState(session.count);
     // Update encouraging message for new theme
     updateEncouragingMessage();
 }
@@ -1052,7 +1075,7 @@ function initCat() {
 
     // Set initial state without animation
     imgs.forEach(img => { img.style.transition = 'none'; });
-    updateCatState(currentCount);
+    updateCatState(session.count);
     imgs[0].getBoundingClientRect(); // force reflow
     imgs.forEach(img => { img.style.transition = 'opacity 0.8s ease-out'; });
 }
@@ -1232,55 +1255,101 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function initialize() {
-    eventCode = getUrlParameter('code');
-    moduleId = getUrlParameter('module');
-    isModuleMode = !!moduleId;
+    const urlEventCode = getUrlParameter('code');
+    const urlModuleId = getUrlParameter('module');
 
-    if (!eventCode) {
+    if (!urlEventCode) {
         await showEventSelector();
         return;
     }
 
     try {
-        if (isModuleMode) {
-            const moduleData = await loadModuleDetails(eventCode, moduleId);
-            if (!moduleData) {
-                showError('Module not found or invalid module ID.');
-                return;
-            }
-            currentModule = moduleData;
-            currentEvent = {
-                eventId: moduleData.eventId,
-                eventCode: moduleData.eventCode,
-                eventName: moduleData.eventName,
-                trainingTrack: moduleData.trainingTrack
-            };
-        } else {
-            const event = await loadEventDetails(eventCode);
-            if (!event) {
-                showError('Event not found or invalid event code.');
-                return;
-            }
-            currentEvent = event;
-        }
-
-        showCountDisplay();
+        showCountDisplayShell();
         initProgressRing();
         initCat();
-        generateQRCode();
         startEncouragingMessages();
-        await updateCount();
-        startLiveUpdates();
         initializeRefreshIntervalSelector();
         initializeCelebrationLevelSelector();
         initializeSoundToggle();
         initializeThemeSelector();
         initializeFullscreenButton();
 
+        await applySession({ eventCode: urlEventCode, moduleId: urlModuleId });
     } catch (error) {
         console.error('Error initializing count page:', error);
         const friendlyError = getUserFriendlyErrorMessage(error);
         showError(friendlyError.message);
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SESSION TRANSITIONS
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * The single entry point for "show this event/module on the live counter."
+ * Used by initialize() on first load and by the module switcher dropdown.
+ *
+ * Atomically: fetches data, updates session (and legacy globals during transition),
+ * re-renders header/QR/count, resets isFirstLoad (suppressing celebrations),
+ * restarts the refresh timer, and syncs the URL via history.replaceState.
+ *
+ * Throws on fetch failure; caller handles UI revert.
+ */
+async function applySession({ eventCode: ec, moduleId: mid }) {
+    if (session.isApplying) return;
+    session.isApplying = true;
+    try {
+        const ev = await loadEventDetails(ec);
+        if (!ev) {
+            throw new Error('Event not found');
+        }
+
+        let mod = null;
+        if (mid) {
+            mod = await loadModuleDetails(ec, mid);
+            if (!mod) {
+                throw new Error('Module not found');
+            }
+        }
+
+        // Write to session (new source of truth)
+        session.eventCode = ec;
+        session.event = ev;
+        session.moduleId = mid ? String(mid) : null;
+        session.module = mod;
+        session.isFirstLoad = true;
+
+        // Transitional dual-write to legacy globals — removed after Task 5
+        eventCode = ec;
+        moduleId = mid || null;
+        currentEvent = ev;
+        currentModule = mod;
+        isModuleMode = !!mid;
+        isFirstLoad = true;
+
+        renderHeader();
+        await generateQRCode();
+
+        await updateCount();
+
+        stopLiveUpdates();
+        startLiveUpdates();
+
+        const url = new URL(window.location);
+        url.searchParams.set('code', ec);
+        if (mid) {
+            url.searchParams.set('module', String(mid));
+        } else {
+            url.searchParams.delete('module');
+        }
+        try {
+            history.replaceState(null, '', url);
+        } catch (e) {
+            console.warn('history.replaceState failed:', e);
+        }
+    } finally {
+        session.isApplying = false;
     }
 }
 
@@ -1343,6 +1412,19 @@ function mockLoadModuleDetails(code, modId) {
                     deliveryOrder: 1,
                     deliveryDate: '2026-02-16T09:00:00',
                     count: Math.floor(Math.random() * 8) + 3
+                },
+                'TEST123_3': {
+                    eventId: 2,
+                    eventCode: 'TEST123',
+                    eventName: 'Test Event',
+                    trainingTrack: 'Q1-2026',
+                    eventModuleId: 3,
+                    moduleId: 3,
+                    moduleName: 'Advanced Copilot Features',
+                    speakerName: 'Bob Johnson',
+                    deliveryOrder: 2,
+                    deliveryDate: '2026-02-16T10:00:00',
+                    count: Math.floor(Math.random() * 6) + 2
                 }
             };
 
@@ -1495,22 +1577,22 @@ async function updateCount() {
         let data;
         let count;
 
-        if (isModuleMode) {
-            data = await getModuleFeedbackCount(eventCode, moduleId);
+        if (session.module !== null) {
+            data = await getModuleFeedbackCount(session.eventCode, session.moduleId);
             count = data.count || 0;
         } else {
-            data = await getFeedbackCount(eventCode);
+            data = await getFeedbackCount(session.eventCode);
             count = data.totalCount || 0;
         }
 
-        const oldCount = currentCount;
+        const oldCount = session.count;
 
-        if (count !== oldCount || isFirstLoad) {
+        if (count !== oldCount || session.isFirstLoad) {
             // Update slot-machine digit display
             updateDigitDisplay(count);
 
             // Pulse animation on active counter
-            const activeCounter = currentTheme === 'classic'
+            const activeCounter = session.settings.theme === 'classic'
                 ? document.getElementById('counterNumber')
                 : document.getElementById('catCounterNumber');
             if (activeCounter) {
@@ -1520,7 +1602,7 @@ async function updateCount() {
             }
 
             // Celebrations only after initial load
-            if (!isFirstLoad && count > oldCount) {
+            if (!session.isFirstLoad && count > oldCount) {
                 triggerCelebration(count, oldCount);
             }
 
@@ -1528,8 +1610,8 @@ async function updateCount() {
             updateProgressRing(count);
             updateCatState(count);
 
-            currentCount = count;
-            isFirstLoad = false;
+            session.count = count;
+            session.isFirstLoad = false;
         }
 
         // Always update timestamp
@@ -1620,12 +1702,14 @@ function initializeRefreshIntervalSelector() {
     const savedInterval = sessionStorage.getItem('countRefreshInterval');
     if (savedInterval) {
         currentRefreshInterval = parseInt(savedInterval);
+        session.settings.refreshInterval = currentRefreshInterval;
         refreshIntervalSelect.value = savedInterval;
     }
 
     refreshIntervalSelect.addEventListener('change', (e) => {
         const newInterval = parseInt(e.target.value);
         currentRefreshInterval = newInterval;
+        session.settings.refreshInterval = currentRefreshInterval;
         sessionStorage.setItem('countRefreshInterval', newInterval.toString());
         restartLiveUpdates();
         updateCount();
@@ -1639,12 +1723,14 @@ function initializeCelebrationLevelSelector() {
     const savedLevel = sessionStorage.getItem('celebrationLevel');
     if (savedLevel) {
         celebrationLevel = parseInt(savedLevel);
+        session.settings.celebrationLevel = celebrationLevel;
         celebrationLevelSelect.value = savedLevel;
     }
 
     celebrationLevelSelect.addEventListener('change', (e) => {
         const newLevel = parseInt(e.target.value);
         celebrationLevel = newLevel;
+        session.settings.celebrationLevel = celebrationLevel;
         sessionStorage.setItem('celebrationLevel', newLevel.toString());
     });
 }
@@ -1654,63 +1740,146 @@ function initializeCelebrationLevelSelector() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 function generateQRCode() {
-    let feedbackUrl = `${FEEDBACK_BASE_URL}?code=${eventCode}`;
-    if (isModuleMode && moduleId) {
-        feedbackUrl += `&module=${moduleId}`;
-    }
+    return new Promise((resolve) => {
+        let feedbackUrl = `${FEEDBACK_BASE_URL}?code=${session.eventCode}`;
+        if (session.moduleId) {
+            feedbackUrl += `&module=${session.moduleId}`;
+        }
 
-    const canvas = document.getElementById('qrCode');
-    const rightSection = canvas.closest('.right-section');
+        const canvas = document.getElementById('qrCode');
+        const rightSection = canvas.closest('.right-section');
 
-    const availableWidth = rightSection.clientWidth - 100;
-    const availableHeight = rightSection.clientHeight - 160;
-    const qrSize = Math.max(200, Math.min(availableWidth, availableHeight));
+        const availableWidth = rightSection.clientWidth - 100;
+        const availableHeight = rightSection.clientHeight - 160;
+        const qrSize = Math.max(200, Math.min(availableWidth, availableHeight));
 
-    if (typeof QRCode !== 'undefined') {
-        QRCode.toCanvas(canvas, feedbackUrl, {
-            width: qrSize,
-            margin: CONFIG.QR_CODE_MARGIN,
-            color: {
-                dark: CONFIG.QR_CODE_COLOR_DARK,
-                light: CONFIG.QR_CODE_COLOR_LIGHT
-            }
-        }, function(error) {
-            if (error) {
-                console.error('QR Code generation error:', error);
-            }
-        });
-    } else {
-        console.error('QRCode library not loaded');
-    }
+        if (typeof QRCode !== 'undefined') {
+            QRCode.toCanvas(canvas, feedbackUrl, {
+                width: qrSize,
+                margin: CONFIG.QR_CODE_MARGIN,
+                color: {
+                    dark: CONFIG.QR_CODE_COLOR_DARK,
+                    light: CONFIG.QR_CODE_COLOR_LIGHT
+                }
+            }, function(error) {
+                if (error) {
+                    console.error('QR Code generation error:', error);
+                }
+                resolve();
+            });
+        } else {
+            console.error('QRCode library not loaded');
+            resolve();
+        }
+    });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // DISPLAY HELPERS
 // ══════════════════════════════════════════════════════════════════════════════
 
-function showCountDisplay() {
+/**
+ * Show the count display container (layout + scaffolding) before any session is applied.
+ * The header text and counter are filled in by applySession() → renderHeader() / updateCount().
+ */
+function showCountDisplayShell() {
     loadingState.style.display = 'none';
     errorState.style.display = 'none';
     countDisplay.style.display = 'flex';
+}
 
-    if (isModuleMode) {
-        const moduleName = currentModule.moduleName || 'Module';
-        const speakerName = currentModule.speakerName || 'Unknown Speaker';
-        const eventName = currentModule.eventName || currentModule.eventCode || eventCode;
-        eventCodeDisplay.textContent = `${escapeHtml(moduleName)} - ${escapeHtml(speakerName)}`;
-        eventCodeDisplay.insertAdjacentHTML('afterend',
-            `<div class="event-subtext">Event: ${escapeHtml(eventName)}</div>`
-        );
-        currentCount = currentModule.count || 0;
+/**
+ * Render the header for the current session.
+ * Stub for Task 4 — replaced with the dropdown version in Task 6.
+ */
+function renderHeader() {
+    const eventInfo = document.querySelector('.event-info');
+    if (!eventInfo) return;
+    const eventName = session.event?.eventName || session.eventCode;
+
+    if (session.moduleId && session.module) {
+        // Module mode: render dropdown of all modules in the event
+        const modules = (session.event?.modules || [])
+            .filter(m => m.eventModuleId && m.moduleName)
+            .sort((a, b) => (a.deliveryOrder || 0) - (b.deliveryOrder || 0));
+
+        const options = modules.map(m => {
+            const selected = String(m.eventModuleId) === String(session.moduleId) ? ' selected' : '';
+            const orderPrefix = m.deliveryOrder ? `#${m.deliveryOrder}: ` : '';
+            const label = `${orderPrefix}${escapeHtml(m.moduleName)} — ${escapeHtml(m.speakerName || 'Unknown Speaker')}`;
+            return `<option value="${m.eventModuleId}"${selected}>${label}</option>`;
+        }).join('');
+
+        eventInfo.innerHTML = `
+            <select id="moduleSwitcher" class="module-title-select" aria-label="Switch module">
+                ${options}
+            </select>
+            <div class="event-subtext">Event: ${escapeHtml(eventName)}</div>
+            <div class="header-error" id="headerError" role="alert" aria-live="polite"></div>
+        `;
+        const switcher = document.getElementById('moduleSwitcher');
+        switcher.addEventListener('change', handleModuleSwitch);
     } else {
-        const eventCodeText = currentEvent.eventCode || eventCode;
-        const eventName = currentEvent.eventName || eventCodeText;
-        eventCodeDisplay.textContent = `Event: ${escapeHtml(eventName)}`;
-        currentCount = currentEvent.totalCount || 0;
+        // Event mode: plain title, no dropdown
+        eventInfo.innerHTML = `
+            <div class="event-code">Event: ${escapeHtml(eventName)}</div>
+            <div class="header-error" id="headerError" role="alert" aria-live="polite"></div>
+        `;
     }
+}
 
-    // Set initial digit display
-    updateDigitDisplay(currentCount);
+async function handleModuleSwitch(event) {
+    const select = event.target;
+    const newModuleId = select.value;
+    const previousModuleId = session.moduleId;
+
+    if (String(newModuleId) === String(previousModuleId)) return;
+
+    clearHeaderError();
+
+    // Show overlay covering the count + QR area so the user knows the swap is in progress.
+    // Stays visible until applySession() resolves (which now awaits QR canvas redraw).
+    const newLabel = select.options[select.selectedIndex]?.text || 'new module';
+    showSwitchingOverlay(`Loading ${newLabel}…`);
+    select.disabled = true;
+
+    try {
+        await applySession({ eventCode: session.eventCode, moduleId: newModuleId });
+    } catch (err) {
+        console.error('Module switch failed:', err);
+        showHeaderError('Couldn\'t load that module. Please try again.');
+        // Revert dropdown to last-known-good module so user can retry
+        select.value = String(previousModuleId);
+    } finally {
+        hideSwitchingOverlay();
+        select.disabled = false;
+    }
+}
+
+function showHeaderError(msg) {
+    const el = document.getElementById('headerError');
+    if (el) el.textContent = msg;
+}
+
+function clearHeaderError() {
+    const el = document.getElementById('headerError');
+    if (el) el.textContent = '';
+}
+
+function showSwitchingOverlay(text) {
+    const overlay = document.getElementById('switchingOverlay');
+    const textEl = document.getElementById('switchingOverlayText');
+    if (!overlay) return;
+    if (textEl && text) textEl.textContent = text;
+    overlay.classList.add('visible');
+    overlay.setAttribute('aria-hidden', 'false');
+}
+
+function hideSwitchingOverlay() {
+    const overlay = document.getElementById('switchingOverlay');
+    if (!overlay) return;
+    overlay.classList.remove('visible');
+    overlay.setAttribute('aria-hidden', 'true');
 }
 
 function showError(message) {

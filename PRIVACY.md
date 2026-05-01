@@ -43,6 +43,15 @@ We explicitly **DO NOT** collect any personally identifiable information:
 - ❌ Session cookies (beyond session management)
 - ❌ Any other identifying information
 
+### Live counter — organizer view
+
+The live counter screen (`count.html`) is an **organizer-facing display**. It shows aggregate feedback counts and a QR code that points submitters to the feedback form. The live counter:
+
+- Does not collect any data about the organizer or any submitter
+- Does not use cookies of any kind (zero `document.cookie` usage anywhere in the codebase)
+- Stores user-display preferences (theme, sound on/off, refresh interval, celebration level) in browser `sessionStorage` only — these are erased when the browser session ends and never sent to a server
+- Includes a module switcher that lets the organizer change which module is displayed without reloading the page; this affects display only and does not introduce any new data collection or persistence
+
 ---
 
 ## How Data is Used
