@@ -141,7 +141,7 @@ Once you've loaded the sample data, you can test with these event codes:
 - ✅ Create a new event
 - ✅ Generate QR code
 - ✅ Export feedback to CSV
-- ✅ View live count display (test both Classic and Feed the Cat themes via footer selector)
+- ✅ View live count display (test both Classic and Feed the Cat themes via footer selector). When opened in module mode, the module name in the header is a dropdown — click to switch to a different module of the same event without closing the browser. Fullscreen and other display settings are preserved across the switch.
 - ✅ Search and filter events
 - ✅ Test user creation and role assignment (People & Permissions tab)
 - ✅ Test RBAC restrictions (login as different roles to verify access limits)

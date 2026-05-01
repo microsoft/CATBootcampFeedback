@@ -101,6 +101,8 @@ Before initiating any production deployment:
 
 #### Step 2A: Manual Frontend Deployment
 
+> **Note (live counter module switcher):** The module switcher feature is delivered entirely via `count.html` and `count.js` — pure client-side. No backend or DB changes accompany it. Cache-busting on those two files is sufficient for the rollout.
+
 ```bash
 # 1. Install Azure Static Web Apps CLI
 npm install -g @azure/static-web-apps-cli

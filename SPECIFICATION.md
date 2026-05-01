@@ -337,10 +337,20 @@ Each feedback submission should be associated with:
   - Cat theme includes: food drop animation, "nom nom" munching sound, progress bar, and milestone cat bounce animation
   - Cat images fill available vertical space via responsive flex layout
   - Image assets: `cat-stage-0.png`, `cat-stage-10.png`, `cat-stage-25.png`, `cat-stage-50.png`, `cat-stage-75.png`, `cat-stage-100.png`
+- **In-place Module Switcher** (module mode only):
+  - When the live counter is opened with a `module` URL parameter, the header renders a `<select>` dropdown of every active module of the current event, sorted by delivery order, prefixed with `#<order>:` (e.g. `#1: Intro to CAT — John Doe`)
+  - Selecting a different module triggers an in-place transition: the counter, QR code, and feedback submission URL switch to the new module, the URL bar updates via `history.replaceState`, and the refresh timer continues against the new module's count endpoint
+  - Settings preserved across the switch: theme, sound, refresh interval, celebration level, fullscreen state
+  - Celebrations are suppressed on the swap itself (`isFirstLoad` reset) and resume for real count deltas after
+  - A translucent overlay with spinner (`Loading <module label>…`) covers the counter + QR area during the switch and disappears once the QR canvas redraw completes
+  - Dropdown is disabled while a switch is in flight (race guard); rapid double-clicks are coalesced via the `session.isApplying` flag
+  - On fetch failure, the dropdown reverts to the previous selection and an inline error appears in the header (`Couldn't load that module. Please try again.`); the previous module's count remains displayed
+  - Cross-event switching is intentionally not supported on the live screen
+  - State is held in a single `session` object inside `count.js`; `applySession({ eventCode, moduleId })` is the single entry point used by both the initial URL load and the dropdown
 - **Display Features**:
   - QR code for attendees to quickly access feedback form
   - Event and module information header
-    - Module-specific: Shows module name, speaker, and event details
+    - Module-specific: Shows module dropdown (see above), speaker, and event details
     - Event-level: Shows event name and date range
   - **Refresh interval selector** - Dropdown to choose update frequency:
     - 5 seconds (fast updates)

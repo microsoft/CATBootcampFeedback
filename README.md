@@ -126,6 +126,7 @@ Azure Static Web Apps' managed functions have **limited support for custom route
 - **Module or Event view modes:**
   - Module-specific: Stats for a single module delivery
   - Event-level: Aggregate stats across all modules in an event
+- **In-place module switcher** — when in module-specific mode, the header shows a dropdown of all modules in the current event. Picking a different module swaps the counter, QR code, and feedback URL in place — no reload required. Theme, sound, refresh interval, celebration level, and fullscreen state are all preserved across the switch. A brief "Loading…" overlay appears while data refreshes.
 - **Configurable refresh interval** - Select update frequency from dropdown (default: 5 seconds)
 - **Fullscreen mode** for projection during presentations — all celebration visuals (confetti, glow, sound banner) render correctly inside fullscreen
 - **Visual indicators** for live update status

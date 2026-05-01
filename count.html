@@ -64,6 +64,47 @@
             font-weight: 600;
         }
 
+        /* Module switcher: a <select> styled to read like the title */
+        .module-title-select {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: white;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            padding: 4px 28px 4px 8px;
+            cursor: pointer;
+            font-family: inherit;
+            max-width: 100%;
+            text-overflow: ellipsis;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'><path fill='white' d='M7 10l5 5 5-5z'/></svg>");
+            background-repeat: no-repeat;
+            background-position: right 6px center;
+        }
+
+        .module-title-select:hover,
+        .module-title-select:focus {
+            border-color: rgba(255, 255, 255, 0.25);
+            background-color: rgba(255, 255, 255, 0.06);
+            outline: none;
+        }
+
+        .module-title-select option {
+            background: #1a1a2e;
+            color: white;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .header-error {
+            margin-top: 4px;
+            font-size: 0.85rem;
+            color: #ff6b6b;
+            min-height: 1.1em;
+        }
+
         .event-subtext {
             font-size: 1rem;
             color: rgba(255, 255, 255, 0.7);
@@ -519,6 +560,55 @@
             margin-bottom: 10px;
             color: rgba(255, 255, 255, 0.7);
         }
+
+        /* Module-switch overlay: shown over the main content while applySession runs */
+        .switching-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 15, 26, 0.85);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 20px;
+            z-index: 50;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+            gap: 16px;
+        }
+
+        .switching-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .switching-overlay-spinner {
+            width: 56px;
+            height: 56px;
+            border: 5px solid rgba(255, 255, 255, 0.15);
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+
+        .switching-overlay-text {
+            color: white;
+            font-size: 1.3rem;
+            font-weight: 600;
+            text-align: center;
+            text-shadow: 0 0 12px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Make sure the overlay's parent positions it correctly */
+        .main-content {
+            position: relative;
+        }
     </style>
 </head>
 <body>
@@ -563,6 +653,11 @@
 
             <!-- Main content area -->
             <div class="main-content">
+                <!-- Switching overlay: shown while applySession() is reloading the module -->
+                <div class="switching-overlay" id="switchingOverlay" role="status" aria-live="polite" aria-hidden="true">
+                    <div class="switching-overlay-spinner"></div>
+                    <div class="switching-overlay-text" id="switchingOverlayText">Switching modules&hellip;</div>
+                </div>
                 <!-- Left section: Counter -->
                 <div class="left-section">
                     <div class="count-label">Total Feedback</div>
