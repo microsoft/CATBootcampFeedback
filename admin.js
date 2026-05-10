@@ -5465,15 +5465,26 @@ function renderTemplateModulesBuilder() {
             <div class="template-module-order">${index + 1}</div>
             <div class="template-module-name">${escapeHtml(mod.moduleName)}</div>
             <div class="template-module-actions">
-                <button type="button" onclick="moveTemplateModule(${index}, -1)" ${index === 0 ? 'disabled' : ''}>↑</button>
-                <button type="button" onclick="moveTemplateModule(${index}, 1)" ${index === templateModulesList.length - 1 ? 'disabled' : ''}>↓</button>
-                <button type="button" onclick="removeTemplateModule(${index})" style="color: #e74c3c;">✕</button>
+                <button type="button" class="btn-template-module-up" data-index="${index}" ${index === 0 ? 'disabled' : ''}>↑</button>
+                <button type="button" class="btn-template-module-down" data-index="${index}" ${index === templateModulesList.length - 1 ? 'disabled' : ''}>↓</button>
+                <button type="button" class="btn-template-module-remove" data-index="${index}" style="color: #e74c3c;">✕</button>
             </div>
         </div>
     `).join('');
+
+    // CSP forbids inline onclick handlers; wire up clicks via addEventListener.
+    container.querySelectorAll('.btn-template-module-up').forEach(btn => {
+        btn.addEventListener('click', () => moveTemplateModule(parseInt(btn.dataset.index), -1));
+    });
+    container.querySelectorAll('.btn-template-module-down').forEach(btn => {
+        btn.addEventListener('click', () => moveTemplateModule(parseInt(btn.dataset.index), 1));
+    });
+    container.querySelectorAll('.btn-template-module-remove').forEach(btn => {
+        btn.addEventListener('click', () => removeTemplateModule(parseInt(btn.dataset.index)));
+    });
 }
 
-window.moveTemplateModule = function(index, direction) {
+function moveTemplateModule(index, direction) {
     const newIndex = index + direction;
     if (newIndex < 0 || newIndex >= templateModulesList.length) return;
     const temp = templateModulesList[index];
@@ -5482,13 +5493,13 @@ window.moveTemplateModule = function(index, direction) {
     // Update delivery orders
     templateModulesList.forEach((m, i) => m.deliveryOrder = i + 1);
     renderTemplateModulesBuilder();
-};
+}
 
-window.removeTemplateModule = function(index) {
+function removeTemplateModule(index) {
     templateModulesList.splice(index, 1);
     templateModulesList.forEach((m, i) => m.deliveryOrder = i + 1);
     renderTemplateModulesBuilder();
-};
+}
 
 async function handleSaveTemplate(e) {
     e.preventDefault();
