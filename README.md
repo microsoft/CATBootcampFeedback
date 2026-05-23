@@ -132,6 +132,16 @@ Azure Static Web Apps' managed functions have **limited support for custom route
 - **Visual indicators** for live update status
 - **QR code display** for easy attendee access (fireworks constrained to left panel to keep QR scannable)
 
+## Skills & Automation
+
+The `skills/` directory contains standalone automation tools that process feedback data.
+
+| Skill | Description | Usage |
+|-------|-------------|-------|
+| [feedback-report](./skills/feedback-report/) | Generates branded PDF reports from feedback CSV exports | `python skills/feedback-report/generate_report.py <csv>` |
+
+Skills require Python 3.10+ and their own dependencies (documented in each skill's README). See [docs/SKILLS-REFERENCE.md](./docs/SKILLS-REFERENCE.md) for full documentation.
+
 ## Database Schema (V2 - Many-to-Many)
 
 The application uses a many-to-many relationship between Events and Modules:
