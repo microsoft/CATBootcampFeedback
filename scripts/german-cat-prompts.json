@@ -1,0 +1,40 @@
+{
+    "stylePreamble": "Cute chibi orange tabby kitten, big anime eyes, white belly and chest, fluffy fur, soft drop shadow. Dark navy blue gradient background (#1a1a2e to #0f3460). Painterly digital illustration, warm friendly tone, centered subject, square 1024x1024.",
+    "stages": [
+        {
+            "stage": 0,
+            "filename": "cat-stage-de-0.png",
+            "prompt": "The kitten is wearing brown leather lederhosen with green embroidered suspenders and a small green Tirolerhut (Tyrolean hat) tilted on its head. It sits at an empty wooden table with paws clasped together in begging position, a single sparkling tear in one eye, sad downturned mouth, eyes wide and hopeful. No food anywhere. Mirrors the sad-begging pose of a classic cute kitten illustration."
+        },
+        {
+            "stage": 10,
+            "filename": "cat-stage-de-10.png",
+            "prompt": "The kitten in brown lederhosen and green Tirolerhut is happily nibbling on a warm soft golden-brown pretzel held in both paws. A small dab of yellow mustard on the tip of its nose. Small contented smile, eyes squinted in pleasure. The wooden table now has a paper liner and a single pretzel crumb."
+        },
+        {
+            "stage": 25,
+            "filename": "cat-stage-de-25.png",
+            "prompt": "The plumper kitten in straining lederhosen and Tirolerhut holds a grilled bratwurst on a wooden fork, raised triumphantly. A squiggle of mustard runs down the sausage. Big happy grin, mouth open mid-bite. Wooden table with a small bowl of sauerkraut next to it."
+        },
+        {
+            "stage": 50,
+            "filename": "cat-stage-de-50.png",
+            "prompt": "The cheerful chubby kitten in lederhosen with suspenders straining over a round belly holds a golden-breaded schnitzel on a plate. A fresh lemon wedge and sprig of parsley garnish the plate. Wide grin, eyes shining. Tirolerhut perched proudly. Wooden table with crumbs scattered."
+        },
+        {
+            "stage": 75,
+            "filename": "cat-stage-de-75.png",
+            "prompt": "The very plump kitten in lederhosen with suspenders popping under the strain sits behind a wooden platter loaded with a pretzel, a bratwurst with mustard, and a mound of sauerkraut. Eyes closed in pure bliss, blissful smile, contented sigh almost visible. Tirolerhut slightly askew. Faint suggestion of oompah music notes floating in the air."
+        },
+        {
+            "stage": 100,
+            "filename": "cat-stage-de-100.png",
+            "prompt": "The chonky cat in full lederhosen and a Tirolerhut with a feather raises an oversized stein of golden beer overflowing with white foam. A magnificent foam mustache decorates its upper lip. Contented closed-eyed smile. Empty pretzel wrappers and breadcrumbs scattered around. Triumphant PROST pose. Slight warm golden glow."
+        },
+        {
+            "stage": 130,
+            "filename": "cat-stage-de-130.png",
+            "prompt": "MEGA OKTOBERFEST APEX SCENE. The chonky cat is enthroned atop a giant wooden beer keg, wearing golden-embroidered lederhosen with edelweiss flower trim and a Tirolerhut with a magnificent feather. A necklace of soft pretzels hangs around its neck and a crown made of sausages sits on its head over the hat. An alphorn is slung over its shoulder. A magnificent overflowing foam mustache. Both paws raise TWO oversized steins of foamy golden beer with froth cascading down the sides. Two tiny dirndl-clad mouse companions perch on its shoulders raising their own miniature steins. In the background, oompah-band silhouettes play instruments. Bavarian blue-and-white flag rosettes and golden fireworks burst behind. Sparkles and confetti everywhere. The absolute peak of Bavarian feline glory. Lush, vivid, over-the-top."
+        }
+    ]
+}

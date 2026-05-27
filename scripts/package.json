@@ -1,0 +1,10 @@
+{
+    "name": "cat-image-gen-scripts",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Image-generation helper scripts for Feed-the-German-Cat stage images.",
+    "type": "module",
+    "dependencies": {
+        "playwright": "^1.49.0"
+    }
+}
