@@ -99,8 +99,46 @@ const CAT_MESSAGES = [
     'Fatten up the cat with your responses! \u{1F43E}'
 ];
 
+// ── Theme content registry ────────────────────────────────────────────────────
+// Each theme's stages/messages/food/milestone-overrides live here as data, so
+// adding a new theme = adding an entry, not sprinkling conditionals.
+//   stages:               null = no stage system (Classic ring); array = cat-style stages
+//   encouragingMessages:  rotating bottom-of-counter messages
+//   foodEmojis:           emojis dropped on each count tick by dropFood()
+//   milestoneMessages:    override map for showMilestone(); falls back to MILESTONE_MESSAGES
+const THEME_CONTENT = {
+    'classic': {
+        stages: null,
+        encouragingMessages: CLASSIC_MESSAGES,
+        foodEmojis: null,                  // Classic theme doesn't drop food
+        milestoneMessages: null            // falls back to global MILESTONE_MESSAGES
+    },
+    'cat': {
+        stages: null,                      // set below once CAT_STAGES is defined
+        encouragingMessages: CAT_MESSAGES,
+        foodEmojis: null,                  // set below once FOOD_EMOJIS is defined
+        milestoneMessages: null
+    }
+    // 'cat-de' entry added in Task 5
+};
+
+function getCurrentThemeContent() {
+    return THEME_CONTENT[currentTheme] || THEME_CONTENT.classic;
+}
+
 function getEncouragingMessages() {
-    return currentTheme === 'cat' ? CAT_MESSAGES : CLASSIC_MESSAGES;
+    return getCurrentThemeContent().encouragingMessages;
+}
+
+// Tiny test hooks — opt-in window globals used by the Playwright suite.
+// Not load-bearing; safe to remove if test surface is ever cleaned up.
+if (typeof window !== 'undefined') {
+    window._activeEncouragingMessagesForTest = () => getCurrentThemeContent().encouragingMessages;
+    window._activeFoodEmojisForTest         = () => getCurrentThemeContent().foodEmojis;
+    window._activeMilestoneMessageForTest   = (m) => {
+        const override = getCurrentThemeContent().milestoneMessages;
+        return (override && override[m]) || MILESTONE_MESSAGES[m];
+    };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -898,9 +936,18 @@ function checkMilestone(newCount, oldCount) {
     }
 }
 
+if (typeof window !== 'undefined') {
+    window.checkMilestone = checkMilestone;
+    window.playMilestoneSound = playMilestoneSound;
+}
+
 let milestoneTimeout = null;
 function showMilestone(milestone) {
-    const message = MILESTONE_MESSAGES[milestone] || `${milestone} responses!`;
+    const content = getCurrentThemeContent();
+    const overrideMap = content.milestoneMessages;
+    const message = (overrideMap && overrideMap[milestone])
+        || MILESTONE_MESSAGES[milestone]
+        || `${milestone} responses!`;
     milestoneMessageEl.textContent = message;
     milestoneMessageEl.classList.add('visible');
 
@@ -1066,6 +1113,7 @@ function initializeThemeSelector() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const CAT_STAGES = [0, 10, 25, 50, 75, 100];
+THEME_CONTENT.cat.stages = CAT_STAGES;
 
 function initCat() {
     const imgs = document.querySelectorAll('.cat-img');
@@ -1098,24 +1146,22 @@ function getCatStateParam(count) {
 }
 
 function updateCatState(count) {
-    const imgs = document.querySelectorAll('.cat-img');
+    const content = getCurrentThemeContent();
+    const stages = content.stages;
+    if (!stages) return;                  // Classic theme — no cat to update
+    const imgs = document.querySelectorAll(`#${currentTheme === 'cat-de' ? 'catContainerDE' : 'catContainer'} .cat-img`);
     if (!imgs.length) return;
 
-    // Find which stage to show based on count
-    let activeStage = 0;
-    for (const s of CAT_STAGES) {
+    let activeStage = stages[0];
+    for (const s of stages) {
         if (count >= s) activeStage = s;
         else break;
     }
 
-    // Show only the active stage image
     imgs.forEach(img => {
-        const stage = parseInt(img.dataset.stage);
-        if (stage === activeStage) {
-            img.classList.add('active');
-        } else {
-            img.classList.remove('active');
-        }
+        const stage = parseInt(img.dataset.stage, 10);
+        if (stage === activeStage) img.classList.add('active');
+        else img.classList.remove('active');
     });
 }
 
@@ -1135,10 +1181,11 @@ function celebrateCatMilestone() {
 }
 
 const FOOD_EMOJIS = ['\u{1F41F}', '\u{1F969}', '\u{1F357}', '\u{1F356}', '\u{1F36A}', '\u{1F363}', '\u{1F35B}'];
+THEME_CONTENT.cat.foodEmojis = FOOD_EMOJIS;
 
 function dropFood() {
     const counter = document.getElementById('counterNumber');
-    const cat = document.getElementById('catContainer');
+    const cat = document.getElementById(currentTheme === 'cat-de' ? 'catContainerDE' : 'catContainer');
     if (!counter || !cat) return;
 
     const counterRect = counter.getBoundingClientRect();
@@ -1148,7 +1195,9 @@ function dropFood() {
     const sectionRect = leftSection.getBoundingClientRect();
 
     const food = document.createElement('div');
-    food.textContent = FOOD_EMOJIS[Math.floor(Math.random() * FOOD_EMOJIS.length)];
+    const emojis = getCurrentThemeContent().foodEmojis;
+    if (!emojis || !emojis.length) return;     // Classic theme: no food drops
+    food.textContent = emojis[Math.floor(Math.random() * emojis.length)];
     food.style.cssText = `
         position: absolute;
         font-size: 1.8rem;
@@ -1592,9 +1641,10 @@ async function updateCount() {
             updateDigitDisplay(count);
 
             // Pulse animation on active counter
-            const activeCounter = session.settings.theme === 'classic'
-                ? document.getElementById('counterNumber')
-                : document.getElementById('catCounterNumber');
+            const activeCounter =
+                currentTheme === 'classic' ? document.getElementById('counterNumber')
+              : currentTheme === 'cat-de'  ? document.getElementById('catCounterDENumber')
+              :                              document.getElementById('catCounterNumber');
             if (activeCounter) {
                 activeCounter.classList.remove('pulse');
                 void activeCounter.offsetWidth;

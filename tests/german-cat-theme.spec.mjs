@@ -10,7 +10,7 @@ import { test, expect } from '@playwright/test';
 
 const COUNT_URL = '/count.html?code=CSA1B2C3';
 const GERMAN_FOOD_EMOJIS = ['🥨', '🌭', '🍺', '🥖', '🧀', '🍻'];
-const CLASSIC_FOOD_EMOJIS = ['🐟', '🥩', '🍗', '🍖', '🍪', '🍣', '🍱'];
+const CLASSIC_FOOD_EMOJIS = ['🐟', '🥩', '🍗', '🍖', '🍪', '🍣', '🍛'];
 
 async function setMockCount(page, count) {
     await page.evaluate((n) => {
