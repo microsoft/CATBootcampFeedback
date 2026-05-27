@@ -609,6 +609,31 @@
         .main-content {
             position: relative;
         }
+
+        /* ── Feed the Cat (German) theme: warm tint + Bavarian corner ── */
+        .count-container.theme-cat-de {
+            background:
+                linear-gradient(135deg, rgba(101, 67, 33, 0.18) 0%, rgba(212, 179, 107, 0.10) 100%),
+                linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        }
+
+        .count-container.theme-cat-de .left-section {
+            position: relative;
+        }
+
+        .count-container.theme-cat-de .left-section::before {
+            content: "";
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 64px;
+            height: 64px;
+            background: repeating-linear-gradient(45deg, #1e40af 0 16px, #ffffff 16px 32px);
+            border-radius: 6px;
+            opacity: 0.55;
+            pointer-events: none;
+            z-index: 1;
+        }
     </style>
 </head>
 <body>
@@ -701,6 +726,26 @@
                         </div>
                     </div>
 
+                    <!-- Feed the Cat (German) Theme: 7 stages with Bavarian arc -->
+                    <div id="themeCatDE" class="theme-view" style="display:none;">
+                        <div class="counter-number cat-counter" id="catCounterDENumber"></div>
+                        <div class="cat-container" id="catContainerDE">
+                            <img class="cat-img" data-stage="0" src="cat-stage-de-0.png" alt="Hungry kitten in lederhosen, empty table" draggable="false"/>
+                            <img class="cat-img" data-stage="10" src="cat-stage-de-10.png" alt="Kitten nibbling a warm pretzel" draggable="false"/>
+                            <img class="cat-img" data-stage="25" src="cat-stage-de-25.png" alt="Plumper kitten with bratwurst on a fork" draggable="false"/>
+                            <img class="cat-img" data-stage="50" src="cat-stage-de-50.png" alt="Happy kitten with a golden schnitzel" draggable="false"/>
+                            <img class="cat-img" data-stage="75" src="cat-stage-de-75.png" alt="Blissful kitten with a Bavarian feast platter" draggable="false"/>
+                            <img class="cat-img" data-stage="100" src="cat-stage-de-100.png" alt="Chonky kitten raising a foamy beer stein" draggable="false"/>
+                            <img class="cat-img" data-stage="130" src="cat-stage-de-130.png" alt="Oktoberfest apex kitten on a keg with two steins" draggable="false"/>
+                        </div>
+                        <div class="progress-bar-container" id="progressBarContainerDE">
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" id="progressBarFillDE"></div>
+                            </div>
+                            <div class="progress-bar-label" id="progressBarLabelDE"></div>
+                        </div>
+                    </div>
+
                     <div class="milestone-message" id="milestoneMessage"></div>
                     <div class="encouraging-message" id="encouragingMessage"></div>
                 </div>
@@ -753,6 +798,7 @@
                         <select id="themeSelect">
                             <option value="classic" selected>Classic</option>
                             <option value="cat">Feed the Cat</option>
+                            <option value="cat-de">Feed the Cat (German)</option>
                         </select>
                     </div>
                 </div>
