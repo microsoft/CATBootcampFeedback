@@ -1030,9 +1030,10 @@ function sizeProgressRing() {
         const counterEl = document.getElementById('counterNumber');
         if (counterEl) counterEl.style.fontSize = Math.max(32, size * 0.22) + 'px';
     } else {
-        // Cat theme: scale counter font
+        // Cat themes: scale counter font for whichever cat counter is active
         const availableW = leftSection.clientWidth - 40;
-        const catCounter = document.getElementById('catCounterNumber');
+        const counterId = currentTheme === 'cat-de' ? 'catCounterDENumber' : 'catCounterNumber';
+        const catCounter = document.getElementById(counterId);
         if (catCounter) catCounter.style.fontSize = Math.max(32, Math.min(availableW * 0.14, 64)) + 'px';
     }
     sizeCat();
@@ -1053,15 +1054,15 @@ function updateProgressRing(count) {
         ringFill.style.strokeDashoffset = circumference * (1 - progress);
     }
 
-    // Cat theme: update progress bar (always update so it's ready if switched)
-    const fill = document.getElementById('progressBarFill');
-    const label = document.getElementById('progressBarLabel');
-    if (fill) {
-        const nextMilestone = getNextMilestone(count);
-        const prevMilestone = getPrevMilestone(count);
-        const range = nextMilestone - prevMilestone;
-        const progress = range > 0 ? Math.min(1, (count - prevMilestone) / range) : 0;
-        fill.style.width = (progress * 100) + '%';
+    // Cat themes (both): update the relevant progress bar
+    const nextMilestone = getNextMilestone(count);
+    const prevMilestone = getPrevMilestone(count);
+    const range = nextMilestone - prevMilestone;
+    const progress = range > 0 ? Math.min(1, (count - prevMilestone) / range) : 0;
+    for (const suffix of ['', 'DE']) {
+        const fill = document.getElementById(`progressBarFill${suffix}`);
+        const label = document.getElementById(`progressBarLabel${suffix}`);
+        if (fill) fill.style.width = (progress * 100) + '%';
         if (label) label.textContent = `${count} / ${nextMilestone} to next milestone`;
     }
 }
@@ -1070,15 +1071,15 @@ function setTheme(theme) {
     currentTheme = theme;
     session.settings.theme = currentTheme;
     const classicView = document.getElementById('themeClassic');
-    const catView = document.getElementById('themeCat');
+    const catView     = document.getElementById('themeCat');
+    const catDEView   = document.getElementById('themeCatDE');
+    const container   = document.querySelector('.count-container');
 
-    if (theme === 'classic') {
-        if (classicView) classicView.style.display = '';
-        if (catView) catView.style.display = 'none';
-    } else {
-        if (classicView) classicView.style.display = 'none';
-        if (catView) catView.style.display = '';
-    }
+    if (classicView) classicView.style.display = (theme === 'classic') ? '' : 'none';
+    if (catView)     catView.style.display     = (theme === 'cat')     ? '' : 'none';
+    if (catDEView)   catDEView.style.display   = (theme === 'cat-de')  ? '' : 'none';
+
+    if (container) container.classList.toggle('theme-cat-de', theme === 'cat-de');
 
     // Resize for new layout
     sizeProgressRing();
@@ -1090,19 +1091,22 @@ function setTheme(theme) {
     updateEncouragingMessage();
 }
 
+const VALID_THEMES = ['classic', 'cat', 'cat-de'];
+
 function initializeThemeSelector() {
     const select = document.getElementById('themeSelect');
     if (!select) return;
 
     // Restore from sessionStorage
     const saved = sessionStorage.getItem('counterTheme');
-    if (saved && (saved === 'classic' || saved === 'cat')) {
+    if (saved && VALID_THEMES.includes(saved)) {
         select.value = saved;
         setTheme(saved);
     }
 
     select.addEventListener('change', () => {
         const theme = select.value;
+        if (!VALID_THEMES.includes(theme)) return;
         sessionStorage.setItem('counterTheme', theme);
         setTheme(theme);
     });
@@ -1116,7 +1120,7 @@ const CAT_STAGES = [0, 10, 25, 50, 75, 100];
 THEME_CONTENT.cat.stages = CAT_STAGES;
 
 function initCat() {
-    const imgs = document.querySelectorAll('.cat-img');
+    const imgs = document.querySelectorAll('#themeCat .cat-img, #themeCatDE .cat-img');
     if (!imgs.length) return;
 
     sizeCat();
@@ -1171,7 +1175,8 @@ function sizeCat() {
 }
 
 function celebrateCatMilestone() {
-    const container = document.getElementById('catContainer');
+    const containerId = currentTheme === 'cat-de' ? 'catContainerDE' : 'catContainer';
+    const container = document.getElementById(containerId);
     if (!container) return;
 
     container.style.transform = 'scale(1.2) translateY(-10px)';
@@ -1182,6 +1187,43 @@ function celebrateCatMilestone() {
 
 const FOOD_EMOJIS = ['\u{1F41F}', '\u{1F969}', '\u{1F357}', '\u{1F356}', '\u{1F36A}', '\u{1F363}', '\u{1F35B}'];
 THEME_CONTENT.cat.foodEmojis = FOOD_EMOJIS;
+
+// ── Feed the Cat (German) theme constants ────────────────────────────────────
+const GERMAN_CAT_STAGES = [0, 10, 25, 50, 75, 100, 130];
+
+const GERMAN_CAT_MESSAGES = [
+    'Füttere die Katze! Submit your feedback! 🥨',
+    'Sehr gut! Keep them coming! 🐱',
+    'The Katze wants more pretzels! 🥨',
+    'Wunderbar! Every response feeds the cat! 😺',
+    "Don't be a Stubentiger — share your thoughts! 🐾",
+    'Mehr, bitte! The cat is still hungry! 😻',
+    'Prost to your feedback! 🍺',
+    'Schnitzel-tastic participation! 🥩',
+    'The Bayerische Katze approves! 🇩🇪',
+    'Oktober-purrfect responses! 🥨'
+];
+
+const GERMAN_MILESTONE_MESSAGES = {
+    10:  'Zehn! First pretzel earned! 🥨',
+    25:  'Fünfundzwanzig! Bratwurst time! 🌭',
+    50:  'Fünfzig! Schnitzel achieved! 🥩',
+    75:  'Fünfundsiebzig! Full Bavarian feast! 🍻',
+    100: 'PROST! Hundert responses — raise the stein! 🍺👑',
+    150: '150! Oktoberfest legend! 🎪',
+    200: '200! Die Katze ist sehr happy! 😻',
+    300: '300! Schnitzel-pocalypse! 🌟',
+    500: '500! Mega-Katzen-König! 👑'
+};
+
+const GERMAN_FOOD_EMOJIS = ['🥨', '🌭', '🍺', '🥖', '🧀', '🍻'];
+
+THEME_CONTENT['cat-de'] = {
+    stages: GERMAN_CAT_STAGES,
+    encouragingMessages: GERMAN_CAT_MESSAGES,
+    foodEmojis: GERMAN_FOOD_EMOJIS,
+    milestoneMessages: GERMAN_MILESTONE_MESSAGES
+};
 
 function dropFood() {
     const counter = document.getElementById('counterNumber');
@@ -1249,8 +1291,8 @@ function createDigitReel() {
 function updateDigitDisplay(newCount) {
     const digits = String(newCount).split('');
 
-    // Update both counter elements (classic + cat theme)
-    ['counterNumber', 'catCounterNumber'].forEach(id => {
+    // Update all three counter elements (classic + cat + cat-de)
+    ['counterNumber', 'catCounterNumber', 'catCounterDENumber'].forEach(id => {
         const el = document.getElementById(id);
         if (el) updateDigitContainer(el, digits);
     });

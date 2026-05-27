@@ -47,7 +47,7 @@ test.describe('Dropdown integration', () => {
         expect(values).toEqual(['classic', 'cat', 'cat-de']);
     });
 
-    test.skip("Selecting 'cat-de' switches the view and persists across reload", async ({ page }) => {
+    test("Selecting 'cat-de' switches the view and persists across reload", async ({ page }) => {
         await page.goto(COUNT_URL);
         await pickTheme(page, 'cat-de');
         await expect(page.locator('#themeCatDE')).toBeVisible();
@@ -110,7 +110,7 @@ test.describe('German cat theme — stages', () => {
 });
 
 test.describe('Background tint and Bavarian corner', () => {
-    test.skip('theme-cat-de class is applied only when cat-de is active', async ({ page }) => {
+    test('theme-cat-de class is applied only when cat-de is active', async ({ page }) => {
         await page.goto(COUNT_URL);
         await pickTheme(page, 'classic');
         await expect(page.locator('.count-container')).not.toHaveClass(/theme-cat-de/);
@@ -122,7 +122,7 @@ test.describe('Background tint and Bavarian corner', () => {
 });
 
 test.describe('Food drops', () => {
-    test.skip('German theme drops only Bavarian food emojis', async ({ page }) => {
+    test('German theme drops only Bavarian food emojis', async ({ page }) => {
         await page.goto(COUNT_URL);
         await pickTheme(page, 'cat-de');
         const seen = await page.evaluate((bavarianSet) => {
@@ -161,7 +161,7 @@ test.describe('Food drops', () => {
 });
 
 test.describe('Messages', () => {
-    test.skip('German encouraging messages contain German tokens', async ({ page }) => {
+    test('German encouraging messages contain German tokens', async ({ page }) => {
         await page.goto(COUNT_URL);
         await pickTheme(page, 'cat-de');
         const messages = await page.evaluate(() => window._activeEncouragingMessagesForTest?.());
@@ -170,7 +170,7 @@ test.describe('Messages', () => {
         expect(joined).toMatch(/Sehr gut|Prost|Wunderbar|Katze|Bayerische|Stubentiger/);
     });
 
-    test.skip('German milestone message at count >= 100 references PROST', async ({ page }) => {
+    test('German milestone message at count >= 100 references PROST', async ({ page }) => {
         await page.goto(COUNT_URL);
         await pickTheme(page, 'cat-de');
         const msg = await page.evaluate(() => window._activeMilestoneMessageForTest?.(100));
@@ -179,7 +179,7 @@ test.describe('Messages', () => {
 });
 
 test.describe('Milestone semantics for stage 130', () => {
-    test.skip('Crossing 130 swaps the stage but does NOT fire a milestone fanfare', async ({ page }) => {
+    test('Crossing 130 swaps the stage but does NOT fire a milestone fanfare', async ({ page }) => {
         await page.goto(COUNT_URL);
         await pickTheme(page, 'cat-de');
         const fired = await page.evaluate(() => {
