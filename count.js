@@ -693,10 +693,26 @@ function fireworkVolley(count) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const CHARACTER_POOL = {
+    // Default (Classic + Feed the Cat) \u2014 cats, ducks, and bonus characters
     cats: ['\u{1F431}', '\u{1F408}', '\u{1F63A}', '\u{1F638}', '\u{1F63B}', '\u{1F63C}', '\u{1F640}', '\u{1F408}\u200D\u2B1B'],
     ducks: ['\u{1F986}', '\u{1F425}', '\u{1F424}'],
     bonus: ['\u{1F984}', '\u{1F419}', '\u{1F420}', '\u{1F98B}', '\u{1F38A}', '\u{2B50}', '\u{1F31F}', '\u{1F680}', '\u{1F389}', '\u{1F4AB}']
 };
+
+// Bavarian celebration pool used when the German cat theme is active.
+//   cats  \u2192 snacks raining/floating (pretzel, beer, sausage, bread, cheese, cheers)
+//   ducks \u2192 secondary Bavarian items (schnitzel, foamy stein, pretzel)
+//   bonus \u2192 Oktoberfest celebration symbols (tent, mountain, German flag, party)
+const GERMAN_CHARACTER_POOL = {
+    cats:  ['\uD83E\uDD68', '\uD83C\uDF7A', '\uD83C\uDF2D', '\uD83E\uDD56', '\uD83E\uDDC0', '\uD83C\uDF7B'],
+    ducks: ['\uD83E\uDD69', '\uD83C\uDF7B', '\uD83E\uDD68'],
+    bonus: ['\uD83C\uDFAA', '\u26F0\uFE0F', '\uD83C\uDDE9\uD83C\uDDEA', '\uD83E\uDD73', '\uD83C\uDFB5', '\u2728', '\uD83C\uDF86', '\uD83C\uDFC6', '\uD83C\uDF89']
+};
+
+// Wire the default character pool into Classic + Feed the Cat. The German
+// cat theme overrides it via the THEME_CONTENT['cat-de'] entry below.
+THEME_CONTENT.classic.characterPool = CHARACTER_POOL;
+THEME_CONTENT.cat.characterPool     = CHARACTER_POOL;
 
 let activeCharacters = [];
 
@@ -731,7 +747,7 @@ function spawnCharacter(emoji, options = {}) {
 }
 
 function spawnFloatingCat() {
-    const cats = CHARACTER_POOL.cats;
+    const cats = getCurrentThemeContent().characterPool.cats;
     const emoji = cats[Math.floor(Math.random() * cats.length)];
 
     // Float up from center area
@@ -814,7 +830,7 @@ function triggerCelebration(count, oldCount) {
         const catCount = 2 + Math.floor(Math.random() * 2);
         for (let i = 0; i < catCount; i++) {
             setTimeout(() => {
-                const cats = CHARACTER_POOL.cats;
+                const cats = getCurrentThemeContent().characterPool.cats;
                 spawnCharacter(cats[Math.floor(Math.random() * cats.length)], {
                     size: 35 + Math.random() * 15
                 });
@@ -822,7 +838,7 @@ function triggerCelebration(count, oldCount) {
         }
         // Spawn 1 duck
         setTimeout(() => {
-            const ducks = CHARACTER_POOL.ducks;
+            const ducks = getCurrentThemeContent().characterPool.ducks;
             spawnCharacter(ducks[Math.floor(Math.random() * ducks.length)], {
                 size: 30 + Math.random() * 10
             });
@@ -837,7 +853,7 @@ function triggerCelebration(count, oldCount) {
         const catCount = 5 + Math.floor(Math.random() * 4);
         for (let i = 0; i < catCount; i++) {
             setTimeout(() => {
-                const cats = CHARACTER_POOL.cats;
+                const cats = getCurrentThemeContent().characterPool.cats;
                 spawnCharacter(cats[Math.floor(Math.random() * cats.length)], {
                     size: 30 + Math.random() * 30
                 });
@@ -847,7 +863,7 @@ function triggerCelebration(count, oldCount) {
         const duckCount = 2 + Math.floor(Math.random() * 3);
         for (let i = 0; i < duckCount; i++) {
             setTimeout(() => {
-                const ducks = CHARACTER_POOL.ducks;
+                const ducks = getCurrentThemeContent().characterPool.ducks;
                 spawnCharacter(ducks[Math.floor(Math.random() * ducks.length)], {
                     size: 25 + Math.random() * 15
                 });
@@ -857,7 +873,7 @@ function triggerCelebration(count, oldCount) {
         const bonusCount = 2 + Math.floor(Math.random() * 3);
         for (let i = 0; i < bonusCount; i++) {
             setTimeout(() => {
-                const bonus = CHARACTER_POOL.bonus;
+                const bonus = getCurrentThemeContent().characterPool.bonus;
                 spawnCharacter(bonus[Math.floor(Math.random() * bonus.length)], {
                     size: 30 + Math.random() * 20
                 });
@@ -923,7 +939,7 @@ function checkMilestone(newCount, oldCount) {
                 }
                 for (let i = 0; i < 4; i++) {
                     setTimeout(() => {
-                        const bonus = CHARACTER_POOL.bonus;
+                        const bonus = getCurrentThemeContent().characterPool.bonus;
                         spawnCharacter(bonus[Math.floor(Math.random() * bonus.length)], {
                             size: 40 + Math.random() * 25,
                             fadeRate: 0.003
@@ -1054,16 +1070,26 @@ function updateProgressRing(count) {
         ringFill.style.strokeDashoffset = circumference * (1 - progress);
     }
 
-    // Cat themes (both): update the relevant progress bar
+    // Cat themes (both): update the relevant progress bar.
+    // German theme has a visual apex (stage 130) — once at/past it, the bar
+    // shows the apex label instead of promising the next global milestone,
+    // since the cat illustration won't change any further.
+    const themeContent = getCurrentThemeContent();
+    const atApex = themeContent.apex && count >= themeContent.apex;
     const nextMilestone = getNextMilestone(count);
     const prevMilestone = getPrevMilestone(count);
     const range = nextMilestone - prevMilestone;
-    const progress = range > 0 ? Math.min(1, (count - prevMilestone) / range) : 0;
+    const progress = atApex ? 1 : (range > 0 ? Math.min(1, (count - prevMilestone) / range) : 0);
+    const apexText = themeContent.apexLabel || '🏆 Maximum reached!';
     for (const suffix of ['', 'DE']) {
         const fill = document.getElementById(`progressBarFill${suffix}`);
         const label = document.getElementById(`progressBarLabel${suffix}`);
         if (fill) fill.style.width = (progress * 100) + '%';
-        if (label) label.textContent = `${count} / ${nextMilestone} to next milestone`;
+        if (label) {
+            label.textContent = atApex
+                ? `${apexText} (${count})`
+                : `${count} / ${nextMilestone} to next milestone`;
+        }
     }
 }
 
@@ -1222,7 +1248,13 @@ THEME_CONTENT['cat-de'] = {
     stages: GERMAN_CAT_STAGES,
     encouragingMessages: GERMAN_CAT_MESSAGES,
     foodEmojis: GERMAN_FOOD_EMOJIS,
-    milestoneMessages: GERMAN_MILESTONE_MESSAGES
+    milestoneMessages: GERMAN_MILESTONE_MESSAGES,
+    characterPool: GERMAN_CHARACTER_POOL,
+    // Visual cap: once count reaches this, the progress bar stops promising
+    // the next global milestone (150 etc.) and shows apexLabel instead. The
+    // global milestone celebrations themselves still fire normally.
+    apex: 130,
+    apexLabel: '🏆 Mega-Katzen-König!'
 };
 
 function dropFood() {
