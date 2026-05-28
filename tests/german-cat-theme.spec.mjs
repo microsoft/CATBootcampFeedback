@@ -209,7 +209,7 @@ test.describe('CSP-safe code', () => {
         const html = await fs.readFile(new URL('../count.html', import.meta.url), 'utf8');
         const js = await fs.readFile(new URL('../count.js', import.meta.url), 'utf8');
         expect(html).not.toMatch(/\sonclick\s*=/i);
-        expect(html).not.toMatch(/<script>[^<]/);
+        expect(html).not.toMatch(/<script>[^<]/i);
         for (const m of html.matchAll(/<script[^>]*>/gi)) {
             expect(m[0]).toMatch(/\ssrc\s*=/i);
         }
