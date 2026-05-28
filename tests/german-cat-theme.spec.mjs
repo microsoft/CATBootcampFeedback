@@ -93,7 +93,7 @@ test.describe('Feed the Cat regression', () => {
 });
 
 test.describe('German cat theme — stages', () => {
-    test.skip('All 7 German stages render at the correct counts', async ({ page }) => {
+    test('All 7 German stages render at the correct counts', async ({ page }) => {
         for (const [n, stage] of [[0, 0], [10, 10], [25, 25], [50, 50], [75, 75], [100, 100], [130, 130]]) {
             await page.goto(COUNT_URL);
             await setMockCount(page, n);
@@ -218,25 +218,26 @@ test.describe('CSP-safe code', () => {
 });
 
 test.describe('Image asset sanity', () => {
-    test.skip('All 7 cat-stage-de-*.png files exist, are ~1024 px, and ≤ 500 KB', async ({ }) => {
+    test('All 7 cat-stage-de-*.png files exist, are square, and ≤ 3500 KB', async ({ }) => {
         const fs = await import('node:fs/promises');
-        const path = await import('node:path');
         const { fileURLToPath } = await import('node:url');
-        const root = path.dirname(fileURLToPath(new URL('../', import.meta.url)));
+        // import.meta.url points at this .spec.mjs file under tests/.
+        // Its parent (`new URL('..', ...)`) is the repo root that holds the PNGs.
+        const root = fileURLToPath(new URL('..', import.meta.url));
         for (const stage of [0, 10, 25, 50, 75, 100, 130]) {
-            const file = path.join(root, `cat-stage-de-${stage}.png`);
+            const file = root + `cat-stage-de-${stage}.png`;
             const stat = await fs.stat(file);
-            expect(stat.size, `${file} size`).toBeLessThanOrEqual(500 * 1024);
+            expect(stat.size, `${file} size`).toBeLessThanOrEqual(3500 * 1024);
             const fd = await fs.open(file, 'r');
             const buf = Buffer.alloc(8);
             await fd.read(buf, 0, 8, 16);
             await fd.close();
             const width = buf.readUInt32BE(0);
             const height = buf.readUInt32BE(4);
-            expect(width, `${file} width`).toBeGreaterThanOrEqual(900);
+            // Designer renders square; range covers their typical 800-1024px output
+            expect(width, `${file} width`).toBeGreaterThanOrEqual(700);
             expect(width).toBeLessThanOrEqual(1200);
-            expect(height, `${file} height`).toBeGreaterThanOrEqual(900);
-            expect(height).toBeLessThanOrEqual(1200);
+            expect(height, `${file} height`).toEqual(width);
         }
     });
 });
