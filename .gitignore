@@ -49,6 +49,9 @@ Desktop.ini
 .cache/
 .parcel-cache/
 
+# Local-only per-user files for the image-gen helper
+scripts/*.local.*
+
 # Debug files
 *.stackdump
 

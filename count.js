@@ -99,8 +99,46 @@ const CAT_MESSAGES = [
     'Fatten up the cat with your responses! \u{1F43E}'
 ];
 
+// ── Theme content registry ────────────────────────────────────────────────────
+// Each theme's stages/messages/food/milestone-overrides live here as data, so
+// adding a new theme = adding an entry, not sprinkling conditionals.
+//   stages:               null = no stage system (Classic ring); array = cat-style stages
+//   encouragingMessages:  rotating bottom-of-counter messages
+//   foodEmojis:           emojis dropped on each count tick by dropFood()
+//   milestoneMessages:    override map for showMilestone(); falls back to MILESTONE_MESSAGES
+const THEME_CONTENT = {
+    'classic': {
+        stages: null,
+        encouragingMessages: CLASSIC_MESSAGES,
+        foodEmojis: null,                  // Classic theme doesn't drop food
+        milestoneMessages: null            // falls back to global MILESTONE_MESSAGES
+    },
+    'cat': {
+        stages: null,                      // set below once CAT_STAGES is defined
+        encouragingMessages: CAT_MESSAGES,
+        foodEmojis: null,                  // set below once FOOD_EMOJIS is defined
+        milestoneMessages: null
+    }
+    // 'cat-de' entry added in Task 5
+};
+
+function getCurrentThemeContent() {
+    return THEME_CONTENT[currentTheme] || THEME_CONTENT.classic;
+}
+
 function getEncouragingMessages() {
-    return currentTheme === 'cat' ? CAT_MESSAGES : CLASSIC_MESSAGES;
+    return getCurrentThemeContent().encouragingMessages;
+}
+
+// Tiny test hooks — opt-in window globals used by the Playwright suite.
+// Not load-bearing; safe to remove if test surface is ever cleaned up.
+if (typeof window !== 'undefined') {
+    window._activeEncouragingMessagesForTest = () => getCurrentThemeContent().encouragingMessages;
+    window._activeFoodEmojisForTest         = () => getCurrentThemeContent().foodEmojis;
+    window._activeMilestoneMessageForTest   = (m) => {
+        const override = getCurrentThemeContent().milestoneMessages;
+        return (override && override[m]) || MILESTONE_MESSAGES[m];
+    };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -655,10 +693,26 @@ function fireworkVolley(count) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const CHARACTER_POOL = {
+    // Default (Classic + Feed the Cat) \u2014 cats, ducks, and bonus characters
     cats: ['\u{1F431}', '\u{1F408}', '\u{1F63A}', '\u{1F638}', '\u{1F63B}', '\u{1F63C}', '\u{1F640}', '\u{1F408}\u200D\u2B1B'],
     ducks: ['\u{1F986}', '\u{1F425}', '\u{1F424}'],
     bonus: ['\u{1F984}', '\u{1F419}', '\u{1F420}', '\u{1F98B}', '\u{1F38A}', '\u{2B50}', '\u{1F31F}', '\u{1F680}', '\u{1F389}', '\u{1F4AB}']
 };
+
+// Bavarian celebration pool used when the German cat theme is active.
+//   cats  \u2192 snacks raining/floating (pretzel, beer, sausage, bread, cheese, cheers)
+//   ducks \u2192 secondary Bavarian items (schnitzel, foamy stein, pretzel)
+//   bonus \u2192 Oktoberfest celebration symbols (tent, mountain, German flag, party)
+const GERMAN_CHARACTER_POOL = {
+    cats:  ['\uD83E\uDD68', '\uD83C\uDF7A', '\uD83C\uDF2D', '\uD83E\uDD56', '\uD83E\uDDC0', '\uD83C\uDF7B'],
+    ducks: ['\uD83E\uDD69', '\uD83C\uDF7B', '\uD83E\uDD68'],
+    bonus: ['\uD83C\uDFAA', '\u26F0\uFE0F', '\uD83C\uDDE9\uD83C\uDDEA', '\uD83E\uDD73', '\uD83C\uDFB5', '\u2728', '\uD83C\uDF86', '\uD83C\uDFC6', '\uD83C\uDF89']
+};
+
+// Wire the default character pool into Classic + Feed the Cat. The German
+// cat theme overrides it via the THEME_CONTENT['cat-de'] entry below.
+THEME_CONTENT.classic.characterPool = CHARACTER_POOL;
+THEME_CONTENT.cat.characterPool     = CHARACTER_POOL;
 
 let activeCharacters = [];
 
@@ -693,7 +747,7 @@ function spawnCharacter(emoji, options = {}) {
 }
 
 function spawnFloatingCat() {
-    const cats = CHARACTER_POOL.cats;
+    const cats = getCurrentThemeContent().characterPool.cats;
     const emoji = cats[Math.floor(Math.random() * cats.length)];
 
     // Float up from center area
@@ -776,7 +830,7 @@ function triggerCelebration(count, oldCount) {
         const catCount = 2 + Math.floor(Math.random() * 2);
         for (let i = 0; i < catCount; i++) {
             setTimeout(() => {
-                const cats = CHARACTER_POOL.cats;
+                const cats = getCurrentThemeContent().characterPool.cats;
                 spawnCharacter(cats[Math.floor(Math.random() * cats.length)], {
                     size: 35 + Math.random() * 15
                 });
@@ -784,7 +838,7 @@ function triggerCelebration(count, oldCount) {
         }
         // Spawn 1 duck
         setTimeout(() => {
-            const ducks = CHARACTER_POOL.ducks;
+            const ducks = getCurrentThemeContent().characterPool.ducks;
             spawnCharacter(ducks[Math.floor(Math.random() * ducks.length)], {
                 size: 30 + Math.random() * 10
             });
@@ -799,7 +853,7 @@ function triggerCelebration(count, oldCount) {
         const catCount = 5 + Math.floor(Math.random() * 4);
         for (let i = 0; i < catCount; i++) {
             setTimeout(() => {
-                const cats = CHARACTER_POOL.cats;
+                const cats = getCurrentThemeContent().characterPool.cats;
                 spawnCharacter(cats[Math.floor(Math.random() * cats.length)], {
                     size: 30 + Math.random() * 30
                 });
@@ -809,7 +863,7 @@ function triggerCelebration(count, oldCount) {
         const duckCount = 2 + Math.floor(Math.random() * 3);
         for (let i = 0; i < duckCount; i++) {
             setTimeout(() => {
-                const ducks = CHARACTER_POOL.ducks;
+                const ducks = getCurrentThemeContent().characterPool.ducks;
                 spawnCharacter(ducks[Math.floor(Math.random() * ducks.length)], {
                     size: 25 + Math.random() * 15
                 });
@@ -819,7 +873,7 @@ function triggerCelebration(count, oldCount) {
         const bonusCount = 2 + Math.floor(Math.random() * 3);
         for (let i = 0; i < bonusCount; i++) {
             setTimeout(() => {
-                const bonus = CHARACTER_POOL.bonus;
+                const bonus = getCurrentThemeContent().characterPool.bonus;
                 spawnCharacter(bonus[Math.floor(Math.random() * bonus.length)], {
                     size: 30 + Math.random() * 20
                 });
@@ -885,7 +939,7 @@ function checkMilestone(newCount, oldCount) {
                 }
                 for (let i = 0; i < 4; i++) {
                     setTimeout(() => {
-                        const bonus = CHARACTER_POOL.bonus;
+                        const bonus = getCurrentThemeContent().characterPool.bonus;
                         spawnCharacter(bonus[Math.floor(Math.random() * bonus.length)], {
                             size: 40 + Math.random() * 25,
                             fadeRate: 0.003
@@ -898,9 +952,18 @@ function checkMilestone(newCount, oldCount) {
     }
 }
 
+if (typeof window !== 'undefined') {
+    window.checkMilestone = checkMilestone;
+    window.playMilestoneSound = playMilestoneSound;
+}
+
 let milestoneTimeout = null;
 function showMilestone(milestone) {
-    const message = MILESTONE_MESSAGES[milestone] || `${milestone} responses!`;
+    const content = getCurrentThemeContent();
+    const overrideMap = content.milestoneMessages;
+    const message = (overrideMap && overrideMap[milestone])
+        || MILESTONE_MESSAGES[milestone]
+        || `${milestone} responses!`;
     milestoneMessageEl.textContent = message;
     milestoneMessageEl.classList.add('visible');
 
@@ -983,9 +1046,10 @@ function sizeProgressRing() {
         const counterEl = document.getElementById('counterNumber');
         if (counterEl) counterEl.style.fontSize = Math.max(32, size * 0.22) + 'px';
     } else {
-        // Cat theme: scale counter font
+        // Cat themes: scale counter font for whichever cat counter is active
         const availableW = leftSection.clientWidth - 40;
-        const catCounter = document.getElementById('catCounterNumber');
+        const counterId = currentTheme === 'cat-de' ? 'catCounterDENumber' : 'catCounterNumber';
+        const catCounter = document.getElementById(counterId);
         if (catCounter) catCounter.style.fontSize = Math.max(32, Math.min(availableW * 0.14, 64)) + 'px';
     }
     sizeCat();
@@ -1006,16 +1070,26 @@ function updateProgressRing(count) {
         ringFill.style.strokeDashoffset = circumference * (1 - progress);
     }
 
-    // Cat theme: update progress bar (always update so it's ready if switched)
-    const fill = document.getElementById('progressBarFill');
-    const label = document.getElementById('progressBarLabel');
-    if (fill) {
-        const nextMilestone = getNextMilestone(count);
-        const prevMilestone = getPrevMilestone(count);
-        const range = nextMilestone - prevMilestone;
-        const progress = range > 0 ? Math.min(1, (count - prevMilestone) / range) : 0;
-        fill.style.width = (progress * 100) + '%';
-        if (label) label.textContent = `${count} / ${nextMilestone} to next milestone`;
+    // Cat themes (both): update the relevant progress bar.
+    // German theme has a visual apex (stage 130) — once at/past it, the bar
+    // shows the apex label instead of promising the next global milestone,
+    // since the cat illustration won't change any further.
+    const themeContent = getCurrentThemeContent();
+    const atApex = themeContent.apex && count >= themeContent.apex;
+    const nextMilestone = getNextMilestone(count);
+    const prevMilestone = getPrevMilestone(count);
+    const range = nextMilestone - prevMilestone;
+    const progress = atApex ? 1 : (range > 0 ? Math.min(1, (count - prevMilestone) / range) : 0);
+    const apexText = themeContent.apexLabel || '🏆 Maximum reached!';
+    for (const suffix of ['', 'DE']) {
+        const fill = document.getElementById(`progressBarFill${suffix}`);
+        const label = document.getElementById(`progressBarLabel${suffix}`);
+        if (fill) fill.style.width = (progress * 100) + '%';
+        if (label) {
+            label.textContent = atApex
+                ? `${apexText} (${count})`
+                : `${count} / ${nextMilestone} to next milestone`;
+        }
     }
 }
 
@@ -1023,15 +1097,15 @@ function setTheme(theme) {
     currentTheme = theme;
     session.settings.theme = currentTheme;
     const classicView = document.getElementById('themeClassic');
-    const catView = document.getElementById('themeCat');
+    const catView     = document.getElementById('themeCat');
+    const catDEView   = document.getElementById('themeCatDE');
+    const container   = document.querySelector('.count-container');
 
-    if (theme === 'classic') {
-        if (classicView) classicView.style.display = '';
-        if (catView) catView.style.display = 'none';
-    } else {
-        if (classicView) classicView.style.display = 'none';
-        if (catView) catView.style.display = '';
-    }
+    if (classicView) classicView.style.display = (theme === 'classic') ? '' : 'none';
+    if (catView)     catView.style.display     = (theme === 'cat')     ? '' : 'none';
+    if (catDEView)   catDEView.style.display   = (theme === 'cat-de')  ? '' : 'none';
+
+    if (container) container.classList.toggle('theme-cat-de', theme === 'cat-de');
 
     // Resize for new layout
     sizeProgressRing();
@@ -1043,19 +1117,22 @@ function setTheme(theme) {
     updateEncouragingMessage();
 }
 
+const VALID_THEMES = ['classic', 'cat', 'cat-de'];
+
 function initializeThemeSelector() {
     const select = document.getElementById('themeSelect');
     if (!select) return;
 
     // Restore from sessionStorage
     const saved = sessionStorage.getItem('counterTheme');
-    if (saved && (saved === 'classic' || saved === 'cat')) {
+    if (saved && VALID_THEMES.includes(saved)) {
         select.value = saved;
         setTheme(saved);
     }
 
     select.addEventListener('change', () => {
         const theme = select.value;
+        if (!VALID_THEMES.includes(theme)) return;
         sessionStorage.setItem('counterTheme', theme);
         setTheme(theme);
     });
@@ -1066,9 +1143,10 @@ function initializeThemeSelector() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const CAT_STAGES = [0, 10, 25, 50, 75, 100];
+THEME_CONTENT.cat.stages = CAT_STAGES;
 
 function initCat() {
-    const imgs = document.querySelectorAll('.cat-img');
+    const imgs = document.querySelectorAll('#themeCat .cat-img, #themeCatDE .cat-img');
     if (!imgs.length) return;
 
     sizeCat();
@@ -1098,24 +1176,22 @@ function getCatStateParam(count) {
 }
 
 function updateCatState(count) {
-    const imgs = document.querySelectorAll('.cat-img');
+    const content = getCurrentThemeContent();
+    const stages = content.stages;
+    if (!stages) return;                  // Classic theme — no cat to update
+    const imgs = document.querySelectorAll(`#${currentTheme === 'cat-de' ? 'catContainerDE' : 'catContainer'} .cat-img`);
     if (!imgs.length) return;
 
-    // Find which stage to show based on count
-    let activeStage = 0;
-    for (const s of CAT_STAGES) {
+    let activeStage = stages[0];
+    for (const s of stages) {
         if (count >= s) activeStage = s;
         else break;
     }
 
-    // Show only the active stage image
     imgs.forEach(img => {
-        const stage = parseInt(img.dataset.stage);
-        if (stage === activeStage) {
-            img.classList.add('active');
-        } else {
-            img.classList.remove('active');
-        }
+        const stage = parseInt(img.dataset.stage, 10);
+        if (stage === activeStage) img.classList.add('active');
+        else img.classList.remove('active');
     });
 }
 
@@ -1125,7 +1201,8 @@ function sizeCat() {
 }
 
 function celebrateCatMilestone() {
-    const container = document.getElementById('catContainer');
+    const containerId = currentTheme === 'cat-de' ? 'catContainerDE' : 'catContainer';
+    const container = document.getElementById(containerId);
     if (!container) return;
 
     container.style.transform = 'scale(1.2) translateY(-10px)';
@@ -1135,10 +1212,54 @@ function celebrateCatMilestone() {
 }
 
 const FOOD_EMOJIS = ['\u{1F41F}', '\u{1F969}', '\u{1F357}', '\u{1F356}', '\u{1F36A}', '\u{1F363}', '\u{1F35B}'];
+THEME_CONTENT.cat.foodEmojis = FOOD_EMOJIS;
+
+// ── Feed the Cat (German) theme constants ────────────────────────────────────
+const GERMAN_CAT_STAGES = [0, 10, 25, 50, 75, 100, 130];
+
+const GERMAN_CAT_MESSAGES = [
+    'Füttere die Katze! Submit your feedback! 🥨',
+    'Sehr gut! Keep them coming! 🐱',
+    'The Katze wants more pretzels! 🥨',
+    'Wunderbar! Every response feeds the cat! 😺',
+    "Don't be a Stubentiger — share your thoughts! 🐾",
+    'Mehr, bitte! The cat is still hungry! 😻',
+    'Prost to your feedback! 🍺',
+    'Schnitzel-tastic participation! 🥩',
+    'The Bayerische Katze approves! 🇩🇪',
+    'Oktober-purrfect responses! 🥨'
+];
+
+const GERMAN_MILESTONE_MESSAGES = {
+    10:  'Zehn! First pretzel earned! 🥨',
+    25:  'Fünfundzwanzig! Bratwurst time! 🌭',
+    50:  'Fünfzig! Schnitzel achieved! 🥩',
+    75:  'Fünfundsiebzig! Full Bavarian feast! 🍻',
+    100: 'PROST! Hundert responses — raise the stein! 🍺👑',
+    150: '150! Oktoberfest legend! 🎪',
+    200: '200! Die Katze ist sehr happy! 😻',
+    300: '300! Schnitzel-pocalypse! 🌟',
+    500: '500! Mega-Katzen-König! 👑'
+};
+
+const GERMAN_FOOD_EMOJIS = ['🥨', '🌭', '🍺', '🥖', '🧀', '🍻'];
+
+THEME_CONTENT['cat-de'] = {
+    stages: GERMAN_CAT_STAGES,
+    encouragingMessages: GERMAN_CAT_MESSAGES,
+    foodEmojis: GERMAN_FOOD_EMOJIS,
+    milestoneMessages: GERMAN_MILESTONE_MESSAGES,
+    characterPool: GERMAN_CHARACTER_POOL,
+    // Visual cap: once count reaches this, the progress bar stops promising
+    // the next global milestone (150 etc.) and shows apexLabel instead. The
+    // global milestone celebrations themselves still fire normally.
+    apex: 130,
+    apexLabel: '🏆 Mega-Katzen-König!'
+};
 
 function dropFood() {
     const counter = document.getElementById('counterNumber');
-    const cat = document.getElementById('catContainer');
+    const cat = document.getElementById(currentTheme === 'cat-de' ? 'catContainerDE' : 'catContainer');
     if (!counter || !cat) return;
 
     const counterRect = counter.getBoundingClientRect();
@@ -1148,7 +1269,9 @@ function dropFood() {
     const sectionRect = leftSection.getBoundingClientRect();
 
     const food = document.createElement('div');
-    food.textContent = FOOD_EMOJIS[Math.floor(Math.random() * FOOD_EMOJIS.length)];
+    const emojis = getCurrentThemeContent().foodEmojis;
+    if (!emojis || !emojis.length) return;     // Classic theme: no food drops
+    food.textContent = emojis[Math.floor(Math.random() * emojis.length)];
     food.style.cssText = `
         position: absolute;
         font-size: 1.8rem;
@@ -1200,8 +1323,8 @@ function createDigitReel() {
 function updateDigitDisplay(newCount) {
     const digits = String(newCount).split('');
 
-    // Update both counter elements (classic + cat theme)
-    ['counterNumber', 'catCounterNumber'].forEach(id => {
+    // Update all three counter elements (classic + cat + cat-de)
+    ['counterNumber', 'catCounterNumber', 'catCounterDENumber'].forEach(id => {
         const el = document.getElementById(id);
         if (el) updateDigitContainer(el, digits);
     });
@@ -1592,9 +1715,10 @@ async function updateCount() {
             updateDigitDisplay(count);
 
             // Pulse animation on active counter
-            const activeCounter = session.settings.theme === 'classic'
-                ? document.getElementById('counterNumber')
-                : document.getElementById('catCounterNumber');
+            const activeCounter =
+                currentTheme === 'classic' ? document.getElementById('counterNumber')
+              : currentTheme === 'cat-de'  ? document.getElementById('catCounterDENumber')
+              :                              document.getElementById('catCounterNumber');
             if (activeCounter) {
                 activeCounter.classList.remove('pulse');
                 void activeCounter.offsetWidth;
