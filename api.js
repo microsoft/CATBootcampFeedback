@@ -97,6 +97,10 @@ export async function apiRequest(endpoint, options = {}) {
     const authToken = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken');
     if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
+        // Azure Static Web Apps managed functions do not reliably forward the
+        // Authorization header to the API. Also send the token in a custom header
+        // that SWA forwards verbatim; the API reads this first (see shared/auth.js).
+        headers['x-auth-token'] = authToken;
     }
 
     options.headers = headers;
