@@ -74,6 +74,16 @@ function authErrorResponse(status, message, code) {
  * Extract token from request Authorization header
  */
 function extractToken(req) {
+    // Prefer a custom header: Azure Static Web Apps managed functions do not
+    // reliably forward the standard Authorization header, so the client also
+    // sends the raw token in x-auth-token (see web api.js).
+    const customToken = req.headers.get
+        ? req.headers.get('x-auth-token')
+        : (req.headers['x-auth-token'] || req.headers['X-Auth-Token']);
+    if (customToken) {
+        return customToken.startsWith('Bearer ') ? customToken.substring(7) : customToken;
+    }
+
     const authHeader = req.headers.get
         ? req.headers.get('authorization')
         : (req.headers.authorization || req.headers.Authorization);
