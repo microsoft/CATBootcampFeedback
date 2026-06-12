@@ -99,8 +99,16 @@ if (typeof window !== 'undefined') {
                           !window.location.hostname.includes('blue-moss');
     const isCustomDomain = window.location.hostname === 'catbootcamp.yourdomain.com';
 
+    // New production environment (rg-bootcamp-feedback): API is served same-origin
+    // by Static Web Apps managed functions, so API_BASE_URL stays the relative '/api'.
+    const isBootcampProdHostname = window.location.hostname.includes('white-ground-0d6d8650f');
+
     const isQAHostname = window.location.hostname.includes('ashy-rock-0b254600f');
-    if (isQAHostname) {
+    if (isBootcampProdHostname) {
+        CONFIG.USE_MOCK_DATA = false;
+        CONFIG.API_BASE_URL = '/api';
+        console.log('Environment: PRODUCTION (bootcamp-feedback)');
+    } else if (isQAHostname) {
         CONFIG.USE_MOCK_DATA = false;
         CONFIG.API_BASE_URL = 'https://catbootcamp-api-qa.azurewebsites.net/api';
         console.log('Environment: QA');

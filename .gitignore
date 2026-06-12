@@ -73,3 +73,11 @@ CREDENTIALS_MASTER.md
 *_SECURE.md
 *_COMPLETE.md
 Secure_CAT_Files/
+
+# Secrets / deploy artifacts — never commit
+*.bacpac
+*.publishsettings
+*.publishprofile
+*.bicepparam.local
+token.txt
+profile.xml

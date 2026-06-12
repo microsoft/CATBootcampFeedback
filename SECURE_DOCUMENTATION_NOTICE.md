@@ -98,7 +98,7 @@ Password: [REDACTED - See secure documentation]
 
 # Desktop Version (Private)
 Database: CATBootcampFeedback-Prod
-Password: CATBootcamp2026Prod!
+Password: [REDACTED - stored in Azure Key Vault; rotate the legacy value]
 ```
 
 ---

@@ -12,7 +12,7 @@ LOCATION="eastus2"
 SQL_SERVER_NAME="cat-bootcamp-sql-prod"
 SQL_DB_NAME="CATBootcampFeedback-Prod"
 SQL_ADMIN_USER="sqladmin"
-SQL_ADMIN_PASSWORD="kV$#8IFEknG%FK9D"
+SQL_ADMIN_PASSWORD="${SQL_ADMIN_PASSWORD:?Set the SQL_ADMIN_PASSWORD env var before running; never hardcode credentials}"
 
 echo "Step 1: Creating production resource group..."
 az group create \

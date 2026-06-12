@@ -18,7 +18,7 @@ FUNCTION_APP_NAME="cat-bootcamp-api-prod"
 SQL_SERVER_NAME="cat-bootcamp-sql-prod"
 SQL_DATABASE_NAME="cat-bootcamp-db-prod"
 SQL_ADMIN_USER="catbootcampadmin"
-SQL_ADMIN_PASSWORD="kV$#8IFEknG%FK9D"
+SQL_ADMIN_PASSWORD="${SQL_ADMIN_PASSWORD:?Set the SQL_ADMIN_PASSWORD env var before running; never hardcode credentials}"
 
 echo ""
 echo "Configuration:"
