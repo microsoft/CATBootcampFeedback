@@ -12,7 +12,7 @@ This application uses a **separate Azure Functions app** architecture to enable 
 ```
 ┌──────────────────────────────┐
 │ Azure Static Web App         │ Frontend hosting
-│ blue-moss-01913f80f          │ HTML/CSS/JS files
+│ white-ground-0d6d8650f       │ HTML/CSS/JS files
 └──────────────────────────────┘
            │
            │ HTTPS + CORS
@@ -34,15 +34,15 @@ This application uses a **separate Azure Functions app** architecture to enable 
 
 ### Frontend (Azure Static Web App)
 - **Name:** cat-bootcamp-feedback
-- **URL:** https://blue-moss-01913f80f.1.azurestaticapps.net
+- **URL:** https://white-ground-0d6d8650f.7.azurestaticapps.net
 - **Resource Group:** cat-bootcamp-rg
 - **Region:** East US 2
 - **GitHub Integration:** Auto-deploy from `main` branch
-- **Workflow:** `.github/workflows/azure-static-web-apps-blue-moss-01913f80f.yml`
+- **Workflow:** `.github/workflows/deploy-prod-bootcamp-feedback.yml`
 
 ### Backend (Azure Functions App)
 - **Name:** cat-bootcamp-api
-- **URL:** https://cat-bootcamp-api.azurewebsites.net
+- **URL:** https://white-ground-0d6d8650f.7.azurestaticapps.net
 - **Resource Group:** cat-bootcamp-rg
 - **Region:** East US 2
 - **Runtime:** Node.js 20 (Linux)
@@ -75,7 +75,7 @@ node migrate-users-from-env.js --global-admin=admin
 ### Frontend Deployment (Automatic)
 
 **Trigger:** Push to `main` branch
-**Workflow:** `.github/workflows/azure-static-web-apps-blue-moss-01913f80f.yml`
+**Workflow:** `.github/workflows/deploy-prod-bootcamp-feedback.yml`
 
 ```yaml
 on:
@@ -96,7 +96,7 @@ on:
 **Manual Trigger:**
 Not usually needed - pushes auto-deploy. To manually redeploy:
 ```bash
-gh workflow run azure-static-web-apps-blue-moss-01913f80f.yml
+gh workflow run deploy-prod-bootcamp-feedback.yml
 ```
 
 ### Backend Deployment (Manual)
@@ -124,9 +124,9 @@ Deployment completed successfully.
 [timestamp] Syncing triggers...
 Functions in cat-bootcamp-api:
     events - [httpTrigger]
-        Invoke url: https://cat-bootcamp-api.azurewebsites.net/api/events
+        Invoke url: https://white-ground-0d6d8650f.7.azurestaticapps.net/api/events
     feedback - [httpTrigger]
-        Invoke url: https://cat-bootcamp-api.azurewebsites.net/api/feedback
+        Invoke url: https://white-ground-0d6d8650f.7.azurestaticapps.net/api/feedback
     [... other functions ...]
 ```
 
@@ -144,7 +144,7 @@ A workflow exists at `.github/workflows/deploy-functions-app.yml` but currently 
 
 ```javascript
 export const CONFIG = {
-    API_BASE_URL: 'https://cat-bootcamp-api.azurewebsites.net/api',
+    API_BASE_URL: 'https://white-ground-0d6d8650f.7.azurestaticapps.net/api',
     USE_MOCK_DATA: false, // Set to true for localhost development
     API_TIMEOUT: 30000,
     // ... other settings
@@ -195,7 +195,7 @@ The Functions app must allow requests from the Static Web App:
 az functionapp cors add \
   --name cat-bootcamp-api \
   --resource-group cat-bootcamp-rg \
-  --allowed-origins "https://blue-moss-01913f80f.1.azurestaticapps.net"
+  --allowed-origins "https://white-ground-0d6d8650f.7.azurestaticapps.net"
 ```
 
 ## Local Development
@@ -276,7 +276,7 @@ API_BASE_URL: 'http://localhost:7071/api'
 # Add Static Web App to allowed origins
 az functionapp cors add --name cat-bootcamp-api \
   --resource-group cat-bootcamp-rg \
-  --allowed-origins "https://blue-moss-01913f80f.1.azurestaticapps.net"
+  --allowed-origins "https://white-ground-0d6d8650f.7.azurestaticapps.net"
 
 # Verify CORS settings
 az functionapp cors show --name cat-bootcamp-api \
@@ -346,13 +346,13 @@ Or in Azure Portal:
 
 ```bash
 # Test frontend
-curl https://blue-moss-01913f80f.1.azurestaticapps.net/
+curl https://white-ground-0d6d8650f.7.azurestaticapps.net/
 
 # Test backend
-curl https://cat-bootcamp-api.azurewebsites.net/api/events
+curl https://white-ground-0d6d8650f.7.azurestaticapps.net/api/events
 
 # Test specific endpoint
-curl https://cat-bootcamp-api.azurewebsites.net/api/health
+curl https://white-ground-0d6d8650f.7.azurestaticapps.net/api/health
 ```
 
 ## Security Checklist
