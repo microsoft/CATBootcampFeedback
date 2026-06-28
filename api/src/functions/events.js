@@ -7,7 +7,7 @@
  */
 
 const { app } = require('@azure/functions');
-const { query, withTransaction } = require('../shared/database');
+const { query, mutate, withTransaction } = require('../shared/database');
 const { success, error } = require('../shared/utils');
 const { requireRole, getAuthenticatedUser, isAuthenticated } = require('../shared/auth');
 const { getAccessibleEventIds } = require('../shared/permissions');
@@ -67,7 +67,7 @@ app.http('events', {
                 const username = (caller || {}).username || 'admin';
 
                 // Create the event and grant the creator resource access atomically.
-                // If the access grant fails, the event insert must roll back too —
+                // If the access grant fails, the event insert must roll back too â€”
                 // otherwise the creator ends up locked out of their own event.
                 const createdEvent = await withTransaction(async (tx) => {
                     const result = await tx.query(`
@@ -305,7 +305,7 @@ app.http('getModuleCount', {
     }
 });
 
-// DELETE single event — GlobalAdmin only
+// DELETE single event â€” GlobalAdmin only
 app.http('deleteEvent', {
     methods: ['DELETE'],
     authLevel: 'anonymous',
@@ -355,7 +355,7 @@ app.http('deleteEvent', {
     }
 });
 
-// DELETE multiple events (bulk delete) — GlobalAdmin only
+// DELETE multiple events (bulk delete) â€” GlobalAdmin only
 app.http('deleteEventsBulk', {
     methods: ['POST'],  // Using POST for bulk delete to send body
     authLevel: 'anonymous',
