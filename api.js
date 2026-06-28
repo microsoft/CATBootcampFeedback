@@ -27,8 +27,11 @@ export async function fetchWithRetry(url, options = {}, maxRetries = CONFIG.MAX_
 
             clearTimeout(timeoutId);
 
-            // Don't retry client errors (4xx) except 429
-            if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+            // Don't retry client errors (4xx), including 429 (rate-limited).
+            // Retrying a 429 immediately is counter-productive: the server-side
+            // window (e.g. 15 min for login) far exceeds our backoff delays, so
+            // repeated attempts just waste quota and can cascade into further errors.
+            if (response.status >= 400 && response.status < 500) {
                 return response;
             }
 
@@ -37,7 +40,7 @@ export async function fetchWithRetry(url, options = {}, maxRetries = CONFIG.MAX_
                 return response;
             }
 
-            // Retry server errors (5xx) and 429
+            // Retry server errors (5xx) only
             lastError = new Error(`HTTP ${response.status}`);
 
         } catch (error) {
