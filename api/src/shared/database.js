@@ -4,8 +4,12 @@
 
 const sql = require('mssql');
 
-// Connection pool
-let pool = null;
+// Singleton promise for the connection pool.
+// Using a promise (rather than the resolved pool) ensures that concurrent
+// cold-start requests all await the same connection attempt instead of each
+// racing to open their own TCP connection — which caused mass 15-second
+// timeouts when the Azure Functions host scaled from zero.
+let poolPromise = null;
 
 /**
  * Get database configuration from environment variables
@@ -30,14 +34,19 @@ function getDbConfig() {
 }
 
 /**
- * Get or create database connection pool
+ * Get or create the shared database connection pool.
+ * All concurrent callers share the same promise so only one TCP handshake
+ * is attempted at a time. If the connection fails the promise is cleared so
+ * the next request can try again.
  */
 async function getPool() {
-    if (!pool) {
-        const config = getDbConfig();
-        pool = await sql.connect(config);
+    if (!poolPromise) {
+        poolPromise = sql.connect(getDbConfig()).catch(err => {
+            poolPromise = null; // reset so the next request retries
+            throw err;
+        });
     }
-    return pool;
+    return poolPromise;
 }
 
 /**
@@ -151,9 +160,14 @@ async function withTransaction(fn) {
  * Close database connection
  */
 async function close() {
-    if (pool) {
-        await pool.close();
-        pool = null;
+    if (poolPromise) {
+        try {
+            const pool = await poolPromise;
+            await pool.close();
+        } catch {
+            // ignore errors during close
+        }
+        poolPromise = null;
     }
 }
 
