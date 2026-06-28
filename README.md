@@ -14,37 +14,37 @@ This application provides a complete solution for collecting and managing feedba
 ## System Architecture
 
 ```
-┌─────────────────────────────────┐
-│   Azure Static Web App          │
-│   (Frontend Hosting)             │
-│   - feedback.html                │
-│   - admin.html                   │
-│   - count.html                   │
-└─────────────────────────────────┘
-            │
-            │ HTTPS/CORS
-            ↓
-┌─────────────────────────────────┐
-│  Azure Functions App             │
-│  (Separate Backend)              │
-│  - Full custom routing support   │
-│  - Node.js 20 runtime            │
-│  - RESTful API endpoints         │
-└─────────────────────────────────┘
-            │
-            ↓
-┌─────────────────────────────────┐
-│    Azure SQL Database            │
-│    - Events table                │
-│    - Modules table               │
-│    - EventModules table          │
-│    - Feedback table              │
-│    - Users table                 │
-│    - Roles table                 │
-│    - UserRoles table             │
-│    - UserEventAccess table       │
-│    - AuditLog table              │
-└─────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚   Azure Static Web App          â”‚
+â”‚   (Frontend Hosting)             â”‚
+â”‚   - feedback.html                â”‚
+â”‚   - admin.html                   â”‚
+â”‚   - count.html                   â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+            â”‚
+            â”‚ HTTPS/CORS
+            â†“
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚  Azure Functions App             â”‚
+â”‚  (Separate Backend)              â”‚
+â”‚  - Full custom routing support   â”‚
+â”‚  - Node.js 20 runtime            â”‚
+â”‚  - RESTful API endpoints         â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+            â”‚
+            â†“
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚    Azure SQL Database            â”‚
+â”‚    - Events table                â”‚
+â”‚    - Modules table               â”‚
+â”‚    - EventModules table          â”‚
+â”‚    - Feedback table              â”‚
+â”‚    - Users table                 â”‚
+â”‚    - Roles table                 â”‚
+â”‚    - UserRoles table             â”‚
+â”‚    - UserEventAccess table       â”‚
+â”‚    - AuditLog table              â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ### Why Separate Azure Functions App?
@@ -61,10 +61,10 @@ Azure Static Web Apps' managed functions have **limited support for custom route
 - Module information auto-loaded from parameters
 
 #### Collected Data
-- ✅ **Speaker Knowledge** (1-5 scale) - Required
-- ✅ **Content Depth** (Too Technical / Just Right / Too Low Level) - Required
-- ✅ **Module Satisfaction** (1-5 scale) - Required
-- ✅ **Additional Comments** (up to 1000 characters) - Optional
+- âœ… **Speaker Knowledge** (1-5 scale) - Required
+- âœ… **Content Depth** (Too Technical / Just Right / Too Low Level) - Required
+- âœ… **Module Satisfaction** (1-5 scale) - Required
+- âœ… **Additional Comments** (up to 1000 characters) - Optional
 
 ### Admin Interface (admin.html)
 
@@ -96,7 +96,7 @@ Azure Static Web Apps' managed functions have **limited support for custom route
 #### User Management & RBAC
 - **6 roles:** GlobalAdmin, UserAdmin, ModuleManager, EventCreator, FeedbackManager, FeedbackViewer
 - **People & Permissions tab** for managing users
-- **Resource-level security** — users only see events they have access to
+- **Resource-level security** â€” users only see events they have access to
 - Profile image upload
 - Password reset and forgot password/username flows
 - Protected Global Admin account (cannot be deleted or demoted)
@@ -110,25 +110,25 @@ Azure Static Web Apps' managed functions have **limited support for custom route
 
 ### Live Count Display (count.html)
 
-- **Dual theme system** — selectable from the footer:
+- **Dual theme system** â€” selectable from the footer:
   - **Classic** (default): Progress ring counter with confetti celebrations
-  - **Feed the Cat**: Cute cartoon cat progresses through 6 stages as feedback grows — from a skinny hungry cat (0%) to an extremely full cat on the couch (100%). Includes food drop animation, "nom nom" munching sound, progress bar, and milestone bounce animation
-- **Theme persistence** — selected theme saved to sessionStorage across page refreshes
+  - **Feed the Cat**: Cute cartoon cat progresses through 6 stages as feedback grows â€” from a skinny hungry cat (0%) to an extremely full cat on the couch (100%). Includes food drop animation, "nom nom" munching sound, progress bar, and milestone bounce animation
+- **Theme persistence** â€” selected theme saved to sessionStorage across page refreshes
 - **Real-time feedback count** with configurable auto-refresh (5, 10, 15, or 30 seconds; default: 5 seconds)
-- **3 Celebration Levels** — selectable from the footer:
+- **3 Celebration Levels** â€” selectable from the footer:
   - **Chill** (default): Small confetti burst + floating cat emoji + gentle chime
   - **Party**: Medium confetti + cat parade + duck waddling across screen + screen glow + fanfare
   - **Chaos**: Massive confetti + cat army + duck squad + bonus emojis + screen shake + wild sounds
-- **Fireworks at milestones** (10, 25, 50, 75, 100, 150, 200, 300, 500) — scaled by celebration level
-- **Cat-themed encouragement messages** — each theme has its own rotating puns displayed in large, room-readable font
-- **Cat-themed milestone messages** — celebratory cat puns at each threshold
-- **Sound effects** — toggle on/off from footer; Classic theme uses chimes, fanfares, and firework sounds; Feed the Cat theme uses "nom nom" munching sounds
+- **Fireworks at milestones** (10, 25, 50, 75, 100, 150, 200, 300, 500) â€” scaled by celebration level
+- **Cat-themed encouragement messages** â€” each theme has its own rotating puns displayed in large, room-readable font
+- **Cat-themed milestone messages** â€” celebratory cat puns at each threshold
+- **Sound effects** â€” toggle on/off from footer; Classic theme uses chimes, fanfares, and firework sounds; Feed the Cat theme uses "nom nom" munching sounds
 - **Module or Event view modes:**
   - Module-specific: Stats for a single module delivery
   - Event-level: Aggregate stats across all modules in an event
-- **In-place module switcher** — when in module-specific mode, the header shows a dropdown of all modules in the current event. Picking a different module swaps the counter, QR code, and feedback URL in place — no reload required. Theme, sound, refresh interval, celebration level, and fullscreen state are all preserved across the switch. A brief "Loading…" overlay appears while data refreshes.
+- **In-place module switcher** â€” when in module-specific mode, the header shows a dropdown of all modules in the current event. Picking a different module swaps the counter, QR code, and feedback URL in place â€” no reload required. Theme, sound, refresh interval, celebration level, and fullscreen state are all preserved across the switch. A brief "Loadingâ€¦" overlay appears while data refreshes.
 - **Configurable refresh interval** - Select update frequency from dropdown (default: 5 seconds)
-- **Fullscreen mode** for projection during presentations — all celebration visuals (confetti, glow, sound banner) render correctly inside fullscreen
+- **Fullscreen mode** for projection during presentations â€” all celebration visuals (confetti, glow, sound banner) render correctly inside fullscreen
 - **Visual indicators** for live update status
 - **QR code display** for easy attendee access (fireworks constrained to left panel to keep QR scannable)
 
@@ -345,7 +345,7 @@ SQL_PASSWORD=*** (configured in Azure)
 NODE_ENV=production
 ```
 
-### 🔐 Azure Key Vault Integration
+### ðŸ” Azure Key Vault Integration
 
 The application uses **Azure Key Vault** to securely store sensitive configuration values like JWT secrets.
 
@@ -397,11 +397,11 @@ No code changes required - the application reads from `process.env.JWT_SECRET` a
 
 #### Security Benefits
 
-- ✅ **Encryption at Rest** - All secrets encrypted in Key Vault
-- ✅ **Managed Identities** - No credentials stored in code or config
-- ✅ **Least Privilege** - Function Apps only have `get` and `list` permissions
-- ✅ **Audit Logs** - All secret access logged in Azure Monitor
-- ✅ **Separate Secrets** - Dev and prod environments fully isolated
+- âœ… **Encryption at Rest** - All secrets encrypted in Key Vault
+- âœ… **Managed Identities** - No credentials stored in code or config
+- âœ… **Least Privilege** - Function Apps only have `get` and `list` permissions
+- âœ… **Audit Logs** - All secret access logged in Azure Monitor
+- âœ… **Separate Secrets** - Dev and prod environments fully isolated
 
 See [`scripts/README.md`](scripts/README.md) for complete Key Vault documentation.
 
@@ -410,13 +410,13 @@ See [`scripts/README.md`](scripts/README.md) for complete Key Vault documentatio
 See [`docs/database-migration-strategy.md`](docs/database-migration-strategy.md) for complete database setup and migration procedures.
 
 **Initialize Production Database:**
-1. Navigate to Azure Portal → CATBootcampFeedback-Prod database
+1. Navigate to Azure Portal â†’ CATBootcampFeedback-Prod database
 2. Open Query editor (preview)
 3. Login with sqladmin credentials
 4. Run `database-init-PORTAL-ALL-IN-ONE.sql`
 
 **Restore Dev Sample Data:**
-1. Navigate to Azure Portal → CATBootcampFeedback database
+1. Navigate to Azure Portal â†’ CATBootcampFeedback database
 2. Open Query editor (preview)
 3. Login with sqladmin credentials
 4. Run `restore-dev-sample-data-v2.sql`
@@ -473,7 +473,7 @@ API_BASE_URL: 'http://localhost:7071/api'
 
 2. **During Each Module**
    - Display QR code or share link for attendees
-   - Open live counter on second screen (click "📊 Live Counter" in admin)
+   - Open live counter on second screen (click "ðŸ“Š Live Counter" in admin)
    - Monitor real-time statistics:
      - Live feedback count
      - Average satisfaction and speaker knowledge ratings
@@ -540,45 +540,45 @@ API_BASE_URL: 'http://localhost:7071/api'
 
 ```
 feedbackapp/
-├── api/                          # Azure Functions backend
-│   ├── GetEvents/               # List events endpoint
-│   ├── GetEventModules/         # List modules for event
-│   ├── SubmitFeedback/          # Submit feedback endpoint
-│   ├── Login/                   # Admin authentication
-│   ├── src/functions/
-│   │   ├── users.js              # User CRUD, roles, event access
-│   │   ├── password.js           # Password change/reset/recovery
-│   │   ├── audit-log.js          # Audit log query API
-│   │   ├── notifications.js      # Welcome email notifications (Azure Communication Services)
-│   │   └── ...
-│   ├── src/shared/              # Shared utilities
-│   │   ├── auth.js               # JWT auth + RBAC middleware
-│   │   ├── permissions.js        # Centralized permission logic
-│   │   ├── audit.js              # Audit logging helper
-│   │   ├── database.js          # SQL connection
-│   │   └── utils.js             # Helper functions
-│   ├── host.json                # Functions runtime config
-│   └── package.json             # Node dependencies
-├── migrations/
-│   ├── 002-add-user-management.sql
-│   ├── 003-add-profile-image.sql
-│   ├── 004-add-audit-log.sql
-│   └── 005-widen-event-code.sql
-├── scripts/
-│   └── migrate-users-from-env.js # Migrate users from env var to DB
-├── feedback.html                # Public feedback form
-├── feedback.js                  # Feedback form logic
-├── admin.html                   # Admin interface
-├── admin.js                     # Admin functionality
-├── count.html                   # Live analytics dashboard (Classic + Feed the Cat themes)
-├── count.js                     # Real-time analytics, count logic, and theme management
-├── cat-stage-*.png              # Cat mascot images for Feed the Cat theme (6 stages: 0–100%)
-├── config.js                    # Centralized configuration
-├── api.js                       # API client with retry logic and token expiry handling
-├── styles.css                   # Shared styling
-├── staticwebapp.config.json     # Static Web App config
-├── README.md                    # This file
-└── DATABASE-REFERENCE.md        # Complete database schema
+â”œâ”€â”€ api/                          # Azure Functions backend
+â”‚   â”œâ”€â”€ GetEvents/               # List events endpoint
+â”‚   â”œâ”€â”€ GetEventModules/         # List modules for event
+â”‚   â”œâ”€â”€ SubmitFeedback/          # Submit feedback endpoint
+â”‚   â”œâ”€â”€ Login/                   # Admin authentication
+â”‚   â”œâ”€â”€ src/functions/
+â”‚   â”‚   â”œâ”€â”€ users.js              # User CRUD, roles, event access
+â”‚   â”‚   â”œâ”€â”€ password.js           # Password change/reset/recovery
+â”‚   â”‚   â”œâ”€â”€ audit-log.js          # Audit log query API
+â”‚   â”‚   â”œâ”€â”€ notifications.js      # Welcome email notifications (Azure Communication Services)
+â”‚   â”‚   â””â”€â”€ ...
+â”‚   â”œâ”€â”€ src/shared/              # Shared utilities
+â”‚   â”‚   â”œâ”€â”€ auth.js               # JWT auth + RBAC middleware
+â”‚   â”‚   â”œâ”€â”€ permissions.js        # Centralized permission logic
+â”‚   â”‚   â”œâ”€â”€ audit.js              # Audit logging helper
+â”‚   â”‚   â”œâ”€â”€ database.js          # SQL connection
+â”‚   â”‚   â””â”€â”€ utils.js             # Helper functions
+â”‚   â”œâ”€â”€ host.json                # Functions runtime config
+â”‚   â””â”€â”€ package.json             # Node dependencies
+â”œâ”€â”€ migrations/
+â”‚   â”œâ”€â”€ 002-add-user-management.sql
+â”‚   â”œâ”€â”€ 003-add-profile-image.sql
+â”‚   â”œâ”€â”€ 004-add-audit-log.sql
+â”‚   â””â”€â”€ 005-widen-event-code.sql
+â”œâ”€â”€ scripts/
+â”‚   â””â”€â”€ migrate-users-from-env.js # Migrate users from env var to DB
+â”œâ”€â”€ feedback.html                # Public feedback form
+â”œâ”€â”€ feedback.js                  # Feedback form logic
+â”œâ”€â”€ admin.html                   # Admin interface
+â”œâ”€â”€ admin.js                     # Admin functionality
+â”œâ”€â”€ count.html                   # Live analytics dashboard (Classic + Feed the Cat themes)
+â”œâ”€â”€ count.js                     # Real-time analytics, count logic, and theme management
+â”œâ”€â”€ cat-stage-*.png              # Cat mascot images for Feed the Cat theme (6 stages: 0â€“100%)
+â”œâ”€â”€ config.js                    # Centralized configuration
+â”œâ”€â”€ api.js                       # API client with retry logic and token expiry handling
+â”œâ”€â”€ styles.css                   # Shared styling
+â”œâ”€â”€ staticwebapp.config.json     # Static Web App config
+â”œâ”€â”€ README.md                    # This file
+â””â”€â”€ DATABASE-REFERENCE.md        # Complete database schema
 ```
 
 ## Key Files
@@ -596,16 +596,16 @@ feedbackapp/
 
 ## Privacy & Security
 
-### 🔒 Privacy-First Design
+### ðŸ”’ Privacy-First Design
 
 **No Personally Identifiable Information (PII) Collected**
 
 This application is designed with privacy as a core principle:
-- ❌ **No names, emails, or contact information** collected
-- ❌ **No IP addresses or device identifiers** stored
-- ❌ **No user tracking or analytics cookies** used
-- ✅ **100% anonymous feedback** - responses cannot be traced to individuals
-- ✅ **Privacy notice** displayed on feedback form
+- âŒ **No names, emails, or contact information** collected
+- âŒ **No IP addresses or device identifiers** stored
+- âŒ **No user tracking or analytics cookies** used
+- âœ… **100% anonymous feedback** - responses cannot be traced to individuals
+- âœ… **Privacy notice** displayed on feedback form
 
 **For complete privacy details, see:** [`PRIVACY.md`](PRIVACY.md)
 
@@ -620,7 +620,7 @@ This application is designed with privacy as a core principle:
 - **Azure Key Vault** stores JWT secrets securely
 - Managed identities for Key Vault access (no credentials in code)
 - **Role-based access control (RBAC)** with 6 granular roles
-- **Resource-level security filtering** — users only see events/feedback they have access to
+- **Resource-level security filtering** â€” users only see events/feedback they have access to
 - **Comprehensive audit logging** of all admin actions
 - **Per-email rate limiting** on password/username recovery
 - **Protected Global Admin account** (cannot be deleted or demoted)
@@ -638,12 +638,12 @@ This application is designed with privacy as a core principle:
 
 ## Browser Compatibility
 
-- ✅ Chrome (recommended)
-- ✅ Firefox
-- ✅ Safari
-- ✅ Edge
-- ✅ Modern mobile browsers
-- ❌ IE11 (not supported)
+- âœ… Chrome (recommended)
+- âœ… Firefox
+- âœ… Safari
+- âœ… Edge
+- âœ… Modern mobile browsers
+- âŒ IE11 (not supported)
 
 ## Version History
 
@@ -655,14 +655,14 @@ This application is designed with privacy as a core principle:
 - "Nom nom" munching sound, food drop animation, progress bar, and milestone cat bounce animation
 - Cat images fill available vertical space via responsive flex layout
 - Theme choice persists via sessionStorage
-- **Auto-redirect on token expiry** — expired JWT sessions now automatically clear and redirect to login instead of showing broken admin panel
-- **Fullscreen celebration fix** — confetti, screen glow, and sound banner now render correctly inside fullscreen mode
+- **Auto-redirect on token expiry** â€” expired JWT sessions now automatically clear and redirect to login instead of showing broken admin panel
+- **Fullscreen celebration fix** â€” confetti, screen glow, and sound banner now render correctly inside fullscreen mode
 
 **Version 5.0** (Mar 29, 2026)
 - **RBAC User Management System**
 - 6 roles with granular permissions: GlobalAdmin, UserAdmin, ModuleManager, EventCreator, FeedbackManager, FeedbackViewer
 - Database-backed user accounts replacing ADMIN_USERS_JSON environment variable
-- Resource-level security — users only see events/feedback they have access to
+- Resource-level security â€” users only see events/feedback they have access to
 - Protected Global Admin account (cannot be deleted or demoted)
 - People & Permissions UI with card-based user management
 - Self-service profile editing (name, email, photo, password)
@@ -751,7 +751,7 @@ This application is designed with privacy as a core principle:
 - Added Live Counter button in admin QR code modal
 
 **Version 2.0** (Feb 4, 2026)
-- Migrated to many-to-many Events ↔ Modules relationship
+- Migrated to many-to-many Events â†” Modules relationship
 - Added module reusability across events
 - Enhanced admin panel with module management
 - Updated database schema to V2
@@ -783,3 +783,4 @@ This is a demonstration project for the CAT Bootcamp.
 **Version:** 5.0
 **Last Updated:** March 29, 2026
 **Status:** Production - Privacy-Compliant + RBAC + Audit Logging
+
