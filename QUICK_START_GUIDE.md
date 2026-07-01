@@ -45,7 +45,7 @@ The SQL Server password needs to be reset before we can initialize the database.
    curl -o init-db.sql https://raw.githubusercontent.com/microsoft/CATBootcampFeedback/main/database/init-schema.sql
 
    # Run initialization
-   sqlcmd -S cat-bootcamp-sql-89082.database.windows.net -d CATBootcampFeedback -U sqladmin -P 'YOUR_PASSWORD_HERE' -i init-db.sql
+   sqlcmd -S <your-sql-server>.database.windows.net -d CATBootcampFeedback -U sqladmin -P 'YOUR_PASSWORD_HERE' -i init-db.sql
    ```
 
 ### Option C: Reset Password via CLI (Advanced)
