@@ -1,0 +1,16 @@
+# Gitleaks configuration
+# https://github.com/gitleaks/gitleaks#configuration
+
+title = "CATBootcampFeedback gitleaks config"
+
+[allowlist]
+  description = "Allowlist for known false positives"
+
+  # Allowlist specific regex patterns that are not real secrets
+  regexes = [
+    # Azure built-in "Key Vault Secrets User" role GUID — publicly documented at
+    # https://learn.microsoft.com/en-us/azure/key-vault/general/rbac-guide
+    '''4633458b-17de-408a-b874-0445c86b69e6''',
+    # Placeholder/example validation token used in documentation
+    '''1234567890abcdef\.\.\.''',
+  ]
