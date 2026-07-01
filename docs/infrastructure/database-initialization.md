@@ -2,14 +2,14 @@
 
 ## Status
 - **Resource Group**: `cat-bootcamp-prod-rg` (Created)
-- **SQL Server**: `cat-bootcamp-sql-prod.database.windows.net` (Created)
+- **SQL Server**: `<prod-sql-server>.database.windows.net` (Created)
 - **SQL Database**: `CATBootcampFeedback-Prod` (Created)
 - **Schema**: Initialized (current through migration 006)
-- **QA Database**: `cat-bootcamp-sql-qa2.database.windows.net` / `CATBootcampFeedback-QA`
+- **QA Database**: `<qa-sql-server>.database.windows.net` / `CATBootcampFeedback-QA`
 - **Last Updated**: March 29, 2026
 
 ## Database Connection Details
-- **Server**: `cat-bootcamp-sql-prod.database.windows.net`
+- **Server**: `<prod-sql-server>.database.windows.net`
 - **Database**: `CATBootcampFeedback-Prod`
 - **Admin User**: `sqladmin`
 - **Admin Password**: Stored in Azure Key Vault
@@ -33,7 +33,7 @@ The database schema is initialized using `database-init.sql` and then kept curre
 
 ### Method 2: SQL Server Management Studio (SSMS)
 1. Open SSMS
-2. Connect to server: `cat-bootcamp-sql-prod.database.windows.net`
+2. Connect to server: `<prod-sql-server>.database.windows.net`
 3. Authentication: SQL Server Authentication
 4. Login: `sqladmin`
 5. Password: (use the provided password)
@@ -43,13 +43,13 @@ The database schema is initialized using `database-init.sql` and then kept curre
 
 ### Method 3: sqlcmd (if available)
 ```bash
-sqlcmd -S cat-bootcamp-sql-prod.database.windows.net -d CATBootcampFeedback-Prod -U sqladmin -P "<password>" -i database-init.sql
+sqlcmd -S <prod-sql-server>.database.windows.net -d CATBootcampFeedback-Prod -U sqladmin -P "<password>" -i database-init.sql
 ```
 
 ### Method 4: Visual Studio Code with SQL Server Extension
 1. Install the "SQL Server (mssql)" extension
 2. Create a new connection:
-   - Server: `cat-bootcamp-sql-prod.database.windows.net`
+   - Server: `<prod-sql-server>.database.windows.net`
    - Database: `CATBootcampFeedback-Prod`
    - Authentication Type: SQL Login
    - User: `sqladmin`
