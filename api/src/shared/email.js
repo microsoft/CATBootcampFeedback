@@ -38,8 +38,7 @@ async function sendEmail({ to, cc, subject, text, html }) {
         console.log('[EMAIL - DEV MODE] No email service configured.');
         console.log(`To: ${to}${cc ? `\nCC: ${cc}` : ''}`);
         console.log(`Subject: ${subject}`);
-        console.log('');
-        console.log(text);
+        console.log('[EMAIL - DEV MODE] Body omitted to avoid logging sensitive data.');
         console.log('─────────────────────────────────────────');
         return { sent: false, message: 'Email service not configured. Content logged to console.' };
     }
