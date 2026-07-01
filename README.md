@@ -1,4 +1,4 @@
-successfully downloaded text file (SHA: a65773a25c4997b694899e71a68c26d9cda3c0af)# CAT Bootcamp Feedback Application
+# CAT Bootcamp Feedback Application
 
 A comprehensive web-based feedback collection system for CAT Bootcamp modules with admin management, QR code generation, and live feedback counting.
 
@@ -175,7 +175,7 @@ See `DATABASE-REFERENCE.md` for complete schema.
 
 ### Base URL
 ```
-Production: https://cat-bootcamp-api.azurewebsites.net/api
+Production: https://white-ground-0d6d8650f.7.azurestaticapps.net/api
 Local Dev:  http://localhost:7071/api
 ```
 
@@ -250,11 +250,11 @@ POST   /api/notify/welcome                     # Send welcome email via ACS
 - **Deployment:** Auto-deploy from `main` branch push
 
 #### Production Environment
-- **Resource Group:** `cat-bootcamp-prod-rg`
+- **Resource Group:** `rg-bootcamp-feedback`
 - **Frontend:** `https://white-ground-0d6d8650f.7.azurestaticapps.net`
-- **API:** `https://cat-bootcamp-api-prod.azurewebsites.net`
+- **API:** `https://white-ground-0d6d8650f.7.azurestaticapps.net/api` (Static Web Apps managed functions)
 - **Database:** `cat-bootcamp-sql-prod.database.windows.net/CATBootcampFeedback-Prod`
-- **Deployment:** Manual workflow dispatch with approval
+- **Deployment:** Auto-deploy from `main` branch push (`deploy-prod-bootcamp-feedback.yml`)
 
 ### Frontend Deployment (Azure Static Web Apps)
 
@@ -265,8 +265,8 @@ POST   /api/notify/welcome                     # Send welcome email via ACS
 
 #### Production
 - URL: `https://white-ground-0d6d8650f.7.azurestaticapps.net`
-- Manual deployment with approval gate
-- Workflow: `.github/workflows/deploy-production.yml`
+- Auto-deploys from GitHub `main` branch (frontend + API together)
+- Workflow: `.github/workflows/deploy-prod-bootcamp-feedback.yml`
 
 **To deploy to production:**
 1. Go to GitHub Actions tab
@@ -286,8 +286,8 @@ POST   /api/notify/welcome                     # Send welcome email via ACS
 - Database: `cat-bootcamp-sql-89082.database.windows.net`
 
 #### Production
-- Functions App: `cat-bootcamp-api-prod`
-- URL: `https://cat-bootcamp-api-prod.azurewebsites.net`
+- Served by the Static Web App as managed functions (no standalone Functions App)
+- URL: `https://white-ground-0d6d8650f.7.azurestaticapps.net/api`
 - Runtime: Node.js 20, Linux Consumption Plan
 - Database: `cat-bootcamp-sql-prod.database.windows.net`
 
@@ -324,7 +324,7 @@ API_BASE_URL: 'https://cat-bootcamp-api.azurewebsites.net/api'
 
 #### Production Frontend Config (`config.prod.js`)
 ```javascript
-API_BASE_URL: 'https://cat-bootcamp-api-prod.azurewebsites.net/api'
+API_BASE_URL: 'https://white-ground-0d6d8650f.7.azurestaticapps.net/api'
 ```
 
 #### Development Backend Settings (Azure Portal)
