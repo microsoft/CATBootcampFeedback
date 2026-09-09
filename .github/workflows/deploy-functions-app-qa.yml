@@ -18,10 +18,10 @@ jobs:
       name: QA
       url: https://catbootcamp-api-qa.azurewebsites.net/api/health
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3.7.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@3235b876344d2a9aa001b8d1453c930bba69e610 # v3.9.1
         with:
           node-version: '20'
 
@@ -34,7 +34,7 @@ jobs:
           npm install --production
 
       - name: Azure Login
-        uses: Azure/login@v2
+        uses: Azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_QA }}
 
