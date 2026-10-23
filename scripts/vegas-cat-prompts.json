@@ -1,0 +1,40 @@
+{
+    "generator": "Bing Image Creator (MAI-Image-2.5-Flash), aspect ratio 1:1, downloaded as 1024x1024 WebP and converted to PNG. Each prompt is self-contained and under Bing's 480-character limit.",
+    "stages": [
+        {
+            "stage": 0,
+            "filename": "cat-stage-vegas-0.png",
+            "prompt": "Cute chibi orange tabby kitten, big anime eyes, white chest, painterly digital art, dark navy background with soft Las Vegas neon glow, centered full body, square. Skinny broke kitten in a rainy back alley, scruffy patched fur, empty pockets turned inside out, holding a soggy cardboard sign \"WILL PURR FOR CHIPS\", one tear, sad hopeful eyes, a single penny on the wet ground, dim pink PAWN neon sign behind."
+        },
+        {
+            "stage": 10,
+            "filename": "cat-stage-vegas-10.png",
+            "prompt": "Cute chibi orange tabby kitten, big anime eyes, white chest, painterly digital art, dark navy background with soft Las Vegas neon glow, centered full body, square. Kitten in a green casino dealer visor beside a small red penny slot machine, proudly holding a paper cup with a few gold coins, small hopeful smile, coins on the casino carpet, \"PENNY SLOTS\" neon sign."
+        },
+        {
+            "stage": 25,
+            "filename": "cat-stage-vegas-25.png",
+            "prompt": "Cute chibi orange tabby kitten, big anime eyes, white chest, painterly digital art, dark navy background with soft Las Vegas neon glow, centered full body, square. Plumper kitten in a red casino vest, black bow tie and green visor at a blackjack table, holding up an Ace of spades and King of hearts, big excited grin, small stacks of red, blue and black poker chips."
+        },
+        {
+            "stage": 50,
+            "filename": "cat-stage-vegas-50.png",
+            "prompt": "Cute chibi orange tabby kitten, big anime eyes, white chest, painterly digital art, dark navy background with soft Las Vegas neon glow, centered full body, square. Chubby kitten in a sharp purple suit, gold bow tie, sunglasses pushed up on its head, eyes shut in joy, fanning a handful of dollar bills, roulette wheel behind, tall towers of poker chips and cash bundles."
+        },
+        {
+            "stage": 75,
+            "filename": "cat-stage-vegas-75.png",
+            "prompt": "Cute chibi orange tabby kitten, big anime eyes, white chest, painterly digital art, dark navy background with soft Las Vegas neon glow, centered full body, square. Very chubby kitten in a purple suit with a thick gold chain and dollar medallion, green dollar-sign eyes, waving a fan of hundred-dollar bills, red slot machine showing 7-7-7 spilling a waterfall of gold coins, \"JACKPOT\" neon."
+        },
+        {
+            "stage": 100,
+            "filename": "cat-stage-vegas-100.png",
+            "prompt": "Cute chibi orange tabby kitten, big anime eyes, white chest, painterly digital art, dark navy background with soft Las Vegas neon glow, centered full body, square. Chonky high-roller kitten in a white tuxedo with a red rose, black top hat and cool sunglasses, raising a glass of champagne, shiny red convertible on the Las Vegas Strip behind, money bag and stacks of cash and chips."
+        },
+        {
+            "stage": 130,
+            "filename": "cat-stage-vegas-130.png",
+            "prompt": "Cute chibi orange tabby kitten, big anime eyes, painterly digital art, dark navy background with Las Vegas neon, centered full body, square. Rich chonky kitten dressed as Vegas-era Elvis: white rhinestone jumpsuit, tall collar, gold belt buckle, white-and-gold cape, black pompadour, gold aviators, microphone, lip-curl grin, on a throne of cash. Mansion, gold and red sports cars, Welcome to Las Vegas sign, fireworks, chips and bills raining."
+        }
+    ]
+}

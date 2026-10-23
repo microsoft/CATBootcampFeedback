@@ -616,6 +616,22 @@
                 linear-gradient(135deg, rgba(101, 67, 33, 0.18) 0%, rgba(212, 179, 107, 0.10) 100%),
                 linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
         }
+
+        /* ── Viva Las Vegas theme: neon casino glow + gold progress bar ── */
+        .count-container.theme-cat-vegas {
+            background:
+                radial-gradient(ellipse at 20% 0%, rgba(255, 92, 138, 0.22) 0%, rgba(255, 92, 138, 0) 55%),
+                radial-gradient(ellipse at 80% 100%, rgba(92, 242, 255, 0.14) 0%, rgba(92, 242, 255, 0) 55%),
+                linear-gradient(135deg, #1a0f2e 0%, #24123e 50%, #0f1a40 100%);
+        }
+
+        .count-container.theme-cat-vegas .progress-bar-fill {
+            background: linear-gradient(90deg, #c48a12, #ffd34d, #fff1b0);
+        }
+
+        .count-container.theme-cat-vegas .cat-img {
+            filter: drop-shadow(0 0 14px rgba(255, 211, 77, 0.35));
+        }
     </style>
 </head>
 <body>
@@ -728,6 +744,26 @@
                         </div>
                     </div>
 
+                    <!-- Viva Las Vegas Theme: 7 stages, broke alley cat to Elvis-level high roller -->
+                    <div id="themeCatVegas" class="theme-view" style="display:none;">
+                        <div class="counter-number cat-counter" id="catCounterVegasNumber"></div>
+                        <div class="cat-container" id="catContainerVegas">
+                            <img class="cat-img" data-stage="0" src="cat-stage-vegas-0.png" alt="Broke kitten in the rain holding a Will Purr For Chips sign" draggable="false"/>
+                            <img class="cat-img" data-stage="10" src="cat-stage-vegas-10.png" alt="Kitten in a dealer visor with a cup of coins at the penny slots" draggable="false"/>
+                            <img class="cat-img" data-stage="25" src="cat-stage-vegas-25.png" alt="Kitten in a casino vest hitting blackjack with stacks of chips" draggable="false"/>
+                            <img class="cat-img" data-stage="50" src="cat-stage-vegas-50.png" alt="Chubby kitten in a purple suit fanning cash beside a roulette wheel" draggable="false"/>
+                            <img class="cat-img" data-stage="75" src="cat-stage-vegas-75.png" alt="Kitten with dollar-sign eyes and a gold chain hitting a 777 jackpot" draggable="false"/>
+                            <img class="cat-img" data-stage="100" src="cat-stage-vegas-100.png" alt="High-roller kitten in a white tux and top hat with champagne and a red sports car" draggable="false"/>
+                            <img class="cat-img" data-stage="130" src="cat-stage-vegas-130.png" alt="Elvis kitten in a rhinestone jumpsuit on a throne of cash with a mansion and sports cars" draggable="false"/>
+                        </div>
+                        <div class="progress-bar-container" id="progressBarContainerVegas">
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" id="progressBarFillVegas"></div>
+                            </div>
+                            <div class="progress-bar-label" id="progressBarLabelVegas"></div>
+                        </div>
+                    </div>
+
                     <div class="milestone-message" id="milestoneMessage"></div>
                     <div class="encouraging-message" id="encouragingMessage"></div>
                 </div>
@@ -781,6 +817,7 @@
                             <option value="classic" selected>Classic</option>
                             <option value="cat">Feed the Cat</option>
                             <option value="cat-de">Feed the Cat (German)</option>
+                            <option value="cat-vegas">Viva Las Vegas</option>
                         </select>
                     </div>
                 </div>
