@@ -99,6 +99,19 @@ const CAT_MESSAGES = [
     'Fatten up the cat with your responses! \u{1F43E}'
 ];
 
+const VEGAS_CAT_MESSAGES = [
+    'Viva Las Vegas! Every response is a pull of the slots! \u{1F3B0}',
+    'The cat is all in on your feedback! \u{1F0CF}',
+    'Hit me! The cat wants another response! \u{1F0CF}',
+    'Feeling lucky? Share your thoughts! \u{1F340}',
+    'From rags to riches \u2014 one response at a time! \u{1F4B5}',
+    'Your feedback is the jackpot! \u{1F4B0}',
+    'What happens in training... gets feedback! \u{1F3B2}',
+    'Don\'t fold now \u2014 the cat needs a raise! \u{1F4B8}',
+    'Thank you, thank you very much! \u{1F3A4}',
+    'The house always wins when you share feedback! \u{1F3B0}'
+];
+
 // ── Theme content registry ────────────────────────────────────────────────────
 // Each theme's stages/messages/food/milestone-overrides live here as data, so
 // adding a new theme = adding an entry, not sprinkling conditionals.
@@ -106,20 +119,29 @@ const CAT_MESSAGES = [
 //   encouragingMessages:  rotating bottom-of-counter messages
 //   foodEmojis:           emojis dropped on each count tick by dropFood()
 //   milestoneMessages:    override map for showMilestone(); falls back to MILESTONE_MESSAGES
+//   viewId/counterId/catContainerId: this theme's DOM elements
+//   sounds:               optional map from a generic sound name to a theme-specific one
+//   confettiStyle:        optional; 'casino' swaps confetti for poker chips + banknotes
 const THEME_CONTENT = {
     'classic': {
+        viewId: 'themeClassic',
+        counterId: 'counterNumber',
+        catContainerId: null,
         stages: null,
         encouragingMessages: CLASSIC_MESSAGES,
         foodEmojis: null,                  // Classic theme doesn't drop food
         milestoneMessages: null            // falls back to global MILESTONE_MESSAGES
     },
     'cat': {
+        viewId: 'themeCat',
+        counterId: 'catCounterNumber',
+        catContainerId: 'catContainer',
         stages: null,                      // set below once CAT_STAGES is defined
         encouragingMessages: CAT_MESSAGES,
         foodEmojis: null,                  // set below once FOOD_EMOJIS is defined
         milestoneMessages: null
     }
-    // 'cat-de' entry added in Task 5
+    // 'cat-de' and 'cat-vegas' entries are added further down, next to their constants
 };
 
 function getCurrentThemeContent() {
@@ -321,12 +343,73 @@ function initSounds() {
     explosionNotes.push({ freq: 120, start: 0, duration: 0.2, type: 'sine', volume: 0.15 });
     SOUNDS.fireworkBoom = URL.createObjectURL(generateWav(explosionNotes, 0.4));
 
+    // ── Viva Las Vegas: slot machine sounds ──
+    // Reels spinning: rapid clicks that slow down, then a thunk as each reel stops
+    const reelSpin = (startAt, length, reelStops) => {
+        const notes = [];
+        let t = startAt, gap = 0.035;
+        while (t < startAt + length) {
+            notes.push({ freq: 1400 + Math.random() * 300, start: t, duration: 0.012, type: 'square', volume: 0.07 });
+            notes.push({ freq: 220, start: t, duration: 0.02, type: 'triangle', volume: 0.06 });
+            t += gap;
+            gap *= 1.04;
+        }
+        reelStops.forEach(stop => {
+            notes.push({ freq: 140, start: startAt + stop, duration: 0.09, type: 'square', volume: 0.16 });
+            notes.push({ freq: 90, start: startAt + stop, duration: 0.12, type: 'sine', volume: 0.2 });
+        });
+        return notes;
+    };
+    // Coins clinking into the tray
+    const coinShower = (startAt, length, count) => Array.from({ length: count }, () => {
+        const freq = 2400 + Math.random() * 2200;
+        const start = startAt + Math.random() * length;
+        return [
+            { freq, start, duration: 0.05, type: 'sine', volume: 0.08 },
+            { freq: freq * 1.5, start: start + 0.005, duration: 0.03, type: 'sine', volume: 0.04 }
+        ];
+    }).flat();
+
+    // Every response: one quick reel stop, a ding and a couple of coins
+    SOUNDS.slotCoin = URL.createObjectURL(generateWav([
+        ...reelSpin(0, 0.18, [0.18]),
+        { freq: 1568, start: 0.24, duration: 0.18, type: 'triangle', volume: 0.2 },
+        { freq: 2093, start: 0.24, duration: 0.22, type: 'sine', volume: 0.08 },
+        ...coinShower(0.3, 0.25, 4)
+    ], 0.65));
+
+    // Party: full three-reel spin, then a ding-ding win bell and a short payout
+    SOUNDS.slotWin = URL.createObjectURL(generateWav([
+        ...reelSpin(0, 0.75, [0.45, 0.6, 0.75]),
+        { freq: 1319, start: 0.82, duration: 0.14, type: 'triangle', volume: 0.22 },
+        { freq: 1568, start: 0.96, duration: 0.14, type: 'triangle', volume: 0.22 },
+        { freq: 2093, start: 1.1, duration: 0.25, type: 'triangle', volume: 0.22 },
+        ...coinShower(1.0, 0.5, 14)
+    ], 1.6));
+
+    // Chaos + milestones: JACKPOT — spin, alarm bell ringing, coins pouring out
+    const jackpot = reelSpin(0, 0.6, [0.35, 0.48, 0.6]);
+    for (let i = 0; i < 16; i++) {
+        jackpot.push({ freq: i % 2 ? 1568 : 1319, start: 0.68 + i * 0.07, duration: 0.07, type: 'triangle', volume: 0.2 });
+        jackpot.push({ freq: i % 2 ? 3136 : 2637, start: 0.68 + i * 0.07, duration: 0.05, type: 'sine', volume: 0.05 });
+    }
+    jackpot.push(
+        { freq: 523, start: 1.85, duration: 0.6, type: 'triangle', volume: 0.16 },
+        { freq: 659, start: 1.85, duration: 0.6, type: 'triangle', volume: 0.14 },
+        { freq: 784, start: 1.85, duration: 0.6, type: 'triangle', volume: 0.14 },
+        { freq: 1047, start: 1.95, duration: 0.5, type: 'sine', volume: 0.12 },
+        ...coinShower(0.8, 1.6, 45)
+    );
+    SOUNDS.slotJackpot = URL.createObjectURL(generateWav(jackpot, 2.5));
+
     console.log('Sound effects initialized');
 }
 
 function playSound(name) {
     if (!soundEnabled) return;
-    const url = SOUNDS[name];
+    // Themes can swap a generic sound for their own (e.g. Vegas plays slot machines)
+    const themeSounds = getCurrentThemeContent().sounds;
+    const url = SOUNDS[(themeSounds && themeSounds[name]) || name];
     if (!url) return;
     try {
         const audio = new Audio(url);
@@ -410,7 +493,25 @@ function initConfettiCanvas() {
     });
 }
 
+const CASINO_CHIP_COLORS = ['#c4172e', '#1f5fbf', '#1f9a3d', '#1a1a1a', '#5b2a86', '#ffd34d'];
+
 function createConfettiParticle(x, y) {
+    if (getCurrentThemeContent().confettiStyle === 'casino') {
+        const isChip = Math.random() < 0.55;
+        return {
+            x, y,
+            vx: (Math.random() - 0.5) * 14,
+            vy: Math.random() * -16 - 4,
+            color: isChip ? CASINO_CHIP_COLORS[Math.floor(Math.random() * CASINO_CHIP_COLORS.length)] : '#6cbf5f',
+            size: isChip ? Math.random() * 10 + 16 : Math.random() * 12 + 26,
+            rotation: Math.random() * 360,
+            rotationSpeed: (Math.random() - 0.5) * 10,
+            gravity: 0.35,
+            opacity: 1,
+            fadeRate: 0.005 + Math.random() * 0.004,
+            shape: isChip ? 'chip' : 'bill'
+        };
+    }
     return {
         x, y,
         vx: (Math.random() - 0.5) * 14,
@@ -483,6 +584,10 @@ function animateConfetti() {
 
         if (p.shape === 'rect') {
             confettiCtx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+        } else if (p.shape === 'chip') {
+            drawPokerChip(p.size / 2, p.color);
+        } else if (p.shape === 'bill') {
+            drawBanknote(p.size);
         } else {
             confettiCtx.beginPath();
             confettiCtx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
@@ -524,6 +629,46 @@ function animateConfetti() {
     drawFireworks();
 
     confettiAnimationId = requestAnimationFrame(animateConfetti);
+}
+
+// Poker chip centered on the current (translated + rotated) origin
+function drawPokerChip(r, color) {
+    confettiCtx.beginPath();
+    confettiCtx.arc(0, 0, r, 0, Math.PI * 2);
+    confettiCtx.fill();
+    confettiCtx.fillStyle = '#ffffff';
+    for (let i = 0; i < 6; i++) {
+        confettiCtx.save();
+        confettiCtx.rotate(i * Math.PI / 3);
+        confettiCtx.fillRect(-r * 0.14, -r, r * 0.28, r * 0.3);
+        confettiCtx.restore();
+    }
+    confettiCtx.strokeStyle = '#ffffff';
+    confettiCtx.lineWidth = Math.max(1, r * 0.1);
+    confettiCtx.setLineDash([r * 0.25, r * 0.18]);
+    confettiCtx.beginPath();
+    confettiCtx.arc(0, 0, r * 0.62, 0, Math.PI * 2);
+    confettiCtx.stroke();
+    confettiCtx.setLineDash([]);
+    confettiCtx.fillStyle = color;
+    confettiCtx.beginPath();
+    confettiCtx.arc(0, 0, r * 0.45, 0, Math.PI * 2);
+    confettiCtx.fill();
+}
+
+// Green banknote with a $ in the middle, centered on the current origin
+function drawBanknote(w) {
+    const h = w * 0.48;
+    confettiCtx.fillStyle = '#6cbf5f';
+    confettiCtx.fillRect(-w / 2, -h / 2, w, h);
+    confettiCtx.strokeStyle = '#2f6b2f';
+    confettiCtx.lineWidth = 1.5;
+    confettiCtx.strokeRect(-w / 2 + 3, -h / 2 + 3, w - 6, h - 6);
+    confettiCtx.fillStyle = '#2f6b2f';
+    confettiCtx.font = `bold ${Math.round(h * 0.75)}px sans-serif`;
+    confettiCtx.textAlign = 'center';
+    confettiCtx.textBaseline = 'middle';
+    confettiCtx.fillText('$', 0, 1);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -707,6 +852,16 @@ const GERMAN_CHARACTER_POOL = {
     cats:  ['\uD83E\uDD68', '\uD83C\uDF7A', '\uD83C\uDF2D', '\uD83E\uDD56', '\uD83E\uDDC0', '\uD83C\uDF7B'],
     ducks: ['\uD83E\uDD69', '\uD83C\uDF7B', '\uD83E\uDD68'],
     bonus: ['\uD83C\uDFAA', '\u26F0\uFE0F', '\uD83C\uDDE9\uD83C\uDDEA', '\uD83E\uDD73', '\uD83C\uDFB5', '\u2728', '\uD83C\uDF86', '\uD83C\uDFC6', '\uD83C\uDF89']
+};
+
+// Viva Las Vegas celebration pool — money and casino flair instead of animals.
+//   cats  → cash raining/floating (bills, money bags, flying money, coins, money-face)
+//   ducks → casino games (slot machine, dice, joker card)
+//   bonus → high-roller life (diamond, sports car, mansion, crown, champagne, Elvis mic)
+const VEGAS_CHARACTER_POOL = {
+    cats:  ['\u{1F4B5}', '\u{1F4B0}', '\u{1F4B8}', '\u{1FA99}', '\u{1F911}'],
+    ducks: ['\u{1F3B0}', '\u{1F3B2}', '\u{1F0CF}'],
+    bonus: ['\u{1F48E}', '\u{1F3CE}\uFE0F', '\u{1F3F0}', '\u{1F451}', '\u{1F37E}', '\u{1F3A4}', '\u{1F57A}', '\u2728', '\u{1F386}']
 };
 
 // Wire the default character pool into Classic + Feed the Cat. The German
@@ -1048,8 +1203,7 @@ function sizeProgressRing() {
     } else {
         // Cat themes: scale counter font for whichever cat counter is active
         const availableW = leftSection.clientWidth - 40;
-        const counterId = currentTheme === 'cat-de' ? 'catCounterDENumber' : 'catCounterNumber';
-        const catCounter = document.getElementById(counterId);
+        const catCounter = document.getElementById(getCurrentThemeContent().counterId);
         if (catCounter) catCounter.style.fontSize = Math.max(32, Math.min(availableW * 0.14, 64)) + 'px';
     }
     sizeCat();
@@ -1081,7 +1235,7 @@ function updateProgressRing(count) {
     const range = nextMilestone - prevMilestone;
     const progress = atApex ? 1 : (range > 0 ? Math.min(1, (count - prevMilestone) / range) : 0);
     const apexText = themeContent.apexLabel || '🏆 Maximum reached!';
-    for (const suffix of ['', 'DE']) {
+    for (const suffix of ['', 'DE', 'Vegas']) {
         const fill = document.getElementById(`progressBarFill${suffix}`);
         const label = document.getElementById(`progressBarLabel${suffix}`);
         if (fill) fill.style.width = (progress * 100) + '%';
@@ -1096,16 +1250,16 @@ function updateProgressRing(count) {
 function setTheme(theme) {
     currentTheme = theme;
     session.settings.theme = currentTheme;
-    const classicView = document.getElementById('themeClassic');
-    const catView     = document.getElementById('themeCat');
-    const catDEView   = document.getElementById('themeCatDE');
-    const container   = document.querySelector('.count-container');
+    const container = document.querySelector('.count-container');
 
-    if (classicView) classicView.style.display = (theme === 'classic') ? '' : 'none';
-    if (catView)     catView.style.display     = (theme === 'cat')     ? '' : 'none';
-    if (catDEView)   catDEView.style.display   = (theme === 'cat-de')  ? '' : 'none';
-
-    if (container) container.classList.toggle('theme-cat-de', theme === 'cat-de');
+    for (const [name, content] of Object.entries(THEME_CONTENT)) {
+        const view = document.getElementById(content.viewId);
+        if (view) view.style.display = (theme === name) ? '' : 'none';
+        // Classic + Feed the Cat use the base styling; other themes get a class hook
+        if (container && name !== 'classic' && name !== 'cat') {
+            container.classList.toggle(`theme-${name}`, theme === name);
+        }
+    }
 
     // Resize for new layout
     sizeProgressRing();
@@ -1117,7 +1271,7 @@ function setTheme(theme) {
     updateEncouragingMessage();
 }
 
-const VALID_THEMES = ['classic', 'cat', 'cat-de'];
+const VALID_THEMES = ['classic', 'cat', 'cat-de', 'cat-vegas'];
 
 function initializeThemeSelector() {
     const select = document.getElementById('themeSelect');
@@ -1146,7 +1300,7 @@ const CAT_STAGES = [0, 10, 25, 50, 75, 100];
 THEME_CONTENT.cat.stages = CAT_STAGES;
 
 function initCat() {
-    const imgs = document.querySelectorAll('#themeCat .cat-img, #themeCatDE .cat-img');
+    const imgs = document.querySelectorAll('.theme-view .cat-img');
     if (!imgs.length) return;
 
     sizeCat();
@@ -1179,7 +1333,7 @@ function updateCatState(count) {
     const content = getCurrentThemeContent();
     const stages = content.stages;
     if (!stages) return;                  // Classic theme — no cat to update
-    const imgs = document.querySelectorAll(`#${currentTheme === 'cat-de' ? 'catContainerDE' : 'catContainer'} .cat-img`);
+    const imgs = document.querySelectorAll(`#${content.catContainerId} .cat-img`);
     if (!imgs.length) return;
 
     let activeStage = stages[0];
@@ -1201,8 +1355,8 @@ function sizeCat() {
 }
 
 function celebrateCatMilestone() {
-    const containerId = currentTheme === 'cat-de' ? 'catContainerDE' : 'catContainer';
-    const container = document.getElementById(containerId);
+    const containerId = getCurrentThemeContent().catContainerId;
+    const container = containerId && document.getElementById(containerId);
     if (!container) return;
 
     container.style.transform = 'scale(1.2) translateY(-10px)';
@@ -1245,6 +1399,9 @@ const GERMAN_MILESTONE_MESSAGES = {
 const GERMAN_FOOD_EMOJIS = ['🥨', '🌭', '🍺', '🥖', '🧀', '🍻'];
 
 THEME_CONTENT['cat-de'] = {
+    viewId: 'themeCatDE',
+    counterId: 'catCounterDENumber',
+    catContainerId: 'catContainerDE',
     stages: GERMAN_CAT_STAGES,
     encouragingMessages: GERMAN_CAT_MESSAGES,
     foodEmojis: GERMAN_FOOD_EMOJIS,
@@ -1257,9 +1414,49 @@ THEME_CONTENT['cat-de'] = {
     apexLabel: '🏆 Mega-Katzen-König!'
 };
 
+// ── Viva Las Vegas theme constants ───────────────────────────────────────────
+// Rags to riches: broke alley cat (0) → penny slots (10) → blackjack (25) →
+// roulette (50) → 777 jackpot (75) → high roller (100) → Elvis, the King (130)
+const VEGAS_CAT_STAGES = [0, 10, 25, 50, 75, 100, 130];
+
+const VEGAS_MILESTONE_MESSAGES = {
+    10:  'Ten! Penny slots are paying out! 🎰',
+    25:  'Twenty-five! Blackjack — winner winner! 🃏',
+    50:  'Fifty! Let it ride on red! 🎡',
+    75:  'Seventy-five! JACKPOT! 7-7-7! 💰',
+    100: 'ONE HUNDRED! High roller status unlocked! 🎩🍾',
+    150: '150! The King has entered the building! 🎤',
+    200: '200! Making it rain on the Strip! 💸',
+    300: '300! Penthouse suite, baby! 🏰',
+    500: '500! Viva Las Vegas — the house is yours! 👑💎'
+};
+
+const VEGAS_FOOD_EMOJIS = ['💵', '💰', '🪙', '💎', '🎲', '🃏'];
+
+THEME_CONTENT['cat-vegas'] = {
+    viewId: 'themeCatVegas',
+    counterId: 'catCounterVegasNumber',
+    catContainerId: 'catContainerVegas',
+    stages: VEGAS_CAT_STAGES,
+    encouragingMessages: VEGAS_CAT_MESSAGES,
+    foodEmojis: VEGAS_FOOD_EMOJIS,
+    milestoneMessages: VEGAS_MILESTONE_MESSAGES,
+    characterPool: VEGAS_CHARACTER_POOL,
+    confettiStyle: 'casino',
+    sounds: {
+        chime: 'slotCoin',
+        fanfare: 'slotWin',
+        chaos: 'slotJackpot',
+        milestone: 'slotJackpot'
+    },
+    apex: 130,
+    apexLabel: '🎤 The King of Vegas!'
+};
+
 function dropFood() {
     const counter = document.getElementById('counterNumber');
-    const cat = document.getElementById(currentTheme === 'cat-de' ? 'catContainerDE' : 'catContainer');
+    const catContainerId = getCurrentThemeContent().catContainerId;
+    const cat = catContainerId && document.getElementById(catContainerId);
     if (!counter || !cat) return;
 
     const counterRect = counter.getBoundingClientRect();
@@ -1323,8 +1520,8 @@ function createDigitReel() {
 function updateDigitDisplay(newCount) {
     const digits = String(newCount).split('');
 
-    // Update all three counter elements (classic + cat + cat-de)
-    ['counterNumber', 'catCounterNumber', 'catCounterDENumber'].forEach(id => {
+    // Update every theme's counter element so switching themes is instant
+    Object.values(THEME_CONTENT).map(t => t.counterId).forEach(id => {
         const el = document.getElementById(id);
         if (el) updateDigitContainer(el, digits);
     });
@@ -1715,10 +1912,7 @@ async function updateCount() {
             updateDigitDisplay(count);
 
             // Pulse animation on active counter
-            const activeCounter =
-                currentTheme === 'classic' ? document.getElementById('counterNumber')
-              : currentTheme === 'cat-de'  ? document.getElementById('catCounterDENumber')
-              :                              document.getElementById('catCounterNumber');
+            const activeCounter = document.getElementById(getCurrentThemeContent().counterId);
             if (activeCounter) {
                 activeCounter.classList.remove('pulse');
                 void activeCounter.offsetWidth;

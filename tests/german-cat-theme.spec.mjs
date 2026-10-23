@@ -41,10 +41,10 @@ async function waitForCountReady(page) {
 }
 
 test.describe('Dropdown integration', () => {
-    test('Dropdown shows three theme options', async ({ page }) => {
+    test('Dropdown lists every theme option', async ({ page }) => {
         await page.goto(COUNT_URL);
         const values = await page.$$eval('#themeSelect option', opts => opts.map(o => o.value));
-        expect(values).toEqual(['classic', 'cat', 'cat-de']);
+        expect(values).toEqual(['classic', 'cat', 'cat-de', 'cat-vegas']);
     });
 
     test("Selecting 'cat-de' switches the view and persists across reload", async ({ page }) => {
