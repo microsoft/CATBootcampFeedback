@@ -122,6 +122,7 @@ const VEGAS_CAT_MESSAGES = [
 //   viewId/counterId/catContainerId: this theme's DOM elements
 //   sounds:               optional map from a generic sound name to a theme-specific one
 //   confettiStyle:        optional; 'casino' swaps confetti for poker chips + banknotes
+//   milestones:           optional; replaces the global MILESTONES ladder for this theme
 const THEME_CONTENT = {
     'classic': {
         viewId: 'themeClassic',
@@ -146,6 +147,10 @@ const THEME_CONTENT = {
 
 function getCurrentThemeContent() {
     return THEME_CONTENT[currentTheme] || THEME_CONTENT.classic;
+}
+
+function getMilestones() {
+    return getCurrentThemeContent().milestones || MILESTONES;
 }
 
 function getEncouragingMessages() {
@@ -1045,7 +1050,7 @@ function triggerCelebration(count, oldCount) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 function getNextMilestone(count) {
-    for (const m of MILESTONES) {
+    for (const m of getMilestones()) {
         if (count < m) return m;
     }
     return Math.ceil((count + 1) / 100) * 100;
@@ -1053,7 +1058,7 @@ function getNextMilestone(count) {
 
 function getPrevMilestone(count) {
     let prev = 0;
-    for (const m of MILESTONES) {
+    for (const m of getMilestones()) {
         if (count >= m) prev = m;
         else break;
     }
@@ -1061,7 +1066,7 @@ function getPrevMilestone(count) {
 }
 
 function checkMilestone(newCount, oldCount) {
-    for (const m of MILESTONES) {
+    for (const m of getMilestones()) {
         if (newCount >= m && oldCount < m) {
             showMilestone(m);
             playMilestoneSound();
@@ -1318,12 +1323,13 @@ function getCatStateParam(count) {
 
     const prevM = getPrevMilestone(count);
     const nextM = getNextMilestone(count);
-    const tierIndex = MILESTONES.indexOf(prevM);
-    const baseTier = tierIndex >= 0 ? (tierIndex + 1) / MILESTONES.length : 0;
+    const milestones = getMilestones();
+    const tierIndex = milestones.indexOf(prevM);
+    const baseTier = tierIndex >= 0 ? (tierIndex + 1) / milestones.length : 0;
 
     const range = nextM - prevM;
     const intraProgress = range > 0 ? (count - prevM) / range : 0;
-    const intraContribution = intraProgress / MILESTONES.length;
+    const intraContribution = intraProgress / milestones.length;
 
     // 0.05 base bump for any count > 0, plus tier + intra progress
     return Math.min(1, 0.05 + baseTier * 0.85 + intraContribution * 0.85);
@@ -1415,19 +1421,26 @@ THEME_CONTENT['cat-de'] = {
 };
 
 // ── Viva Las Vegas theme constants ───────────────────────────────────────────
-// Rags to riches: broke alley cat (0) → penny slots (10) → blackjack (25) →
-// roulette (50) → 777 jackpot (75) → high roller (100) → Elvis, the King (130)
-const VEGAS_CAT_STAGES = [0, 10, 25, 50, 75, 100, 130];
+// Rags to riches on a compressed scale so Elvis is reachable in a single
+// session: broke alley cat (0) → penny slots (10) → blackjack (20) →
+// roulette (30) → 777 jackpot (40) → high roller (55) → Elvis, the King (70)
+const VEGAS_CAT_STAGES = [0, 10, 20, 30, 40, 55, 70];
+
+// Every stage change is also a milestone, so each new cat gets its own
+// celebration; past the apex the ladder continues for big rooms.
+const VEGAS_MILESTONES = [10, 20, 30, 40, 55, 70, 100, 150, 200, 300, 500];
 
 const VEGAS_MILESTONE_MESSAGES = {
     10:  'Ten! Penny slots are paying out! 🎰',
-    25:  'Twenty-five! Blackjack — winner winner! 🃏',
-    50:  'Fifty! Let it ride on red! 🎡',
-    75:  'Seventy-five! JACKPOT! 7-7-7! 💰',
-    100: 'ONE HUNDRED! High roller status unlocked! 🎩🍾',
-    150: '150! The King has entered the building! 🎤',
-    200: '200! Making it rain on the Strip! 💸',
-    300: '300! Penthouse suite, baby! 🏰',
+    20:  'Twenty! Blackjack — winner winner! 🃏',
+    30:  'Thirty! Let it ride on red! 🎡',
+    40:  'Forty! JACKPOT! 7-7-7! 💰',
+    55:  'Fifty-five! High roller status unlocked! 🎩🍾',
+    70:  'SEVENTY! The King has entered the building! 🎤👑',
+    100: '100! Thank you, thank you very much! 🕺',
+    150: '150! Making it rain on the Strip! 💸',
+    200: '200! Penthouse suite, baby! 🏰',
+    300: '300! Breaking the bank! 💎',
     500: '500! Viva Las Vegas — the house is yours! 👑💎'
 };
 
@@ -1438,6 +1451,7 @@ THEME_CONTENT['cat-vegas'] = {
     counterId: 'catCounterVegasNumber',
     catContainerId: 'catContainerVegas',
     stages: VEGAS_CAT_STAGES,
+    milestones: VEGAS_MILESTONES,
     encouragingMessages: VEGAS_CAT_MESSAGES,
     foodEmojis: VEGAS_FOOD_EMOJIS,
     milestoneMessages: VEGAS_MILESTONE_MESSAGES,
@@ -1449,7 +1463,7 @@ THEME_CONTENT['cat-vegas'] = {
         chaos: 'slotJackpot',
         milestone: 'slotJackpot'
     },
-    apex: 130,
+    apex: 70,
     apexLabel: '🎤 The King of Vegas!'
 };
 

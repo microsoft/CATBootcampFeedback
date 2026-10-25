@@ -62,7 +62,7 @@ test.describe('Viva Las Vegas — theme switching', () => {
 
 test.describe('Viva Las Vegas — stages', () => {
     test('All 7 rags-to-riches stages render at the correct counts', async ({ page }) => {
-        for (const [n, stage] of [[0, 0], [9, 0], [10, 10], [25, 25], [50, 50], [75, 75], [100, 100], [129, 100], [130, 130], [400, 130]]) {
+        for (const [n, stage] of [[0, 0], [9, 0], [10, 10], [19, 10], [20, 20], [30, 30], [40, 40], [54, 40], [55, 55], [69, 55], [70, 70], [400, 70]]) {
             await page.goto(COUNT_URL);
             await setMockCount(page, n);
             await page.reload();
@@ -81,9 +81,9 @@ test.describe('Viva Las Vegas — stages', () => {
         await pickTheme(page, 'cat-vegas');
         const digits = await page.$$eval('#catCounterVegasNumber .counter-digit', els => els.map(e => e.dataset.digit).join(''));
         expect(digits).toBe('42');
-        await expect(page.locator('#progressBarLabelVegas')).toHaveText('42 / 50 to next milestone');
+        await expect(page.locator('#progressBarLabelVegas')).toHaveText('42 / 55 to next milestone');
 
-        await setMockCount(page, 135);
+        await setMockCount(page, 70);
         await page.reload();
         await waitForCountReady(page);
         await pickTheme(page, 'cat-vegas');
@@ -101,6 +101,46 @@ test.describe('Viva Las Vegas — stages', () => {
     });
 });
 
+test.describe('Viva Las Vegas — 0-70 milestone ladder', () => {
+    async function milestoneFires(page, theme, newCount) {
+        await pickTheme(page, theme);
+        // checkMilestone calls the module-internal playMilestoneSound, so a
+        // window spy can't see it; showMilestone writing the message can.
+        return page.evaluate((n) => {
+            const el = document.getElementById('milestoneMessage');
+            el.textContent = '';
+            window.checkMilestone(n, n - 1);
+            return el.textContent !== '';
+        }, newCount);
+    }
+
+    test('Every Vegas stage change is a milestone, Elvis at 70 included', async ({ page }) => {
+        await page.goto(COUNT_URL);
+        for (const n of [10, 20, 30, 40, 55, 70, 100]) {
+            expect(await milestoneFires(page, 'cat-vegas', n), `Vegas milestone at ${n}`).toBe(true);
+        }
+        for (const n of [25, 50, 75]) {
+            expect(await milestoneFires(page, 'cat-vegas', n), `no Vegas milestone at ${n}`).toBe(false);
+        }
+    });
+
+    test('Other themes keep the shared 10/25/50/75 ladder', async ({ page }) => {
+        await page.goto(COUNT_URL);
+        for (const theme of ['classic', 'cat', 'cat-de']) {
+            expect(await milestoneFires(page, theme, 25), `${theme} at 25`).toBe(true);
+            expect(await milestoneFires(page, theme, 20), `${theme} at 20`).toBe(false);
+            expect(await milestoneFires(page, theme, 70), `${theme} at 70`).toBe(false);
+        }
+    });
+
+    test('Crossing 70 shows the King milestone message', async ({ page }) => {
+        await page.goto(COUNT_URL);
+        await pickTheme(page, 'cat-vegas');
+        await page.evaluate(() => window.checkMilestone(70, 69));
+        await expect(page.locator('#milestoneMessage')).toContainText('The King has entered the building');
+    });
+});
+
 test.describe('Viva Las Vegas — content', () => {
     test('Encouraging messages are casino-flavored', async ({ page }) => {
         await page.goto(COUNT_URL);
@@ -112,8 +152,9 @@ test.describe('Viva Las Vegas — content', () => {
     test('Milestone messages are Vegas overrides', async ({ page }) => {
         await page.goto(COUNT_URL);
         await pickTheme(page, 'cat-vegas');
-        expect(await page.evaluate(() => window._activeMilestoneMessageForTest?.(75))).toMatch(/JACKPOT/);
-        expect(await page.evaluate(() => window._activeMilestoneMessageForTest?.(100))).toMatch(/High roller/i);
+        expect(await page.evaluate(() => window._activeMilestoneMessageForTest?.(40))).toMatch(/JACKPOT/);
+        expect(await page.evaluate(() => window._activeMilestoneMessageForTest?.(55))).toMatch(/High roller/i);
+        expect(await page.evaluate(() => window._activeMilestoneMessageForTest?.(70))).toMatch(/King/);
     });
 
     test('Food drops are money and casino items only', async ({ page }) => {
@@ -171,7 +212,7 @@ test.describe('Viva Las Vegas — image assets', () => {
         const fs = await import('node:fs/promises');
         const { fileURLToPath } = await import('node:url');
         const root = fileURLToPath(new URL('..', import.meta.url));
-        for (const stage of [0, 10, 25, 50, 75, 100, 130]) {
+        for (const stage of [0, 10, 20, 30, 40, 55, 70]) {
             const file = root + `cat-stage-vegas-${stage}.png`;
             const stat = await fs.stat(file);
             expect(stat.size, `${file} size`).toBeLessThanOrEqual(3500 * 1024);
